@@ -1060,18 +1060,37 @@ function renderMealsPlanner(student, isReadOnly) {
                       <span class="meal-time" style="font-size: 11px; color: var(--text-muted); font-weight: 600;">${mealTime}</span>
                     </div>
                     <div class="meal-action-container" style="display: flex; align-items: center; gap: 8px;">
-                      <span class="meal-status-badge ${isBooked ? 'booked' : 'cancelled'}">
-                        ${isBooked ? '✓ Booked' : '✗ Cancelled'}
+                      <span class="meal-status-symbol ${isBooked ? 'booked' : 'cancelled'}" title="${isBooked ? 'Booked' : 'Not Booked'}">
+                        ${isBooked ? '✓' : '✗'}
                       </span>
                       ${!isReadOnly ? `
-                        <button class="meal-action-icon-btn ${isBooked ? 'cancel-btn' : 'book-btn'}" 
-                                data-date="${dateStr}" 
-                                data-meal="${mealKey}" 
-                                data-meal-name="${mealName}"
-                                data-action="${isBooked ? 'cancel' : 'book'}"
-                                title="${isBooked ? 'Cancel Meal' : 'Book Meal'}">
-                          ${isBooked ? ICONS.x : ICONS.check}
-                        </button>
+                        ${isBooked ? `
+                          <button class="meal-action-icon-btn cancel-btn" 
+                                  data-date="${dateStr}" 
+                                  data-meal="${mealKey}" 
+                                  data-meal-name="${mealName}"
+                                  data-action="cancel"
+                                  title="Cancel Meal">
+                            ${ICONS.x}
+                          </button>
+                        ` : `
+                          <button class="meal-action-icon-btn book-btn" 
+                                  data-date="${dateStr}" 
+                                  data-meal="${mealKey}" 
+                                  data-meal-name="${mealName}"
+                                  data-action="book"
+                                  title="Book Meal">
+                            ${ICONS.check}
+                          </button>
+                          <button class="meal-action-icon-btn cancel-btn" 
+                                  data-date="${dateStr}" 
+                                  data-meal="${mealKey}" 
+                                  data-meal-name="${mealName}"
+                                  data-action="cancel"
+                                  title="Cancel Meal">
+                            ${ICONS.x}
+                          </button>
+                        `}
                       ` : ''}
                     </div>
                   </div>
