@@ -2017,42 +2017,50 @@ input:disabled + .slider {
   border: 1px solid var(--border-color);
 }
 
-.meal-action-btn {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 14px;
-  border-radius: 6px;
+.meal-action-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
   border: 1.5px solid;
+  padding: 0;
   outline: none;
-  font-family: var(--font-sans);
 }
 
-.meal-action-btn.cancel-btn {
+.meal-action-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.meal-action-icon-btn.cancel-btn {
   background: #fef2f2;
-  color: #b91c1c;
+  color: #ef4444;
   border-color: #fca5a5;
 }
 
-.meal-action-btn.cancel-btn:hover {
+.meal-action-icon-btn.cancel-btn:hover {
   background: #ef4444;
   color: #ffffff;
   border-color: #ef4444;
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
 }
 
-.meal-action-btn.book-btn {
+.meal-action-icon-btn.book-btn {
   background: #f0fdf4;
-  color: #16a34a;
+  color: #10b981;
   border-color: #86efac;
 }
 
-.meal-action-btn.book-btn:hover {
+.meal-action-icon-btn.book-btn:hover {
   background: #10b981;
   color: #ffffff;
   border-color: #10b981;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
 }
+
 
 

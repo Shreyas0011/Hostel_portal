@@ -434,6 +434,32 @@ function renderStudentDashboard() {
           renderComplaintsSection(student)}
       </main>
     </div>
+
+    <!-- Custom Modal for Meal Cancellation Reason -->
+    <div id="meal-cancel-modal" class="modal-overlay">
+      <div class="modal-container" style="max-width: 400px; padding: 25px;">
+        <div class="modal-header">
+          <h3 class="modal-title">Meal Cancellation</h3>
+          <button type="button" id="btn-close-meal-modal" class="modal-close">&times;</button>
+        </div>
+        <form id="meal-cancel-form" style="display: flex; flex-direction: column; gap: 15px;">
+          <input type="hidden" id="meal-cancel-date">
+          <input type="hidden" id="meal-cancel-meal">
+          
+          <div>
+            <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.4; margin: 0 0 10px 0;">
+              Please state the reason for cancelling <strong id="meal-cancel-name-text"></strong> on <strong id="meal-cancel-date-text"></strong>:
+            </p>
+            <textarea id="meal-cancel-reason" class="form-textarea" required placeholder="e.g. Dining outside / unwell / parent visiting..." style="width: 100%; height: 90px; resize: none; margin-top: 5px; box-sizing: border-box;"></textarea>
+          </div>
+          
+          <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" id="btn-cancel-meal-cancel" class="btn-reject" style="padding: 8px 16px; margin: 0;">Cancel</button>
+            <button type="submit" class="btn-approve" style="background: var(--danger); padding: 8px 16px; margin: 0;">Confirm Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
   `;
 }
 
@@ -553,13 +579,15 @@ function attachStudentEvents() {
     });
   }
 
-  // Meal action buttons (Book / Cancel)
-  document.querySelectorAll('.meal-action-btn').forEach(btn => {
+  // Meal action icon buttons (Book / Cancel)
+  document.querySelectorAll('.meal-action-icon-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      const button = e.target.closest('.meal-action-btn');
+      const button = e.target.closest('.meal-action-icon-btn');
       if (!button) return;
+      
       const date = button.dataset.date;
       const meal = button.dataset.meal;
+      const mealName = button.dataset.mealName;
       const action = button.dataset.action; // 'book' | 'cancel'
       
       const student = state.db.find(s => s.id === state.currentStudentId);
@@ -572,25 +600,91 @@ function attachStudentEvents() {
         snacks: false,
         dinner: false
       };
+
+      if (action === 'cancel') {
+        const modal = document.getElementById('meal-cancel-modal');
+        if (modal) {
+          document.getElementById('meal-cancel-date').value = date;
+          document.getElementById('meal-cancel-meal').value = meal;
+          document.getElementById('meal-cancel-name-text').innerText = mealName;
+          document.getElementById('meal-cancel-date-text').innerText = formatDisplayDate(date);
+          document.getElementById('meal-cancel-reason').value = '';
+          modal.classList.add('active');
+        }
+      } else {
+        booking[meal] = true;
+        const res = updateMealBookings(student.id, date, {
+          breakfast: booking.breakfast,
+          lunch: booking.lunch,
+          snacks: booking.snacks,
+          dinner: booking.dinner
+        });
+
+        if (res && res.success) {
+          state.db = res.students;
+          showToast(`${mealName} meal booked!`, 'success');
+          render();
+        } else {
+          showToast(res ? res.error : 'Failed to book meal', 'error');
+        }
+      }
+    });
+  });
+
+  // Modal Close Events for Meal Cancellation
+  const cancelModal = document.getElementById('meal-cancel-modal');
+  const closeMealModalBtn = document.getElementById('btn-close-meal-modal');
+  const cancelMealCancelBtn = document.getElementById('btn-cancel-meal-cancel');
+  
+  const closeCancelModal = () => {
+    if (cancelModal) cancelModal.classList.remove('active');
+  };
+
+  if (closeMealModalBtn) closeMealModalBtn.addEventListener('click', closeCancelModal);
+  if (cancelMealCancelBtn) cancelMealCancelBtn.addEventListener('click', closeCancelModal);
+
+  const mealCancelForm = document.getElementById('meal-cancel-form');
+  if (mealCancelForm) {
+    mealCancelForm.addEventListener('submit', (e) => {
+      e.preventDefault();
       
-      booking[meal] = (action === 'book');
+      const date = document.getElementById('meal-cancel-date').value;
+      const meal = document.getElementById('meal-cancel-meal').value;
+      const reason = document.getElementById('meal-cancel-reason').value;
+      
+      const student = state.db.find(s => s.id === state.currentStudentId);
+      if (!student) return;
+
+      const booking = student.mealBookings.find(b => b.date === date) || {
+        date,
+        breakfast: false,
+        lunch: false,
+        snacks: false,
+        dinner: false
+      };
+
+      booking[meal] = false; // Cancel
 
       const res = updateMealBookings(student.id, date, {
         breakfast: booking.breakfast,
         lunch: booking.lunch,
         snacks: booking.snacks,
         dinner: booking.dinner
+      }, {
+        meal,
+        reason
       });
 
       if (res && res.success) {
         state.db = res.students;
-        showToast(`${meal.charAt(0).toUpperCase() + meal.slice(1)} meal ${action === 'book' ? 'booked' : 'cancelled'}!`, 'success');
-        render(); // Re-render to update the display state of status badges and action buttons
+        closeCancelModal();
+        showToast(`${meal.charAt(0).toUpperCase() + meal.slice(1)} meal cancelled successfully!`, 'success');
+        render();
       } else {
-        showToast(res ? res.error : 'Failed to update booking', 'error');
+        showToast(res ? res.error : 'Failed to cancel meal', 'error');
       }
     });
-  });
+  }
 
   attachLeaveFormEvents('student');
 
@@ -965,16 +1059,18 @@ function renderMealsPlanner(student, isReadOnly) {
                       <span style="font-size: 11px; color: var(--text-secondary); display: block; font-weight: 500; margin: 2px 0; max-width: 180px;">${mealMenu}</span>
                       <span class="meal-time" style="font-size: 11px; color: var(--text-muted); font-weight: 600;">${mealTime}</span>
                     </div>
-                    <div class="meal-action-container" style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+                    <div class="meal-action-container" style="display: flex; align-items: center; gap: 8px;">
                       <span class="meal-status-badge ${isBooked ? 'booked' : 'cancelled'}">
                         ${isBooked ? '✓ Booked' : '✗ Cancelled'}
                       </span>
                       ${!isReadOnly ? `
-                        <button class="meal-action-btn ${isBooked ? 'cancel-btn' : 'book-btn'}" 
+                        <button class="meal-action-icon-btn ${isBooked ? 'cancel-btn' : 'book-btn'}" 
                                 data-date="${dateStr}" 
                                 data-meal="${mealKey}" 
-                                data-action="${isBooked ? 'cancel' : 'book'}">
-                          ${isBooked ? 'Cancel Meal' : 'Book Meal'}
+                                data-meal-name="${mealName}"
+                                data-action="${isBooked ? 'cancel' : 'book'}"
+                                title="${isBooked ? 'Cancel Meal' : 'Book Meal'}">
+                          ${isBooked ? ICONS.x : ICONS.check}
                         </button>
                       ` : ''}
                     </div>

@@ -377,7 +377,7 @@ export function rejectLeave(studentId, leaveId) {
 }
 
 // Update meals for a student
-export function updateMealBookings(studentId, dateStr, meals) {
+export function updateMealBookings(studentId, dateStr, meals, cancellationDetails = null) {
   const students = initDB();
   const student = students.find(s => s.id === studentId);
   if (!student) return null;
@@ -399,6 +399,24 @@ export function updateMealBookings(studentId, dateStr, meals) {
       date: dateStr,
       ...meals
     });
+  }
+
+  if (cancellationDetails) {
+    if (!student.mealCancellations) {
+      student.mealCancellations = [];
+    }
+    student.mealCancellations.push({
+      id: `CAN-${Date.now()}`,
+      date: dateStr,
+      meal: cancellationDetails.meal,
+      reason: cancellationDetails.reason,
+      timestamp: new Date().toISOString()
+    });
+
+    // Increment avoided meals stats
+    let avoidedMeals = parseInt(localStorage.getItem('hostel_avoided_meals') || '0', 10);
+    avoidedMeals += 1;
+    localStorage.setItem('hostel_avoided_meals', avoidedMeals.toString());
   }
 
   saveDB(students);
