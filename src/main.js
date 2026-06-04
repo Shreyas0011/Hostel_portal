@@ -553,13 +553,14 @@ function attachStudentEvents() {
     });
   }
 
-  // Meal toggles
-  document.querySelectorAll('.meal-checkbox').forEach(cb => {
-    cb.addEventListener('change', (e) => {
-      const checkbox = e.target;
-      const date = checkbox.dataset.date;
-      const meal = checkbox.dataset.meal;
-      const isChecked = checkbox.checked;
+  // Meal action buttons (Book / Cancel)
+  document.querySelectorAll('.meal-action-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const button = e.target.closest('.meal-action-btn');
+      if (!button) return;
+      const date = button.dataset.date;
+      const meal = button.dataset.meal;
+      const action = button.dataset.action; // 'book' | 'cancel'
       
       const student = state.db.find(s => s.id === state.currentStudentId);
       if (!student) return;
@@ -572,7 +573,7 @@ function attachStudentEvents() {
         dinner: false
       };
       
-      booking[meal] = isChecked;
+      booking[meal] = (action === 'book');
 
       const res = updateMealBookings(student.id, date, {
         breakfast: booking.breakfast,
@@ -583,9 +584,9 @@ function attachStudentEvents() {
 
       if (res && res.success) {
         state.db = res.students;
-        showToast(`${meal.charAt(0).toUpperCase() + meal.slice(1)} booking updated!`, 'success');
+        showToast(`${meal.charAt(0).toUpperCase() + meal.slice(1)} meal ${action === 'book' ? 'booked' : 'cancelled'}!`, 'success');
+        render(); // Re-render to update the display state of status badges and action buttons
       } else {
-        checkbox.checked = !isChecked; // revert
         showToast(res ? res.error : 'Failed to update booking', 'error');
       }
     });
@@ -954,53 +955,39 @@ function renderMealsPlanner(student, isReadOnly) {
           </div>
         ` : `
           <div class="meal-options-list">
-            <div class="meal-option-row">
-              <div class="meal-label-info">
-                <span class="meal-name">Breakfast</span>
-                <span style="font-size:11px; color:var(--text-secondary); display:block; font-weight:500; margin-bottom:2px; max-width:180px;">${menu.breakfast}</span>
-                <span class="meal-time">07:30 AM - 09:00 AM</span>
-              </div>
-              <label class="switch">
-                <input type="checkbox" class="meal-checkbox" data-date="${dateStr}" data-meal="breakfast" ${booking.breakfast ? 'checked' : ''} ${isReadOnly ? 'disabled' : ''}>
-                <span class="slider"></span>
-              </label>
-            </div>
-            
-            <div class="meal-option-row">
-              <div class="meal-label-info">
-                <span class="meal-name">Lunch</span>
-                <span style="font-size:11px; color:var(--text-secondary); display:block; font-weight:500; margin-bottom:2px; max-width:180px;">${menu.lunch}</span>
-                <span class="meal-time">12:30 PM - 02:00 PM</span>
-              </div>
-              <label class="switch">
-                <input type="checkbox" class="meal-checkbox" data-date="${dateStr}" data-meal="lunch" ${booking.lunch ? 'checked' : ''} ${isReadOnly ? 'disabled' : ''}>
-                <span class="slider"></span>
-              </label>
-            </div>
-            
-            <div class="meal-option-row">
-              <div class="meal-label-info">
-                <span class="meal-name">Snacks</span>
-                <span style="font-size:11px; color:var(--text-secondary); display:block; font-weight:500; margin-bottom:2px; max-width:180px;">${menu.snacks}</span>
-                <span class="meal-time">04:30 PM - 05:30 PM</span>
-              </div>
-              <label class="switch">
-                <input type="checkbox" class="meal-checkbox" data-date="${dateStr}" data-meal="snacks" ${booking.snacks ? 'checked' : ''} ${isReadOnly ? 'disabled' : ''}>
-                <span class="slider"></span>
-              </label>
-            </div>
-            
-            <div class="meal-option-row">
-              <div class="meal-label-info">
-                <span class="meal-name">Dinner</span>
-                <span style="font-size:11px; color:var(--text-secondary); display:block; font-weight:500; margin-bottom:2px; max-width:180px;">${menu.dinner}</span>
-                <span class="meal-time">07:30 PM - 09:00 PM</span>
-              </div>
-              <label class="switch">
-                <input type="checkbox" class="meal-checkbox" data-date="${dateStr}" data-meal="dinner" ${booking.dinner ? 'checked' : ''} ${isReadOnly ? 'disabled' : ''}>
-                <span class="slider"></span>
-              </label>
-            </div>
+            ${(() => {
+              const makeMealRow = (mealName, mealKey, mealMenu, mealTime) => {
+                const isBooked = booking[mealKey];
+                return `
+                  <div class="meal-option-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color);">
+                    <div class="meal-label-info">
+                      <span class="meal-name" style="font-weight: 700; color: var(--text-primary); display: block; font-size: 14px;">${mealName}</span>
+                      <span style="font-size: 11px; color: var(--text-secondary); display: block; font-weight: 500; margin: 2px 0; max-width: 180px;">${mealMenu}</span>
+                      <span class="meal-time" style="font-size: 11px; color: var(--text-muted); font-weight: 600;">${mealTime}</span>
+                    </div>
+                    <div class="meal-action-container" style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+                      <span class="meal-status-badge ${isBooked ? 'booked' : 'cancelled'}">
+                        ${isBooked ? '✓ Booked' : '✗ Cancelled'}
+                      </span>
+                      ${!isReadOnly ? `
+                        <button class="meal-action-btn ${isBooked ? 'cancel-btn' : 'book-btn'}" 
+                                data-date="${dateStr}" 
+                                data-meal="${mealKey}" 
+                                data-action="${isBooked ? 'cancel' : 'book'}">
+                          ${isBooked ? 'Cancel Meal' : 'Book Meal'}
+                        </button>
+                      ` : ''}
+                    </div>
+                  </div>
+                `;
+              };
+              return [
+                makeMealRow('Breakfast', 'breakfast', menu.breakfast, '07:30 AM - 09:00 AM'),
+                makeMealRow('Lunch', 'lunch', menu.lunch, '12:30 PM - 02:00 PM'),
+                makeMealRow('Snacks', 'snacks', menu.snacks, '04:30 PM - 05:30 PM'),
+                makeMealRow('Dinner', 'dinner', menu.dinner, '07:30 PM - 09:00 PM')
+              ].join('');
+            })()}
           </div>
         `}
       </div>
