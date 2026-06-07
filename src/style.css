@@ -167,7 +167,7 @@ body {
 /* Custom Role Selector Styling */
 .login-role-selector-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   margin-bottom: 25px;
   width: 100%;
@@ -2086,6 +2086,214 @@ input:disabled + .slider {
   border: 1px solid var(--border-color);
 }
 
+/* ── Custom Login Styles ─────────────────────────────────── */
+.login-error-msg {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  margin-top: 10px;
+  margin-bottom: 10px;
+  text-align: left;
+}
 
+@keyframes loginShake {
+  0%, 100% { transform: translateX(0); }
+  15%       { transform: translateX(-8px); }
+  30%       { transform: translateX(8px); }
+  45%       { transform: translateX(-6px); }
+  60%       { transform: translateX(6px); }
+  75%       { transform: translateX(-3px); }
+  90%       { transform: translateX(3px); }
+}
 
+/* Back button in PIN view */
+.btn-back-login {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+}
 
+.btn-back-login:hover {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+/* Warden PIN View */
+.warden-pin-card {
+  max-width: 420px !important;
+  padding-top: 60px !important;
+}
+
+.warden-pin-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 15px;
+}
+
+.warden-pin-avatar {
+  width: 60px;
+  height: 60px;
+  background: rgba(37, 99, 235, 0.08);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+
+.warden-pin-avatar svg {
+  width: 30px;
+  height: 30px;
+}
+
+.warden-pin-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.warden-pin-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+/* Dots indicator for PIN */
+.pin-dots-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.pin-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  background: transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pin-dot.filled {
+  background: var(--primary);
+  border-color: var(--primary);
+  transform: scale(1.15);
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
+}
+
+/* PIN Keypad Grid */
+.pin-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  width: 100%;
+  max-width: 260px;
+  margin: 0 auto;
+}
+
+.pin-key {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.pin-key:hover {
+  background: var(--bg-sidebar);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.pin-key:active {
+  transform: scale(0.92);
+  background: var(--primary-glow);
+}
+
+.pin-key-empty {
+  border: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+/* Collapsible Info Drawer */
+.login-details-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-top: 25px;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.login-details-toggle:hover {
+  color: var(--primary);
+  background: var(--bg-input);
+}
+
+.login-demo-drawer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+  text-align: left;
+}
+
+.login-demo-drawer.open {
+  max-height: 280px;
+  margin-top: 10px;
+  border-top: 1px dashed var(--border-color);
+  padding-top: 14px;
+}
+
+.login-demo-drawer p {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.login-demo-drawer code {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--primary);
+  font-family: monospace;
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-weight: 600;
+}

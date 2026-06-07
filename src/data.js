@@ -66,7 +66,8 @@ function generateRandomStudent(index) {
     leaves: [],
     mealBookings: [],
     complaints: [],
-    entryExitLogs: []
+    entryExitLogs: [],
+    healthRecords: []
   };
 }
 

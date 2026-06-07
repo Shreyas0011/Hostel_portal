@@ -43,6 +43,8 @@ const state = {
   db: [],
   currentView: 'login', // 'login' | 'student' | 'parent' | 'warden' | 'admin' | 'superadmin'
   currentStudentId: null,
+  viewAttendanceStudentId: null,
+  viewHealthStudentId: null,
   loginTab: 'student', // 'student' | 'parent' | 'warden' | 'admin' | 'superadmin'
   studentActiveTab: 'meals', // 'meals' | 'leave'
   parentActiveTab: 'leave', // 'leave' | 'meals'
@@ -134,75 +136,17 @@ function renderLoginView() {
         </div>
         <p class="login-subtitle">Facility & Dining Management System</p>
         
-        <!-- Premium Multi-Role Card Selector Grid -->
-        <div class="login-role-selector-grid">
-          <div class="role-card ${state.loginTab === 'student' ? 'active' : ''}" data-tab="student">
-            <div class="role-icon student-color">${ICONS.user}</div>
-            <div class="role-title">Student</div>
+        <div id="login-form-area" style="margin-top: 20px;">
+          <div class="login-form-group">
+            <label class="login-label">Email Address / Warden PIN</label>
+            <input type="text" id="login-identifier" class="login-input" placeholder="e.g., student@hostel.edu or 1234" value="aarav.sharma@hostel.edu">
           </div>
-          <div class="role-card ${state.loginTab === 'parent' ? 'active' : ''}" data-tab="parent">
-            <div class="role-icon parent-color">${ICONS.users}</div>
-            <div class="role-title">Parent</div>
+          <div class="login-form-group" style="margin-top: 15px;">
+            <label class="login-label">Password</label>
+            <input type="password" id="login-password" class="login-input" placeholder="••••••••" value="password">
+
           </div>
-          <div class="role-card ${state.loginTab === 'warden' ? 'active' : ''}" data-tab="warden">
-            <div class="role-icon warden-color">${ICONS.shield}</div>
-            <div class="role-title">Warden</div>
-          </div>
-          <div class="role-card ${state.loginTab === 'admin' ? 'active' : ''}" data-tab="admin">
-            <div class="role-icon admin-color">${ICONS.settings}</div>
-            <div class="role-title">Admin</div>
-          </div>
-          <div class="role-card ${state.loginTab === 'superadmin' ? 'active' : ''}" data-tab="superadmin">
-            <div class="role-icon superadmin-color">${ICONS.key}</div>
-            <div class="role-title">Super</div>
-          </div>
-        </div>
-        
-        <div id="login-form-area" style="margin-top: 10px;">
-          ${state.loginTab === 'student' ? `
-            <div class="login-form-group">
-              <label class="login-label">Select Student Profile</label>
-              <div class="login-select-wrapper">
-                <select id="student-login-select" class="login-select">
-                  <option value="">-- Choose a Student --</option>
-                  ${state.db.map(s => `<option value="${s.id}">${s.id} - ${s.name} (${s.room})</option>`).join('')}
-                </select>
-              </div>
-            </div>
-            <button id="btn-student-login" class="btn-login">Enter Student Portal</button>
-          ` : state.loginTab === 'parent' ? `
-            <div class="login-form-group">
-              <label class="login-label">Select Student Child Profile</label>
-              <div class="login-select-wrapper">
-                <select id="parent-login-select" class="login-select">
-                  <option value="">-- Select Child Name --</option>
-                  ${state.db.map(s => `<option value="${s.id}">Parent of: ${s.name} (${s.room} • ${s.id})</option>`).join('')}
-                </select>
-              </div>
-            </div>
-            <button id="btn-parent-login" class="btn-login">Enter Parent Portal</button>
-          ` : state.loginTab === 'warden' ? `
-            <div class="login-form-group">
-              <label class="login-label">Warden Access PIN</label>
-              <input type="password" id="warden-password" class="login-input" placeholder="••••" value="1234" readonly>
-              <span style="font-size:11px; color:var(--text-muted); margin-top:5px; display:block;">Quick login enabled for presentation (PIN: 1234)</span>
-            </div>
-            <button id="btn-warden-login" class="btn-login">Login as Warden</button>
-          ` : state.loginTab === 'admin' ? `
-            <div class="login-form-group">
-              <label class="login-label">Campus Admin Access PIN</label>
-              <input type="password" id="admin-password" class="login-input" placeholder="••••" value="5678" readonly>
-              <span style="font-size:11px; color:var(--text-muted); margin-top:5px; display:block;">Quick login enabled for presentation (PIN: 5678)</span>
-            </div>
-            <button id="btn-admin-login" class="btn-login" style="background:var(--primary);">Login as Admin</button>
-          ` : `
-            <div class="login-form-group">
-              <label class="login-label">Super Admin Master PIN</label>
-              <input type="password" id="superadmin-password" class="login-input" placeholder="••••" value="9999" readonly>
-              <span style="font-size:11px; color:var(--text-muted); margin-top:5px; display:block;">Quick login enabled for presentation (PIN: 9999)</span>
-            </div>
-            <button id="btn-superadmin-login" class="btn-login" style="background:#db2777;">Login as Super Admin</button>
-          `}
+          <button id="btn-unified-login" class="btn-login" style="margin-top: 20px; background:var(--primary);">Sign In</button>
         </div>
         
         <div class="login-quick-demo">
@@ -225,86 +169,108 @@ function renderLoginView() {
             </button>
           </div>
         </div>
+        
+        <div class="login-footer" style="margin-top: 25px; text-align: center; font-size: 11px; color: var(--text-muted); line-height: 1.6; border-top: 1px solid rgba(226, 232, 240, 0.1); padding-top: 15px;">
+          <p style="margin: 0; font-weight: 500;">Owned by Transcend group of institutions</p>
+          <p style="margin: 2px 0 0 0; opacity: 0.8;">Developed by Start Smart by SE</p>
+        </div>
       </div>
     </div>
   `;
 }
 
 function attachLoginEvents() {
-  // Card-tab toggling
-  document.querySelectorAll('.role-card').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      state.loginTab = e.target.closest('.role-card').dataset.tab;
-      render();
-    });
-  });
+  // Unified login event
+  const unifiedLoginBtn = document.getElementById('btn-unified-login');
+  if (unifiedLoginBtn) {
+    unifiedLoginBtn.addEventListener('click', () => {
+      const email = document.getElementById('login-identifier').value.trim();
+      const password = document.getElementById('login-password').value.trim();
 
-  // Student login
-  const studentLoginBtn = document.getElementById('btn-student-login');
-  if (studentLoginBtn) {
-    studentLoginBtn.addEventListener('click', () => {
-      const select = document.getElementById('student-login-select');
-      const val = select.value;
-      if (!val) {
-        showToast('Please select a student to login.', 'warning');
+      if (!email) {
+        showToast('Please enter your email or PIN.', 'warning');
         return;
       }
-      state.currentStudentId = val;
-      state.currentView = 'student';
-      state.studentActiveTab = 'meals';
-      showToast(`Welcome to the Student Portal!`, 'success');
-      render();
-    });
-  }
 
-  // Parent login
-  const parentLoginBtn = document.getElementById('btn-parent-login');
-  if (parentLoginBtn) {
-    parentLoginBtn.addEventListener('click', () => {
-      const select = document.getElementById('parent-login-select');
-      const val = select.value;
-      if (!val) {
-        showToast('Please select your child\'s profile to login.', 'warning');
+      // Check Warden PIN login first
+      if (email === '1234') {
+        state.currentView = 'warden';
+        state.wardenActiveTab = 'overview';
+        showToast('Logged in as Hostel Warden', 'success');
+        render();
         return;
       }
-      state.currentStudentId = val;
-      state.currentView = 'parent';
-      state.parentActiveTab = 'leave';
-      showToast(`Welcome to the Parent Portal!`, 'success');
-      render();
-    });
-  }
 
-  // Warden login
-  const wardenLoginBtn = document.getElementById('btn-warden-login');
-  if (wardenLoginBtn) {
-    wardenLoginBtn.addEventListener('click', () => {
-      state.currentView = 'warden';
-      state.wardenActiveTab = 'overview';
-      showToast(`Logged in as Hostel Warden`, 'success');
-      render();
-    });
-  }
+      if (!password) {
+        showToast('Please enter your password.', 'warning');
+        return;
+      }
 
-  // Admin login
-  const adminLoginBtn = document.getElementById('btn-admin-login');
-  if (adminLoginBtn) {
-    adminLoginBtn.addEventListener('click', () => {
-      state.currentView = 'admin';
-      state.adminActiveTab = 'menu';
-      showToast(`Logged in as Campus Admin`, 'success');
-      render();
-    });
-  }
+      const normalizedEmail = email.toLowerCase();
 
-  // Super Admin login
-  const superadminLoginBtn = document.getElementById('btn-superadmin-login');
-  if (superadminLoginBtn) {
-    superadminLoginBtn.addEventListener('click', () => {
-      state.currentView = 'superadmin';
-      state.superActiveTab = 'dashboard';
-      showToast(`Logged in as Super Admin`, 'success');
-      render();
+      // Check Campus Admin
+      if (normalizedEmail === 'admin@hostel.edu') {
+        if (password === 'admin123') {
+          state.currentView = 'admin';
+          state.adminActiveTab = 'menu';
+          showToast('Logged in as Campus Admin', 'success');
+          render();
+        } else {
+          showToast('Incorrect password.', 'error');
+        }
+        return;
+      }
+
+      // Check Super Admin
+      if (normalizedEmail === 'superadmin@hostel.edu') {
+        if (password === 'super123') {
+          state.currentView = 'superadmin';
+          state.superActiveTab = 'dashboard';
+          showToast('Logged in as Super Admin', 'success');
+          render();
+        } else {
+          showToast('Incorrect password.', 'error');
+        }
+        return;
+      }
+
+      // Check Parent
+      if (normalizedEmail.startsWith('parent.')) {
+        const studentEmailPart = normalizedEmail.replace('parent.', '');
+        const student = state.db.find(s => s.email.toLowerCase() === studentEmailPart);
+        if (student) {
+          if (password === 'password') {
+            state.currentStudentId = student.id;
+            state.currentView = 'parent';
+            state.parentActiveTab = 'leave';
+            showToast('Welcome to the Parent Portal!', 'success');
+            render();
+          } else {
+            showToast('Incorrect password.', 'error');
+          }
+        } else {
+          showToast('Invalid parent email address.', 'error');
+        }
+        return;
+      }
+
+      // Otherwise, check Student
+      const student = state.db.find(s => s.email.toLowerCase() === normalizedEmail);
+      if (student) {
+        if (password === 'password') {
+          state.currentStudentId = student.id;
+          state.currentView = 'student';
+          state.studentActiveTab = 'meals';
+          showToast('Welcome to the Student Portal!', 'success');
+          render();
+        } else {
+          showToast('Incorrect password.', 'error');
+        }
+        return;
+      }
+
+      // If nothing matched
+      showToast('Invalid credentials.', 'error');
     });
   }
 
@@ -315,7 +281,7 @@ function attachLoginEvents() {
       state.currentStudentId = 'STU001';
       state.currentView = 'student';
       state.studentActiveTab = 'meals';
-      showToast(`Logged in as Aarav Sharma (Room B-101)`, 'success');
+      showToast('Logged in as Aarav Sharma (Room B-101)', 'success');
       render();
     });
   }
@@ -326,7 +292,7 @@ function attachLoginEvents() {
       state.currentStudentId = 'STU001';
       state.currentView = 'parent';
       state.parentActiveTab = 'leave';
-      showToast(`Logged in as Parent of Aarav Sharma`, 'success');
+      showToast('Logged in as Parent of Aarav Sharma', 'success');
       render();
     });
   }
@@ -336,7 +302,7 @@ function attachLoginEvents() {
     demoWarden.addEventListener('click', () => {
       state.currentView = 'warden';
       state.wardenActiveTab = 'overview';
-      showToast(`Logged in as Hostel Warden`, 'success');
+      showToast('Logged in as Hostel Warden', 'success');
       render();
     });
   }
@@ -346,7 +312,7 @@ function attachLoginEvents() {
     demoAdmin.addEventListener('click', () => {
       state.currentView = 'admin';
       state.adminActiveTab = 'menu';
-      showToast(`Logged in as Campus Admin`, 'success');
+      showToast('Logged in as Campus Admin', 'success');
       render();
     });
   }
@@ -356,7 +322,7 @@ function attachLoginEvents() {
     demoSuper.addEventListener('click', () => {
       state.currentView = 'superadmin';
       state.superActiveTab = 'dashboard';
-      showToast(`Logged in as Super Admin`, 'success');
+      showToast('Logged in as Super Admin', 'success');
       render();
     });
   }
@@ -402,7 +368,10 @@ function renderStudentDashboard() {
             ${ICONS.calendar} Apply Leave
           </button>
           <button class="nav-item ${state.studentActiveTab === 'complaints' ? 'active' : ''}" data-tab="complaints">
-            ${ICONS.complaint} Report Complaint
+            ${ICONS.complaint} Talk to Us
+          </button>
+          <button class="nav-item ${state.studentActiveTab === 'health' ? 'active' : ''}" data-tab="health">
+            ${ICONS.shield} My Health Status
           </button>
         </nav>
         
@@ -417,7 +386,7 @@ function renderStudentDashboard() {
       <main class="main-content">
         <header class="header-container">
           <div class="header-title-section">
-            <h1>${state.studentActiveTab === 'meals' ? 'Dining & Meal Booking' : state.studentActiveTab === 'leave' ? 'Leave Requests' : 'Report Complaint'}</h1>
+            <h1>${state.studentActiveTab === 'meals' ? 'Dining & Meal Booking' : state.studentActiveTab === 'leave' ? 'Leave Requests' : state.studentActiveTab === 'health' ? 'My Health Status' : 'Talk to Us'}</h1>
             <p>Hostel Student Facility Portal • Block ${student.block}</p>
           </div>
           
@@ -431,6 +400,7 @@ function renderStudentDashboard() {
 
         ${state.studentActiveTab === 'meals' ? renderMealsPlanner(student, false) : 
           state.studentActiveTab === 'leave' ? renderLeaveSection(student, 'student') : 
+          state.studentActiveTab === 'health' ? renderHealthStatusSection(student, 'student') :
           renderComplaintsSection(student)}
       </main>
     </div>
@@ -688,6 +658,7 @@ function attachStudentEvents() {
 
   attachLeaveFormEvents('student');
 
+  if (state.studentActiveTab === 'health') attachHealthViewEvents();
   if (state.studentActiveTab === 'complaints') {
     const complaintForm = document.getElementById('student-complaint-form');
     if (complaintForm) {
@@ -827,6 +798,9 @@ function renderParentDashboard() {
           <button class="nav-item ${state.parentActiveTab === 'attendance' ? 'active' : ''}" data-tab="attendance">
             ${ICONS.users} Attendance & History
           </button>
+          <button class="nav-item ${state.parentActiveTab === 'health' ? 'active' : ''}" data-tab="health">
+            ${ICONS.shield} Child's Health Records
+          </button>
         </nav>
         
         <div class="sidebar-footer">
@@ -840,7 +814,7 @@ function renderParentDashboard() {
       <main class="main-content">
         <header class="header-container">
           <div class="header-title-section">
-            <h1>${state.parentActiveTab === 'leave' ? 'Student Leave Application' : state.parentActiveTab === 'meals' ? "Child's Dining Planner" : "Attendance & History"}</h1>
+            <h1>${state.parentActiveTab === 'leave' ? 'Student Leave Application' : state.parentActiveTab === 'meals' ? "Child's Dining Planner" : state.parentActiveTab === 'health' ? "Child's Health Records" : "Attendance & History"}</h1>
             <p>Parent Control Portal • Student: ${student.name} (${student.id})</p>
           </div>
           
@@ -854,6 +828,7 @@ function renderParentDashboard() {
 
         ${state.parentActiveTab === 'leave' ? renderLeaveSection(student, 'parent') : 
           state.parentActiveTab === 'meals' ? renderMealsPlanner(student, true) :
+          state.parentActiveTab === 'health' ? renderHealthStatusSection(student, 'parent') :
           renderParentAttendanceSection(student)}
       </main>
     </div>
@@ -989,6 +964,7 @@ function attachParentEvents() {
   }
 
   attachLeaveFormEvents('parent');
+  if (state.parentActiveTab === 'health') attachHealthViewEvents();
 }
 
 // SHARED TEMPLATE: Meals planner (Disabled/Read-only for Parents)
@@ -1284,6 +1260,180 @@ function attachLeaveFormEvents(role) {
   });
 }
 
+function renderHealthStatusSection(student, role) {
+  const isStudent = role === 'student';
+  const records = student.healthRecords || [];
+  const sortedRecords = [...records].reverse();
+
+  return `
+    <div class="dashboard-grid">
+      ${isStudent ? `
+      <div class="dashboard-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">${ICONS.shield} Report Health Status</h2>
+        </div>
+        <form id="health-status-form" style="display:flex; flex-direction:column; gap:15px; margin-top:15px;">
+          <div>
+            <label class="form-label">Current Symptoms</label>
+            <input type="text" id="health-symptoms" class="form-input" placeholder="e.g., Fever, Cough, Headache" required>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+            <div>
+              <label class="form-label">Body Temperature</label>
+              <input type="text" id="health-temp" class="form-input" placeholder="e.g., 98.6°F">
+            </div>
+            <div>
+              <label class="form-label">Current Status</label>
+              <select id="health-status" class="form-input">
+                <option value="Resting in Room">Resting in Room</option>
+                <option value="Needs Medical Attention">Needs Medical Attention</option>
+                <option value="Visiting Hospital">Visiting Hospital</option>
+                <option value="Recovered">Recovered / Normal</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Additional Notes</label>
+            <textarea id="health-note" class="form-input" rows="2" placeholder="Any medication taken or extra details?"></textarea>
+          </div>
+          <button type="submit" class="btn-primary" style="margin-top:10px;">Submit Health Report</button>
+        </form>
+      </div>
+      ` : ''}
+
+      <div class="dashboard-panel ${!isStudent ? 'dashboard-full' : ''}">
+        <div class="panel-header">
+          <h2 class="panel-title">${ICONS.settings} Health & Medical History</h2>
+          <span style="font-size:12px; color:var(--text-secondary);">${records.length} records</span>
+        </div>
+        <div style="margin-top:15px; display:flex; flex-direction:column; gap:12px; max-height:500px; overflow-y:auto;">
+          ${sortedRecords.length === 0 ? `
+            <div class="empty-state">
+              ${ICONS.shield}
+              <p>No health issues reported. Student is healthy!</p>
+            </div>
+          ` : sortedRecords.map(r => `
+            <div style="background:#f9fafb; border:1px solid var(--border-color); border-radius:8px; padding:15px; position:relative;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                <div>
+                  <strong style="color:var(--text-primary); font-size:14px;">${r.symptoms}</strong>
+                  <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${r.date} at ${r.time}</div>
+                </div>
+                <span class="badge ${r.status === 'Recovered' ? 'approved' : r.status === 'Needs Medical Attention' ? 'rejected' : 'pending'}">${r.status}</span>
+              </div>
+              <div style="display:flex; gap:15px; font-size:13px; color:var(--text-secondary); margin-bottom:8px;">
+                <span><strong>Temp:</strong> ${r.temperature || 'Not recorded'}</span>
+              </div>
+              ${r.note ? `<div style="background:#f3f4f6; padding:10px; border-radius:6px; font-size:13px; color:var(--text-primary); border-left:3px solid var(--primary);">${r.note}</div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderWardenHealthView() {
+  const defaultStudent = state.db[0];
+  const selectedStudentId = state.viewHealthStudentId || (defaultStudent ? defaultStudent.id : null);
+  const student = state.db.find(s => s.id === selectedStudentId) || defaultStudent;
+  if (!student) return '<div class="dashboard-panel"><p>No students found.</p></div>';
+  
+  const options = state.db.map(s => `<option value="${s.id}" ${s.id === student.id ? 'selected' : ''}>${s.id} - ${s.name}</option>`).join('');
+
+  return `
+    <div class="dashboard-panel dashboard-full" style="margin-bottom: 20px;">
+      <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 class="panel-title">${ICONS.shield} Health & Medical Logs</h2>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <label style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Select Student:</label>
+          <select id="health-student-select" class="filter-select" style="min-width: 250px;">
+            ${options}
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    ${renderHealthStatusSection(student, 'admin')}
+  `;
+}
+
+function attachHealthViewEvents() {
+  const selectEl = document.getElementById('health-student-select');
+  if (selectEl) {
+    selectEl.addEventListener('change', (e) => {
+      state.viewHealthStudentId = e.target.value;
+      render();
+    });
+  }
+
+  const healthForm = document.getElementById('health-status-form');
+  if (healthForm && state.currentStudentId) {
+    healthForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const student = state.db.find(s => s.id === state.currentStudentId);
+      if (!student) return;
+
+      if (!student.healthRecords) student.healthRecords = [];
+
+      const symptoms = document.getElementById('health-symptoms').value;
+      const temperature = document.getElementById('health-temp').value;
+      const status = document.getElementById('health-status').value;
+      const note = document.getElementById('health-note').value;
+
+      const d = new Date();
+      student.healthRecords.push({
+        id: 'HR-' + Date.now(),
+        date: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+        time: d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+        symptoms,
+        temperature,
+        status,
+        note
+      });
+
+      saveDB(state.db);
+      showToast('Health status updated successfully!', 'success');
+      render();
+    });
+  }
+}
+
+function renderWardenAttendanceView() {
+  const defaultStudent = state.db[0];
+  const selectedStudentId = state.viewAttendanceStudentId || (defaultStudent ? defaultStudent.id : null);
+  const student = state.db.find(s => s.id === selectedStudentId) || defaultStudent;
+  if (!student) return '<div class="dashboard-panel"><p>No students found.</p></div>';
+
+  const options = state.db.map(s => `<option value="${s.id}" ${s.id === student.id ? 'selected' : ''}>${s.id} - ${s.name}</option>`).join('');
+
+  return `
+    <div class="dashboard-panel dashboard-full" style="margin-bottom: 20px;">
+      <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 class="panel-title">${ICONS.users} Gate & Movement Attendance</h2>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <label style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Select Student:</label>
+          <select id="attendance-student-select" class="filter-select" style="min-width: 250px;">
+            ${options}
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    ${renderParentAttendanceSection(student)}
+  `;
+}
+
+function attachAttendanceViewEvents() {
+  const selectEl = document.getElementById('attendance-student-select');
+  if (selectEl) {
+    selectEl.addEventListener('change', (e) => {
+      state.viewAttendanceStudentId = e.target.value;
+      render();
+    });
+  }
+}
+
 // View template: WARDEN DASHBOARD
 function renderWardenDashboard() {
   const stats = getWardenDashboardStats(state.db);
@@ -1324,6 +1474,12 @@ function renderWardenDashboard() {
           </button>
           <button class="nav-item ${state.wardenActiveTab === 'beds' ? 'active' : ''}" data-tab="beds">
             ${ICONS.key} Bed Assignments
+          </button>
+          <button class="nav-item ${state.wardenActiveTab === 'attendance' ? 'active' : ''}" data-tab="attendance">
+            ${ICONS.users} Gate &amp; Attendance
+          </button>
+          <button class="nav-item ${state.wardenActiveTab === 'health' ? 'active' : ''}" data-tab="health">
+            ${ICONS.shield} Health Logs
           </button>
         </nav>
         
@@ -1382,6 +1538,8 @@ function renderWardenDashboard() {
         ${state.wardenActiveTab === 'overview' ? renderWardenOverview(stats) : 
           state.wardenActiveTab === 'leaves' ? renderWardenLeaves() : 
           state.wardenActiveTab === 'beds' ? renderBedAssignments() :
+          state.wardenActiveTab === 'attendance' ? renderWardenAttendanceView() :
+          state.wardenActiveTab === 'health' ? renderWardenHealthView() :
           renderWardenDirectory()}
       </main>
 
@@ -1666,7 +1824,9 @@ function renderWardenDirectory() {
                   </td>
                   <td style="font-size:12px; color:var(--text-secondary);">${s.email}<br>${s.phone}</td>
                   <td style="text-align:right;">
-                    <button class="table-btn btn-view-student" data-stu-id="${s.id}">View Log</button>
+                    <button class="table-btn btn-view-health" data-stu-id="${s.id}" style="background:#fee2e2; color:#991b1b; border-color:#fecaca; margin-right:4px;">Med</button>
+                    <button class="table-btn btn-view-attendance" data-stu-id="${s.id}" style="background:#e0e7ff; color:#4338ca; border-color:#c7d2fe; margin-right:4px;">Gate</button>
+                    <button class="table-btn btn-view-student" data-stu-id="${s.id}">Log</button>
                   </td>
                 </tr>
               `;
@@ -1920,7 +2080,29 @@ function attachWardenEvents() {
     });
   }
 
-  document.querySelectorAll('.btn-view-student').forEach(btn => {
+  document.querySelectorAll('.btn-view-health').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const studentId = e.target.dataset.stuId;
+        state.viewHealthStudentId = studentId;
+        if (state.currentView === 'warden') state.wardenActiveTab = 'health';
+        if (state.currentView === 'admin') state.adminActiveTab = 'health';
+        if (state.currentView === 'superadmin') state.superActiveTab = 'health';
+        render();
+      });
+    });
+
+    document.querySelectorAll('.btn-view-attendance').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const studentId = e.target.dataset.stuId;
+        state.viewAttendanceStudentId = studentId;
+        if (state.currentView === 'warden') state.wardenActiveTab = 'attendance';
+        if (state.currentView === 'admin') state.adminActiveTab = 'attendance';
+        if (state.currentView === 'superadmin') state.superActiveTab = 'attendance';
+        render();
+      });
+    });
+
+    document.querySelectorAll('.btn-view-student').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const studentId = e.target.dataset.stuId;
       const student = state.db.find(s => s.id === studentId);
@@ -2010,6 +2192,8 @@ function attachWardenEvents() {
     });
   });
 
+  if (state.wardenActiveTab === 'health') attachHealthViewEvents();
+  if (state.wardenActiveTab === 'attendance') attachAttendanceViewEvents();
   const detailModalClose = document.getElementById('btn-close-detail-modal');
   if (detailModalClose) {
     detailModalClose.addEventListener('click', () => {
@@ -2017,6 +2201,33 @@ function attachWardenEvents() {
       if (detailModal) detailModal.classList.remove('active');
     });
   }
+
+  if (state.wardenActiveTab === 'health') attachHealthViewEvents();
+  if (state.wardenActiveTab === 'attendance') attachAttendanceViewEvents();
+
+  // btn-view-health from directory
+  document.querySelectorAll('.btn-view-health').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const studentId = e.target.closest('.btn-view-health').dataset.stuId;
+      state.viewHealthStudentId = studentId;
+      if (state.currentView === 'warden') state.wardenActiveTab = 'health';
+      if (state.currentView === 'admin') state.adminActiveTab = 'health';
+      if (state.currentView === 'superadmin') state.superActiveTab = 'health';
+      render();
+    });
+  });
+
+  // btn-view-attendance from directory
+  document.querySelectorAll('.btn-view-attendance').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const studentId = e.target.closest('.btn-view-attendance').dataset.stuId;
+      state.viewAttendanceStudentId = studentId;
+      if (state.currentView === 'warden') state.wardenActiveTab = 'attendance';
+      if (state.currentView === 'admin') state.adminActiveTab = 'attendance';
+      if (state.currentView === 'superadmin') state.superActiveTab = 'attendance';
+      render();
+    });
+  });
 }
 
 // Chart.js render function
@@ -2157,6 +2368,12 @@ function renderAdminDashboard() {
           <button class="nav-item ${state.adminActiveTab === 'leaves' ? 'active' : ''}" data-tab="leaves">
             ${ICONS.calendar} Student Absence Logs
           </button>
+          <button class="nav-item ${state.adminActiveTab === 'attendance' ? 'active' : ''}" data-tab="attendance">
+            ${ICONS.users} Gate &amp; Attendance
+          </button>
+          <button class="nav-item ${state.adminActiveTab === 'health' ? 'active' : ''}" data-tab="health">
+            ${ICONS.shield} Health Logs
+          </button>
         </nav>
         
         <div class="sidebar-footer">
@@ -2170,7 +2387,7 @@ function renderAdminDashboard() {
       <main class="main-content">
         <header class="header-container">
           <div class="header-title-section">
-            <h1>${state.adminActiveTab === 'menu' ? 'Mess Menu Management' : state.adminActiveTab === 'leaves' ? 'Student Absence Registry' : 'Student Directory'}</h1>
+            <h1>${state.adminActiveTab === 'menu' ? 'Mess Menu Management' : state.adminActiveTab === 'leaves' ? 'Student Absence Registry' : state.adminActiveTab === 'attendance' ? 'Gate & Attendance' : state.adminActiveTab === 'health' ? 'Health & Medical Logs' : 'Student Directory'}</h1>
             <p>Admin Control Panel • 5 Student Capacity</p>
           </div>
           
@@ -2208,7 +2425,7 @@ function renderAdminDashboard() {
               <button type="submit" class="btn-primary" style="align-self:flex-start; background:var(--primary); padding:12px 24px; font-weight:700;">Update Daily Mess Menu</button>
             </form>
           </div>
-        ` : state.adminActiveTab === 'leaves' ? renderWardenLeaves() : renderWardenDirectory()}
+        ` : state.adminActiveTab === 'leaves' ? renderWardenLeaves() : state.adminActiveTab === 'attendance' ? renderWardenAttendanceView() : state.adminActiveTab === 'health' ? renderWardenHealthView() : renderWardenDirectory()}
       </main>
 
       <!-- Student Detail Modal -->
@@ -2311,6 +2528,9 @@ function attachAdminEvents() {
     });
   }
 
+  if (state.adminActiveTab === 'health') attachHealthViewEvents();
+  if (state.adminActiveTab === 'attendance') attachAttendanceViewEvents();
+
   if (state.adminActiveTab === 'directory') {
     const dirSearchInput = document.getElementById('dir-search');
     if (dirSearchInput) {
@@ -2386,6 +2606,28 @@ function attachAdminEvents() {
       });
     }
 
+    document.querySelectorAll('.btn-view-health').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const studentId = e.target.dataset.stuId;
+        state.viewHealthStudentId = studentId;
+        if (state.currentView === 'warden') state.wardenActiveTab = 'health';
+        if (state.currentView === 'admin') state.adminActiveTab = 'health';
+        if (state.currentView === 'superadmin') state.superActiveTab = 'health';
+        render();
+      });
+    });
+
+    document.querySelectorAll('.btn-view-attendance').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const studentId = e.target.dataset.stuId;
+        state.viewAttendanceStudentId = studentId;
+        if (state.currentView === 'warden') state.wardenActiveTab = 'attendance';
+        if (state.currentView === 'admin') state.adminActiveTab = 'attendance';
+        if (state.currentView === 'superadmin') state.superActiveTab = 'attendance';
+        render();
+      });
+    });
+
     document.querySelectorAll('.btn-view-student').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const id = e.target.dataset.stuId;
@@ -2429,12 +2671,34 @@ function attachAdminEvents() {
       });
     });
 
+    if (state.adminActiveTab === 'health') attachHealthViewEvents();
+    if (state.adminActiveTab === 'attendance') attachAttendanceViewEvents();
     const closeDetailModalBtn = document.getElementById('btn-close-detail-modal');
     if (closeDetailModalBtn) {
       closeDetailModalBtn.addEventListener('click', () => {
         document.getElementById('student-detail-modal').classList.remove('active');
       });
     }
+
+    // btn-view-health from admin directory
+    document.querySelectorAll('.btn-view-health').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const studentId = e.target.closest('.btn-view-health').dataset.stuId;
+        state.viewHealthStudentId = studentId;
+        state.adminActiveTab = 'health';
+        render();
+      });
+    });
+
+    // btn-view-attendance from admin directory
+    document.querySelectorAll('.btn-view-attendance').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const studentId = e.target.closest('.btn-view-attendance').dataset.stuId;
+        state.viewAttendanceStudentId = studentId;
+        state.adminActiveTab = 'attendance';
+        render();
+      });
+    });
   }
 }
 
@@ -2480,6 +2744,15 @@ function renderSuperadminDashboard() {
           <button class="nav-item ${state.superActiveTab === 'database' ? 'active' : ''}" data-tab="database">
             ${ICONS.waste} Database Controls
           </button>
+          <button class="nav-item ${state.superActiveTab === 'directory' ? 'active' : ''}" data-tab="directory">
+            ${ICONS.users} Student Directory
+          </button>
+          <button class="nav-item ${state.superActiveTab === 'attendance' ? 'active' : ''}" data-tab="attendance">
+            ${ICONS.users} Gate &amp; Attendance
+          </button>
+          <button class="nav-item ${state.superActiveTab === 'health' ? 'active' : ''}" data-tab="health">
+            ${ICONS.shield} Health Logs
+          </button>
         </nav>
         
         <div class="sidebar-footer">
@@ -2493,7 +2766,7 @@ function renderSuperadminDashboard() {
       <main class="main-content">
         <header class="header-container">
           <div class="header-title-section">
-            <h1>${state.superActiveTab === 'dashboard' ? 'Master System Dashboard' : state.superActiveTab === 'logs' ? 'System Activity Logs' : 'Database Maintenance'}</h1>
+            <h1>${state.superActiveTab === 'dashboard' ? 'Master System Dashboard' : state.superActiveTab === 'logs' ? 'System Activity Logs' : state.superActiveTab === 'directory' ? 'Student Directory' : state.superActiveTab === 'attendance' ? 'Gate & Attendance' : state.superActiveTab === 'health' ? 'Health & Medical Logs' : 'Database Maintenance'}</h1>
             <p>Superadmin Master Panel • Root Access Enabled</p>
           </div>
         </header>
@@ -2585,7 +2858,7 @@ function renderSuperadminDashboard() {
               </div>
             </div>
           </div>
-        ` : `
+        ` : state.superActiveTab === 'database' ? `
           <div class="dashboard-panel dashboard-full">
             <div class="panel-header">
               <h2 class="panel-title">${ICONS.waste} System Database Operations</h2>
@@ -2609,7 +2882,7 @@ function renderSuperadminDashboard() {
               </div>
             </div>
           </div>
-        `}
+        ` : state.superActiveTab === 'directory' ? renderWardenDirectory() : state.superActiveTab === 'attendance' ? renderWardenAttendanceView() : state.superActiveTab === 'health' ? renderWardenHealthView() : ''}
       </main>
     </div>
   `;
@@ -2643,6 +2916,8 @@ function attachSuperadminEvents() {
     });
   }
 
+  if (state.superActiveTab === 'health') attachHealthViewEvents();
+  if (state.superActiveTab === 'attendance') attachAttendanceViewEvents();
   // Handle database maintenance resets
   if (state.superActiveTab === 'database') {
     const resetBtn = document.getElementById('super-btn-reset-db');
@@ -2666,6 +2941,61 @@ function attachSuperadminEvents() {
       });
     }
   }
+
+  if (state.superActiveTab === 'health') attachHealthViewEvents();
+  if (state.superActiveTab === 'attendance') attachAttendanceViewEvents();
+
+  // btn-view-health from superadmin directory
+  document.querySelectorAll('.btn-view-health').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const studentId = e.target.closest('.btn-view-health').dataset.stuId;
+      state.viewHealthStudentId = studentId;
+      state.superActiveTab = 'health';
+      render();
+    });
+  });
+
+  // btn-view-attendance from superadmin directory
+  document.querySelectorAll('.btn-view-attendance').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const studentId = e.target.closest('.btn-view-attendance').dataset.stuId;
+      state.viewAttendanceStudentId = studentId;
+      state.superActiveTab = 'attendance';
+      render();
+    });
+  });
+
+  // Directory search/filter for superadmin
+  if (state.superActiveTab === 'directory') {
+    const dirSearchInput = document.getElementById('dir-search');
+    if (dirSearchInput) {
+      dirSearchInput.addEventListener('input', (e) => {
+        state.directorySearch = e.target.value;
+        state.directoryPage = 1;
+        render();
+        const input = document.getElementById('dir-search');
+        if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+      });
+    }
+    const blockFilter = document.getElementById('dir-block-filter');
+    if (blockFilter) {
+      blockFilter.addEventListener('change', (e) => { state.directoryBlockFilter = e.target.value; state.directoryPage = 1; render(); });
+    }
+    const statusFilter = document.getElementById('dir-status-filter');
+    if (statusFilter) {
+      statusFilter.addEventListener('change', (e) => { state.directoryStatusFilter = e.target.value; state.directoryPage = 1; render(); });
+    }
+    const prevBtn = document.getElementById('btn-page-prev');
+    if (prevBtn) { prevBtn.addEventListener('click', () => { if (state.directoryPage > 1) { state.directoryPage--; render(); } }); }
+    const nextBtn = document.getElementById('btn-page-next');
+    if (nextBtn) { nextBtn.addEventListener('click', () => { state.directoryPage++; render(); }); }
+    const closeDetailModalBtn = document.getElementById('btn-close-detail-modal');
+    if (closeDetailModalBtn) {
+      closeDetailModalBtn.addEventListener('click', () => {
+        document.getElementById('student-detail-modal').classList.remove('active');
+      });
+    }
+  }
 }
 
 // App Startup
@@ -2682,4 +3012,8 @@ function initApp() {
   render();
 }
 
-window.addEventListener('DOMContentLoaded', initApp);
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
