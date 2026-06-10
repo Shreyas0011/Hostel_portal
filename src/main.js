@@ -222,8 +222,10 @@ function attachLoginEvents() {
       }
 
       // Check Super Admin
-      if (normalizedEmail === 'superadmin@hostel.edu') {
-        if (password === 'super123') {
+      if (normalizedEmail === 'superadmin@hostel.edu' || normalizedEmail === 'siddharthkt@transcendgroup.org' || normalizedEmail === 'shwethas@transcendgroup.org') {
+        const isValid = (normalizedEmail === 'superadmin@hostel.edu' && password === 'super123') ||
+                        ((normalizedEmail === 'siddharthkt@transcendgroup.org' || normalizedEmail === 'shwethas@transcendgroup.org') && password === 'Transcend@2026');
+        if (isValid) {
           state.currentView = 'superadmin';
           state.superActiveTab = 'dashboard';
           showToast('Logged in as Super Admin', 'success');
@@ -2705,6 +2707,8 @@ function attachAdminEvents() {
 // View template: SUPER ADMIN DASHBOARD
 function renderSuperadminDashboard() {
   const adminUsers = [
+    { name: "Siddharth K T", role: "Superadmin", pin: "Hidden", id: "SAD-02" },
+    { name: "Shwetha S", role: "Superadmin", pin: "Hidden", id: "SAD-03" },
     { name: "Chief Warden Console", role: "Warden", pin: "1234", id: "WDN-01" },
     { name: "Campus Admin Console", role: "Admin", pin: "5678", id: "ADM-01" },
     { name: "Super Admin Control", role: "Superadmin", pin: "9999", id: "SAD-01" }
