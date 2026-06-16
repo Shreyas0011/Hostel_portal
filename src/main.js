@@ -14,7 +14,8 @@ import {
   getWardenDashboardStats,
   reportComplaint,
   logEntryExit,
-  getBedAssignments
+  getBedAssignments,
+  updateBehaviourLog
 } from './data.js';
 
 // SVG Icon set (Feather Icons implementation)
@@ -35,7 +36,8 @@ const ICONS = {
   waste: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`,
   settings: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`,
   key: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>`,
-  complaint: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="12" y1="7" x2="12" y2="11"></line><line x1="12" y1="14" x2="12.01" y2="14"></line></svg>`
+  complaint: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="12" y1="7" x2="12" y2="11"></line><line x1="12" y1="14" x2="12.01" y2="14"></line></svg>`,
+  clipboard: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>`
 };
 
 // Global App State
@@ -46,18 +48,27 @@ const state = {
   viewAttendanceStudentId: null,
   viewHealthStudentId: null,
   loginTab: 'student', // 'student' | 'parent' | 'warden' | 'admin' | 'superadmin'
-  studentActiveTab: 'meals', // 'meals' | 'leave'
+  studentActiveTab: 'meals', // 'meals' | 'leave' | 'behaviour'
   parentActiveTab: 'leave', // 'leave' | 'meals'
   wardenActiveTab: 'overview', // 'overview' | 'leaves' | 'directory'
   adminActiveTab: 'menu', // 'menu' | 'leaves' | 'directory'
   superActiveTab: 'dashboard', // 'dashboard' | 'logs' | 'database'
   
+  behaviourSearch: '',
+  behaviourCategoryFilter: 'all',
+  behaviourSeverityFilter: 'all',
+
   // Student Directory State
   directorySearch: '',
   directoryBlockFilter: 'all',
   directoryStatusFilter: 'all',
   directoryPage: 1,
-  directoryPageSize: 10
+  directoryPageSize: 10,
+  diningDate: getDateString(0),
+  diningSearch: '',
+  calendarYear: new Date().getFullYear(),
+  calendarMonth: new Date().getMonth(),
+  calendarSelectedDate: getDateString(0)
 };
 
 // Chart.js instance holder
@@ -104,24 +115,118 @@ function render() {
   if (state.currentView === 'login') {
     app.innerHTML = renderLoginView();
     attachLoginEvents();
-  } else if (state.currentView === 'student') {
-    app.innerHTML = renderStudentDashboard();
-    attachStudentEvents();
-  } else if (state.currentView === 'parent') {
-    app.innerHTML = renderParentDashboard();
-    attachParentEvents();
-  } else if (state.currentView === 'warden') {
-    app.innerHTML = renderWardenDashboard();
-    attachWardenEvents();
-    if (state.wardenActiveTab === 'overview') {
-      renderWardenChart();
+  } else {
+    let dashboardHTML = '';
+    if (state.currentView === 'student') {
+      dashboardHTML = renderStudentDashboard();
+    } else if (state.currentView === 'parent') {
+      dashboardHTML = renderParentDashboard();
+    } else if (state.currentView === 'warden') {
+      dashboardHTML = renderWardenDashboard();
+    } else if (state.currentView === 'admin') {
+      dashboardHTML = renderAdminDashboard();
+    } else if (state.currentView === 'superadmin') {
+      dashboardHTML = renderSuperadminDashboard();
     }
-  } else if (state.currentView === 'admin') {
-    app.innerHTML = renderAdminDashboard();
-    attachAdminEvents();
-  } else if (state.currentView === 'superadmin') {
-    app.innerHTML = renderSuperadminDashboard();
-    attachSuperadminEvents();
+
+    // Set the complete innerHTML with both the dashboard and the global modals
+    app.innerHTML = dashboardHTML + `
+      <!-- Student Detail Modal -->
+      <div id="student-detail-modal" class="modal-overlay">
+        <div class="modal-container" style="max-height: 90vh; overflow-y: auto;">
+          <div class="modal-header">
+            <h3 class="modal-title" id="modal-student-name">Student Details</h3>
+            <button class="modal-close" id="btn-close-detail-modal">${ICONS.x}</button>
+          </div>
+          <div id="modal-student-content" style="display:flex; flex-direction:column; gap:15px;">
+            <!-- filled dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Behaviour Log Modal -->
+      <div id="behaviour-log-modal" class="modal-overlay">
+        <div class="modal-container" style="max-width: 500px;">
+          <div class="modal-header">
+            <h3 class="modal-title" id="behaviour-modal-title">Add Behaviour Log</h3>
+            <button class="modal-close" id="btn-close-behaviour-modal">${ICONS.x}</button>
+          </div>
+          <form id="behaviour-log-form">
+            <input type="hidden" id="behaviour-log-id" value="">
+            <input type="hidden" id="behaviour-student-id" value="">
+            
+            <div id="behaviour-student-select-container" style="display: none; margin-bottom: 15px;">
+              <label class="form-label" for="behaviour-student-select">Select Student</label>
+              <select id="behaviour-student-select" class="form-input">
+                ${state.db.map(s => `<option value="${s.id}">${s.id} - ${s.name}</option>`).join('')}
+              </select>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 10px;">
+              <div>
+                <label class="form-label" for="behaviour-date">Date</label>
+                <input type="date" id="behaviour-date" class="form-input" required>
+              </div>
+              
+              <div>
+                <label class="form-label" for="behaviour-category">Category</label>
+                <select id="behaviour-category" class="form-input" required>
+                  <option value="Academic">Academic</option>
+                  <option value="Discipline">Discipline</option>
+                  <option value="Social">Social</option>
+                  <option value="General">General / Other</option>
+                </select>
+              </div>
+              
+              <div>
+                <label class="form-label" for="behaviour-severity">Severity / Type</label>
+                <select id="behaviour-severity" class="form-input" required>
+                  <option value="positive">Commendable (Positive)</option>
+                  <option value="neutral">General (Neutral)</option>
+                  <option value="warning">Warning (Minor)</option>
+                  <option value="critical">Critical (Disciplinary)</option>
+                </select>
+              </div>
+              
+              <div>
+                <label class="form-label" for="behaviour-description">Detailed Description</label>
+                <textarea id="behaviour-description" class="form-textarea" required placeholder="Describe the behavior or observation in detail..." style="min-height: 80px;"></textarea>
+              </div>
+              
+              <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                <button type="button" class="btn-secondary" id="btn-cancel-behaviour" style="padding: 10px 20px;">Cancel</button>
+                <button type="submit" class="btn-primary" id="btn-save-behaviour" style="padding: 10px 20px;">Save Entry</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    // Now safely attach listeners to the fully rendered DOM
+    if (state.currentView === 'student') {
+      attachStudentEvents();
+    } else if (state.currentView === 'parent') {
+      attachParentEvents();
+    } else if (state.currentView === 'warden') {
+      attachWardenEvents();
+      if (state.wardenActiveTab === 'overview') {
+        renderWardenChart();
+      }
+    } else if (state.currentView === 'admin') {
+      attachAdminEvents();
+    } else if (state.currentView === 'superadmin') {
+      attachSuperadminEvents();
+    }
+
+    attachGlobalBehaviourEvents();
+
+    const detailModalClose = document.getElementById('btn-close-detail-modal');
+    if (detailModalClose) {
+      detailModalClose.addEventListener('click', () => {
+        document.getElementById('student-detail-modal').classList.remove('active');
+      });
+    }
   }
 }
 
@@ -138,8 +243,8 @@ function renderLoginView() {
         
         <div id="login-form-area" style="margin-top: 20px;">
           <div class="login-form-group">
-            <label class="login-label">Email Address / Warden PIN</label>
-            <input type="text" id="login-identifier" class="login-input" placeholder="e.g., student@hostel.edu or 1234" value="aarav.sharma@hostel.edu">
+            <label class="login-label">Email Address</label>
+            <input type="text" id="login-identifier" class="login-input" placeholder="e.g., student@hostel.edu or warden@hostel.edu" value="aarav.sharma@hostel.edu">
           </div>
           <div class="login-form-group" style="margin-top: 15px;">
             <label class="login-label">Password</label>
@@ -188,16 +293,7 @@ function attachLoginEvents() {
       const password = document.getElementById('login-password').value.trim();
 
       if (!email) {
-        showToast('Please enter your email or PIN.', 'warning');
-        return;
-      }
-
-      // Check Warden PIN login first
-      if (email === '1234') {
-        state.currentView = 'warden';
-        state.wardenActiveTab = 'overview';
-        showToast('Logged in as Hostel Warden', 'success');
-        render();
+        showToast('Please enter your email address.', 'warning');
         return;
       }
 
@@ -207,6 +303,19 @@ function attachLoginEvents() {
       }
 
       const normalizedEmail = email.toLowerCase();
+
+      // Check Warden
+      if (normalizedEmail === 'warden@hostel.edu') {
+        if (password === 'warden123') {
+          state.currentView = 'warden';
+          state.wardenActiveTab = 'overview';
+          showToast('Logged in as Hostel Warden', 'success');
+          render();
+        } else {
+          showToast('Incorrect password.', 'error');
+        }
+        return;
+      }
 
       // Check Campus Admin
       if (normalizedEmail === 'admin@hostel.edu') {
@@ -375,6 +484,9 @@ function renderStudentDashboard() {
           <button class="nav-item ${state.studentActiveTab === 'health' ? 'active' : ''}" data-tab="health">
             ${ICONS.shield} My Health Status
           </button>
+          <button class="nav-item ${state.studentActiveTab === 'behaviour' ? 'active' : ''}" data-tab="behaviour">
+            ${ICONS.clipboard} Behaviour Log
+          </button>
         </nav>
         
         <div class="sidebar-footer">
@@ -388,7 +500,7 @@ function renderStudentDashboard() {
       <main class="main-content">
         <header class="header-container">
           <div class="header-title-section">
-            <h1>${state.studentActiveTab === 'meals' ? 'Dining & Meal Booking' : state.studentActiveTab === 'leave' ? 'Leave Requests' : state.studentActiveTab === 'health' ? 'My Health Status' : 'Talk to Us'}</h1>
+            <h1>${state.studentActiveTab === 'meals' ? 'Dining & Meal Booking' : state.studentActiveTab === 'leave' ? 'Leave Requests' : state.studentActiveTab === 'health' ? 'My Health Status' : state.studentActiveTab === 'behaviour' ? 'My Behaviour Log' : 'Talk to Us'}</h1>
             <p>Hostel Student Facility Portal • Block ${student.block}</p>
           </div>
           
@@ -403,6 +515,7 @@ function renderStudentDashboard() {
         ${state.studentActiveTab === 'meals' ? renderMealsPlanner(student, false) : 
           state.studentActiveTab === 'leave' ? renderLeaveSection(student, 'student') : 
           state.studentActiveTab === 'health' ? renderHealthStatusSection(student, 'student') :
+          state.studentActiveTab === 'behaviour' ? renderBehaviourLogs(student, true) :
           renderComplaintsSection(student)}
       </main>
     </div>
@@ -573,7 +686,16 @@ function attachStudentEvents() {
         dinner: false
       };
 
+      // 24h deadline validation
+      const breakfastTime = new Date(`${date}T07:30:00`).getTime();
+      const deadline = breakfastTime - (24 * 60 * 60 * 1000);
+      const crossed = Date.now() > deadline;
+
       if (action === 'cancel') {
+        if (crossed) {
+          showToast(`Cannot cancel ${mealName}: the 24-hour deadline has passed.`, 'error');
+          return;
+        }
         const modal = document.getElementById('meal-cancel-modal');
         if (modal) {
           document.getElementById('meal-cancel-date').value = date;
@@ -584,6 +706,13 @@ function attachStudentEvents() {
           modal.classList.add('active');
         }
       } else {
+        if (crossed) {
+          const hasCanceledBefore = student.mealCancellations && student.mealCancellations.some(c => c.date === date && c.meal === meal);
+          if (hasCanceledBefore) {
+            showToast(`Cannot book ${mealName}: meal was already rejected and deadline has passed.`, 'error');
+            return;
+          }
+        }
         booking[meal] = true;
         const res = updateMealBookings(student.id, date, {
           breakfast: booking.breakfast,
@@ -626,6 +755,14 @@ function attachStudentEvents() {
       
       const student = state.db.find(s => s.id === state.currentStudentId);
       if (!student) return;
+
+      // 24h deadline validation
+      const breakfastTime = new Date(`${date}T07:30:00`).getTime();
+      const deadline = breakfastTime - (24 * 60 * 60 * 1000);
+      if (Date.now() > deadline) {
+        showToast('Cannot cancel meal: the 24-hour deadline has passed.', 'error');
+        return;
+      }
 
       const booking = student.mealBookings.find(b => b.date === date) || {
         date,
@@ -803,6 +940,9 @@ function renderParentDashboard() {
           <button class="nav-item ${state.parentActiveTab === 'health' ? 'active' : ''}" data-tab="health">
             ${ICONS.shield} Child's Health Records
           </button>
+          <button class="nav-item ${state.parentActiveTab === 'behaviour' ? 'active' : ''}" data-tab="behaviour">
+            ${ICONS.clipboard} Behaviour Log
+          </button>
         </nav>
         
         <div class="sidebar-footer">
@@ -816,7 +956,7 @@ function renderParentDashboard() {
       <main class="main-content">
         <header class="header-container">
           <div class="header-title-section">
-            <h1>${state.parentActiveTab === 'leave' ? 'Student Leave Application' : state.parentActiveTab === 'meals' ? "Child's Dining Planner" : state.parentActiveTab === 'health' ? "Child's Health Records" : "Attendance & History"}</h1>
+            <h1>${state.parentActiveTab === 'leave' ? 'Student Leave Application' : state.parentActiveTab === 'meals' ? "Child's Dining Planner" : state.parentActiveTab === 'health' ? "Child's Health Records" : state.parentActiveTab === 'behaviour' ? "Child's Behaviour Log" : "Attendance & History"}</h1>
             <p>Parent Control Portal • Student: ${student.name} (${student.id})</p>
           </div>
           
@@ -831,6 +971,7 @@ function renderParentDashboard() {
         ${state.parentActiveTab === 'leave' ? renderLeaveSection(student, 'parent') : 
           state.parentActiveTab === 'meals' ? renderMealsPlanner(student, true) :
           state.parentActiveTab === 'health' ? renderHealthStatusSection(student, 'parent') :
+          state.parentActiveTab === 'behaviour' ? renderBehaviourLogs(student, true) :
           renderParentAttendanceSection(student)}
       </main>
     </div>
@@ -1041,35 +1182,62 @@ function renderMealsPlanner(student, isReadOnly) {
                       <span class="meal-status-symbol ${isBooked ? 'booked' : 'cancelled'}" title="${isBooked ? 'Booked' : 'Not Booked'}">
                         ${isBooked ? '✓' : '✗'}
                       </span>
-                      ${!isReadOnly ? `
-                        ${isBooked ? `
-                          <button class="meal-action-icon-btn cancel-btn" 
-                                  data-date="${dateStr}" 
-                                  data-meal="${mealKey}" 
-                                  data-meal-name="${mealName}"
-                                  data-action="cancel"
-                                  title="Cancel Meal">
-                            ${ICONS.x}
-                          </button>
-                        ` : `
-                          <button class="meal-action-icon-btn book-btn" 
-                                  data-date="${dateStr}" 
-                                  data-meal="${mealKey}" 
-                                  data-meal-name="${mealName}"
-                                  data-action="book"
-                                  title="Book Meal">
-                            ${ICONS.check}
-                          </button>
-                          <button class="meal-action-icon-btn cancel-btn" 
-                                  data-date="${dateStr}" 
-                                  data-meal="${mealKey}" 
-                                  data-meal-name="${mealName}"
-                                  data-action="cancel"
-                                  title="Cancel Meal">
-                            ${ICONS.x}
-                          </button>
-                        `}
-                      ` : ''}
+                      ${!isReadOnly ? (() => {
+                        const breakfastTime = new Date(`${dateStr}T07:30:00`).getTime();
+                        const deadline = breakfastTime - (24 * 60 * 60 * 1000);
+                        const crossed = Date.now() > deadline;
+                        const hasCanceledBefore = student.mealCancellations && student.mealCancellations.some(c => c.date === dateStr && c.meal === mealKey);
+                        const hasRejected = !isBooked && hasCanceledBefore;
+
+                        if (crossed) {
+                          if (isBooked) {
+                            return `<span style="font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Locked</span>`;
+                          } else {
+                            if (hasRejected) {
+                              return `<span style="font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Rejected</span>`;
+                            } else {
+                              return `
+                                <button class="meal-action-icon-btn book-btn" 
+                                        data-date="${dateStr}" 
+                                        data-meal="${mealKey}" 
+                                        data-meal-name="${mealName}"
+                                        data-action="book"
+                                        title="Book Meal">
+                                  ${ICONS.check}
+                                </button>
+                              `;
+                            }
+                          }
+                        } else {
+                          return isBooked ? `
+                            <button class="meal-action-icon-btn cancel-btn" 
+                                    data-date="${dateStr}" 
+                                    data-meal="${mealKey}" 
+                                    data-meal-name="${mealName}"
+                                    data-action="cancel"
+                                    title="Cancel Meal">
+                              ${ICONS.x}
+                            </button>
+                          ` : `
+                            <button class="meal-action-icon-btn book-btn" 
+                                    data-date="${dateStr}" 
+                                    data-meal="${mealKey}" 
+                                    data-meal-name="${mealName}"
+                                    data-action="book"
+                                    title="Book Meal">
+                              ${ICONS.check}
+                            </button>
+                            <button class="meal-action-icon-btn cancel-btn" 
+                                    data-date="${dateStr}" 
+                                    data-meal="${mealKey}" 
+                                    data-meal-name="${mealName}"
+                                    data-action="cancel"
+                                    title="Cancel Meal">
+                              ${ICONS.x}
+                            </button>
+                          `;
+                        }
+                      })() : ''}
                     </div>
                   </div>
                 `;
@@ -1123,13 +1291,33 @@ function renderLeaveSection(student, role) {
 
         <form id="leave-request-form">
           <div class="form-grid">
+            <div class="form-group-full" style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-input); padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 5px;">
+              <div>
+                <label class="form-label" style="margin: 0; font-weight: 600;">Overnight Stay?</label>
+                <span style="font-size: 12px; color: var(--text-muted);">Will you be staying out of the hostel overnight?</span>
+              </div>
+              <div class="toggle-container">
+                <input type="checkbox" id="leave-overnight" class="toggle-checkbox" checked>
+                <label for="leave-overnight" class="toggle-switch-label">
+                  <span class="toggle-switch-handle"></span>
+                </label>
+              </div>
+            </div>
             <div>
               <label class="form-label" for="leave-start-date">Start Date</label>
               <input type="date" id="leave-start-date" class="form-input" required min="${getDateString(0)}">
             </div>
-            <div>
+            <div id="end-date-container">
               <label class="form-label" for="leave-end-date">End Date</label>
               <input type="date" id="leave-end-date" class="form-input" required min="${getDateString(0)}">
+            </div>
+            <div>
+              <label class="form-label" for="leave-start-time">Departure Time</label>
+              <input type="time" id="leave-start-time" class="form-input" required value="09:00">
+            </div>
+            <div>
+              <label class="form-label" for="leave-end-time">Return Time</label>
+              <input type="time" id="leave-end-time" class="form-input" required value="18:00">
             </div>
             <div class="form-group-full">
               <label class="form-label" for="leave-type">Request Type</label>
@@ -1162,10 +1350,19 @@ function renderLeaveSection(student, role) {
           ` : sortedLeaves.map(leave => `
             <div class="history-item">
               <div class="history-details">
-                <span class="history-dates">${formatDisplayDate(leave.startDate)} to ${formatDisplayDate(leave.endDate)}</span>
-                <span style="font-size:11px; font-weight:600; color:var(--primary); text-transform:uppercase; margin-bottom:4px; display:block;">
-                  Type: ${leave.type === 'outing' ? 'Going Out' : 'On Leave'}
+                <span class="history-dates">
+                  ${formatDisplayDate(leave.startDate)} ${leave.startTime ? `(${leave.startTime})` : ''} 
+                  to 
+                  ${formatDisplayDate(leave.endDate)} ${leave.endTime ? `(${leave.endTime})` : ''}
                 </span>
+                <div style="display: flex; gap: 8px; margin-top: 2px; margin-bottom: 4px; align-items: center;">
+                  <span style="font-size:11px; font-weight:600; color:var(--primary); text-transform:uppercase;">
+                    Type: ${leave.type === 'outing' ? 'Going Out' : 'On Leave'}
+                  </span>
+                  <span style="font-size:10px; color:var(--text-muted); font-weight:600; text-transform:uppercase;">
+                    • ${leave.isOvernight ? 'Overnight' : 'Same Day'}
+                  </span>
+                </div>
                 <span class="history-reason">"${leave.reason}"</span>
                 <span style="font-size:11px; color:var(--text-secondary); display:block; margin-top:2px;">Submitted by: ${leave.submittedBy === 'parent' ? 'Parent' : 'Student'}</span>
               </div>
@@ -1193,6 +1390,24 @@ function renderLeaveSection(student, role) {
 }
 
 function attachLeaveFormEvents(role) {
+  // Sync Overnight toggle and End Date visibility
+  const overnightCheckbox = document.getElementById('leave-overnight');
+  const endDateContainer = document.getElementById('end-date-container');
+  const endDateInput = document.getElementById('leave-end-date');
+  if (overnightCheckbox && endDateContainer && endDateInput) {
+    const syncEndDateVisibility = () => {
+      if (overnightCheckbox.checked) {
+        endDateContainer.style.display = 'block';
+        endDateInput.setAttribute('required', 'required');
+      } else {
+        endDateContainer.style.display = 'none';
+        endDateInput.removeAttribute('required');
+      }
+    };
+    syncEndDateVisibility();
+    overnightCheckbox.addEventListener('change', syncEndDateVisibility);
+  }
+
   // Leave Submit
   const leaveForm = document.getElementById('leave-request-form');
   if (leaveForm) {
@@ -1200,16 +1415,19 @@ function attachLeaveFormEvents(role) {
       e.preventDefault();
       
       const startDate = document.getElementById('leave-start-date').value;
-      const endDate = document.getElementById('leave-end-date').value;
+      const isOvernight = overnightCheckbox ? overnightCheckbox.checked : false;
+      const endDate = isOvernight ? endDateInput.value : startDate;
+      const startTime = document.getElementById('leave-start-time').value;
+      const endTime = document.getElementById('leave-end-time').value;
       const type = document.getElementById('leave-type').value;
       const reason = document.getElementById('leave-reason').value;
 
-      if (new Date(startDate) > new Date(endDate)) {
+      if (isOvernight && new Date(startDate) > new Date(endDate)) {
         showToast('End Date cannot be before Start Date.', 'error');
         return;
       }
 
-      const res = applyLeave(state.currentStudentId, startDate, endDate, reason, type, role);
+      const res = applyLeave(state.currentStudentId, startDate, endDate, reason, type, role, startTime, endTime, isOvernight);
       if (res) {
         state.db = res.students;
         showToast(`${type === 'outing' ? 'Outing' : 'Leave'} request submitted. Avoided wasting ${res.avoidedCount} meals!`, 'success');
@@ -1471,6 +1689,9 @@ function renderWardenDashboard() {
           <button class="nav-item ${state.wardenActiveTab === 'leaves' ? 'active' : ''}" data-tab="leaves">
             ${ICONS.calendar} Student Absence Logs
           </button>
+          <button class="nav-item ${state.wardenActiveTab === 'dining' ? 'active' : ''}" data-tab="dining">
+            ${ICONS.coffee} Dining &amp; Meals
+          </button>
           <button class="nav-item ${state.wardenActiveTab === 'directory' ? 'active' : ''}" data-tab="directory">
             ${ICONS.users} Student Directory
           </button>
@@ -1482,6 +1703,9 @@ function renderWardenDashboard() {
           </button>
           <button class="nav-item ${state.wardenActiveTab === 'health' ? 'active' : ''}" data-tab="health">
             ${ICONS.shield} Health Logs
+          </button>
+          <button class="nav-item ${state.wardenActiveTab === 'behaviour' ? 'active' : ''}" data-tab="behaviour">
+            ${ICONS.clipboard} Behaviour Register
           </button>
         </nav>
         
@@ -1496,7 +1720,7 @@ function renderWardenDashboard() {
       <main class="main-content">
         <header class="header-container">
           <div class="header-title-section">
-            <h1>${state.wardenActiveTab === 'overview' ? 'Dashboard Overview' : state.wardenActiveTab === 'leaves' ? 'Student Absence Registry' : state.wardenActiveTab === 'beds' ? 'Room & Bed Assignments' : 'Student Directory'}</h1>
+            <h1>${state.wardenActiveTab === 'overview' ? 'Dashboard Overview' : state.wardenActiveTab === 'leaves' ? 'Student Absence Registry' : state.wardenActiveTab === 'dining' ? 'Dining Tracker & Meal Opt-ins' : state.wardenActiveTab === 'beds' ? 'Room & Bed Assignments' : state.wardenActiveTab === 'attendance' ? 'Gate & Attendance' : state.wardenActiveTab === 'health' ? 'Health Logs' : state.wardenActiveTab === 'behaviour' ? 'Student Behaviour Register' : 'Student Directory'}</h1>
             <p>Admin Control Panel • 5 Student Capacity</p>
           </div>
           
@@ -1539,24 +1763,15 @@ function renderWardenDashboard() {
 
         ${state.wardenActiveTab === 'overview' ? renderWardenOverview(stats) : 
           state.wardenActiveTab === 'leaves' ? renderWardenLeaves() : 
+          state.wardenActiveTab === 'dining' ? renderWardenDining() : 
           state.wardenActiveTab === 'beds' ? renderBedAssignments() :
           state.wardenActiveTab === 'attendance' ? renderWardenAttendanceView() :
           state.wardenActiveTab === 'health' ? renderWardenHealthView() :
+          state.wardenActiveTab === 'behaviour' ? renderBehaviourLogsRegister() :
           renderWardenDirectory()}
       </main>
 
-      <!-- Student Detail Modal -->
-      <div id="student-detail-modal" class="modal-overlay">
-        <div class="modal-container">
-          <div class="modal-header">
-            <h3 class="modal-title" id="modal-student-name">Student Details</h3>
-            <button class="modal-close" id="btn-close-detail-modal">${ICONS.x}</button>
-          </div>
-          <div id="modal-student-content" style="display:flex; flex-direction:column; gap:15px;">
-            <!-- filled dynamically -->
-          </div>
-        </div>
-      </div>
+
 
       <!-- Add Student Modal -->
       <div id="add-student-modal" class="modal-overlay">
@@ -1651,11 +1866,19 @@ function renderWardenOverview(stats) {
                 <div class="approval-student">
                   <span class="approval-name">${req.studentName}</span>
                   <span class="approval-room">Room ${req.studentRoom} • ${req.studentId}</span>
-                  <span style="font-size:11px; font-weight:600; color:var(--primary); text-transform:uppercase; margin-top:2px;">
-                    ${req.type === 'outing' ? 'Going Out' : 'On Leave'}
-                  </span>
+                  <div style="display: flex; gap: 6px; align-items: center; margin-top:2px;">
+                    <span style="font-size:11px; font-weight:600; color:var(--primary); text-transform:uppercase;">
+                      ${req.type === 'outing' ? 'Going Out' : 'On Leave'}
+                    </span>
+                    <span style="font-size:10px; color:var(--text-muted); font-weight:600; text-transform:uppercase;">
+                      • ${req.isOvernight ? 'Overnight' : 'Same Day'}
+                    </span>
+                  </div>
                 </div>
-                <span class="approval-dates">${formatDisplayDate(req.startDate)} - ${formatDisplayDate(req.endDate)}</span>
+                <span class="approval-dates">
+                  ${formatDisplayDate(req.startDate)} ${req.startTime ? `(${req.startTime})` : ''}<br>
+                  to ${formatDisplayDate(req.endDate)} ${req.endTime ? `(${req.endTime})` : ''}
+                </span>
               </div>
               <p class="approval-reason">"${req.reason}"</p>
               <div class="approval-actions" style="justify-content:space-between; align-items:center;">
@@ -1674,65 +1897,164 @@ function renderWardenOverview(stats) {
 }
 
 function renderWardenLeaves() {
-  const leaves = [];
-  state.db.forEach(student => {
-    student.leaves.forEach(leave => {
-      leaves.push({
-        studentId: student.id,
-        studentName: student.name,
-        studentRoom: student.room,
-        ...leave
+  const year = state.calendarYear;
+  const month = state.calendarMonth; // 0-indexed
+
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const firstDayIndex = new Date(year, month, 1).getDay();
+  const numberOfDays = new Date(year, month + 1, 0).getDate();
+
+  // Create dates list
+  const days = [];
+  
+  // Previous month padding days
+  const prevMonthDays = new Date(year, month, 0).getDate();
+  for (let i = firstDayIndex - 1; i >= 0; i--) {
+    days.push({
+      day: prevMonthDays - i,
+      isCurrentMonth: false,
+      dateStr: `${month === 0 ? year - 1 : year}-${String(month === 0 ? 12 : month).padStart(2, '0')}-${String(prevMonthDays - i).padStart(2, '0')}`
+    });
+  }
+
+  // Current month days
+  for (let i = 1; i <= numberOfDays; i++) {
+    days.push({
+      day: i,
+      isCurrentMonth: true,
+      dateStr: `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`
+    });
+  }
+
+  // Next month padding days to make grid complete weeks
+  const totalSlots = Math.ceil(days.length / 7) * 7;
+  const nextMonthPadding = totalSlots - days.length;
+  for (let i = 1; i <= nextMonthPadding; i++) {
+    days.push({
+      day: i,
+      isCurrentMonth: false,
+      dateStr: `${month === 11 ? year + 1 : year}-${String(month === 11 ? 1 : month + 2).padStart(2, '0')}-${String(i).padStart(2, '0')}`
+    });
+  }
+
+  // Selected date leaves list
+  const selectedDateStr = state.calendarSelectedDate;
+
+  const getLeavesForDate = (dateStr) => {
+    const list = [];
+    state.db.forEach(student => {
+      student.leaves.forEach(leave => {
+        if (dateStr >= leave.startDate && dateStr <= leave.endDate) {
+          list.push({
+            studentId: student.id,
+            studentName: student.name,
+            studentRoom: student.room,
+            ...leave
+          });
+        }
       });
     });
-  });
+    return list;
+  };
 
-  leaves.sort((a,b) => {
-    if (a.status === 'pending' && b.status !== 'pending') return -1;
-    if (a.status !== 'pending' && b.status === 'pending') return 1;
-    return new Date(b.startDate) - new Date(a.startDate);
-  });
+  const selectedDateLeaves = getLeavesForDate(selectedDateStr);
+
+  // Render Calendar Grid HTML
+  const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const weekHeadersHTML = daysOfWeek.map(d => `<div class="calendar-week-header">${d}</div>`).join('');
+
+  const gridDaysHTML = days.map(d => {
+    const dateLeaves = getLeavesForDate(d.dateStr);
+    const hasLeaves = dateLeaves.length > 0;
+    
+    // Check if this day is the selected date
+    const isSelected = d.dateStr === selectedDateStr;
+    const isToday = d.dateStr === getDateString(0);
+
+    const leafPills = dateLeaves.slice(0, 2).map(l => {
+      const isOuting = l.type === 'outing';
+      const badgeStyle = isOuting 
+        ? 'background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0;' 
+        : 'background: #fff5f5; color: #e53e3e; border: 1px solid #fed7d7;';
+      return `<div class="calendar-leaf-pill" style="font-size: 10px; padding: 2px 4px; border-radius: 4px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; ${badgeStyle}" title="${l.studentName} (${isOuting ? 'Outing' : 'Leave'})">
+        ${l.studentName.split(' ')[0]}
+      </div>`;
+    }).join('');
+
+    const moreIndicator = dateLeaves.length > 2 
+      ? `<div style="font-size: 9px; color: var(--text-muted); font-weight: 700; margin-top: 1px; padding-left: 2px;">+${dateLeaves.length - 2} more</div>` 
+      : '';
+
+    const dayClass = `calendar-day-cell ${d.isCurrentMonth ? 'current-month' : 'other-month'} ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''} ${hasLeaves ? 'has-leaves' : ''}`;
+
+    return `
+      <div class="${dayClass}" data-date="${d.dateStr}">
+        <span class="day-number">${d.day}</span>
+        <div class="calendar-leaf-container">
+          ${leafPills}
+          ${moreIndicator}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const selectedDateFormatted = formatDisplayDate(selectedDateStr);
+
+  const leavesDetailHTML = selectedDateLeaves.length === 0
+    ? `<div class="empty-state" style="padding: 20px; text-align: center;">
+         <span style="font-size: 24px;">✓</span>
+         <p style="margin-top: 5px; color: var(--text-secondary);">No students absent on ${selectedDateFormatted}</p>
+       </div>`
+    : selectedDateLeaves.map(l => `
+        <div class="calendar-leave-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <div>
+            <div style="font-weight: 700; font-size: 14px; color: var(--text-primary);">${l.studentName} <span style="font-size:11px; font-weight:500; color:var(--text-muted);">(${l.studentId} • Room ${l.studentRoom})</span></div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+              <strong>Departure:</strong> ${formatDisplayDate(l.startDate)} ${l.startTime ? `at ${l.startTime}` : ''} <br>
+              <strong>Return:</strong> ${formatDisplayDate(l.endDate)} ${l.endTime ? `at ${l.endTime}` : ''}
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); font-style: italic; margin-top: 4px;">"${l.reason}"</div>
+          </div>
+          <div style="text-align: right; display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
+            <span class="badge ${l.status}" style="font-size: 10px; padding: 4px 8px;">${l.status === 'pending' ? 'Pending Parent' : l.status}</span>
+            <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary);">${l.type === 'outing' ? 'Day Outing' : 'On Leave'}</span>
+          </div>
+        </div>
+      `).join('');
 
   return `
-    <div class="dashboard-panel dashboard-full">
-      <div class="panel-header">
-        <h2 class="panel-title">${ICONS.calendar} Leave Requests Register</h2>
-        <span style="font-size:12px; color:var(--text-secondary);">${leaves.length} total leaves in logs</span>
+    <div class="dashboard-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; width: 100%;">
+      <!-- Calendar Panel -->
+      <div class="dashboard-panel">
+        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h2 class="panel-title">${ICONS.calendar} Leave &amp; Absence Calendar</h2>
+          
+          <div class="calendar-controls" style="display: flex; align-items: center; gap: 8px;">
+            <button id="btn-calendar-prev" class="btn-secondary" style="padding: 4px 8px; font-weight: bold;">&lt;</button>
+            <span style="font-weight: 700; font-size: 15px; min-width: 120px; text-align: center;">${monthNames[month]} ${year}</span>
+            <button id="btn-calendar-next" class="btn-secondary" style="padding: 4px 8px; font-weight: bold;">&gt;</button>
+          </div>
+        </div>
+
+        <div class="calendar-grid">
+          ${weekHeadersHTML}
+          ${gridDaysHTML}
+        </div>
       </div>
 
-      <div class="directory-table-wrapper">
-        <table class="directory-table">
-          <thead>
-            <tr>
-              <th>Student</th>
-              <th>Room</th>
-              <th>Dates</th>
-              <th>Reason</th>
-              <th>Status</th>
-              <th style="text-align:right;">Submitter</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${leaves.length === 0 ? `
-              <tr>
-                <td colspan="6" style="text-align:center; padding:30px; color:var(--text-secondary);">No leave logs found</td>
-              </tr>
-            ` : leaves.map(l => `
-              <tr>
-                <td><strong>${l.studentName}</strong><br><span style="font-size:11px; color:var(--text-muted);">${l.studentId}</span></td>
-                <td>Room ${l.studentRoom}</td>
-                <td>
-                  <span style="font-size:12px; font-weight:600; color:var(--primary);">${formatDisplayDate(l.startDate)} - ${formatDisplayDate(l.endDate)}</span><br>
-                  <span style="font-size:10px; font-weight:600; text-transform:uppercase; color:var(--text-secondary);">${l.type === 'outing' ? 'Going Out' : 'On Leave'}</span>
-                </td>
-                <td style="max-width:250px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;" title="${l.reason}">"${l.reason}"</td>
-                <td><span class="badge ${l.status}">${l.status === 'pending' ? 'Pending Parent' : l.status}</span></td>
-                <td style="text-align:right; text-transform:capitalize; font-size:13px; font-weight:500;">
-                  ${l.submittedBy || 'student'}
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
+      <!-- Selected Date Absence Details Panel -->
+      <div class="dashboard-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">${ICONS.users} Absences on ${selectedDateFormatted}</h2>
+        </div>
+        
+        <div class="calendar-detail-list" style="margin-top: 15px; max-height: 400px; overflow-y: auto;">
+          ${leavesDetailHTML}
+        </div>
       </div>
     </div>
   `;
@@ -2105,94 +2427,11 @@ function attachWardenEvents() {
     });
 
     document.querySelectorAll('.btn-view-student').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const studentId = e.target.dataset.stuId;
-      const student = state.db.find(s => s.id === studentId);
-      if (!student) return;
-
-      const detailModal = document.getElementById('student-detail-modal');
-      const modalName = document.getElementById('modal-student-name');
-      const modalContent = document.getElementById('modal-student-content');
-
-      if (detailModal && modalName && modalContent) {
-        modalName.innerText = `Student Profile: ${student.name}`;
-        
-        const activeTodayOnLeave = isStudentOnLeave(student, getDateString(0));
-        
-        const leavesHTML = student.leaves.length === 0 
-          ? '<p style="font-size:13px; color:var(--text-muted);">No leave requests registered.</p>'
-          : student.leaves.map(l => `
-              <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-input); padding:8px 12px; border-radius:4px; font-size:13px;">
-                <span>
-                  <strong>${formatDisplayDate(l.startDate)} - ${formatDisplayDate(l.endDate)}</strong><br>
-                  <span style="font-size:10px; font-weight:600; color:var(--primary); text-transform:uppercase; display:block; margin:2px 0;">Type: ${l.type === 'outing' ? 'Going Out' : 'On Leave'}</span>
-                  <span style="font-size:11px; color:var(--text-secondary);">"${l.reason}"</span>
-                </span>
-                <span class="badge ${l.status}" style="font-size:10px; padding:3px 8px;">${l.status}</span>
-              </div>
-            `).join('');
-
-        const mealsHTML = student.mealBookings.length === 0
-          ? '<p style="font-size:13px; color:var(--text-muted);">No meals booked for the upcoming week.</p>'
-          : student.mealBookings.map(b => `
-              <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-input); padding:8px 12px; border-radius:4px; font-size:13px; margin-bottom:6px;">
-                <span><strong>${formatDisplayDate(b.date)}</strong></span>
-                <span style="font-size:11px; color:var(--primary);">
-                  ${[
-                    b.breakfast ? 'Breakfast' : '',
-                    b.lunch ? 'Lunch' : '',
-                    b.snacks ? 'Snacks' : '',
-                    b.dinner ? 'Dinner' : ''
-                  ].filter(Boolean).join(', ') || 'No Meals Selected'}
-                </span>
-              </div>
-            `).join('');
-
-        modalContent.innerHTML = `
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; border-bottom:1px solid var(--border-color); padding-bottom:15px;">
-            <div>
-              <span style="font-size:12px; color:var(--text-muted);">Roll Number</span><br>
-              <strong>${student.id}</strong>
-            </div>
-            <div>
-              <span style="font-size:12px; color:var(--text-muted);">Room & Block</span><br>
-              <strong>Room ${student.room} (Block ${student.block})</strong>
-            </div>
-            <div>
-              <span style="font-size:12px; color:var(--text-muted);">Email</span><br>
-              <span style="font-size:13px;">${student.email}</span>
-            </div>
-            <div>
-              <span style="font-size:12px; color:var(--text-muted);">Phone</span><br>
-              <span style="font-size:13px;">${student.phone}</span>
-            </div>
-            <div style="grid-column:span 2; margin-top:5px;">
-              <span style="font-size:12px; color:var(--text-muted);">Mess Status Today</span><br>
-              ${activeTodayOnLeave 
-                ? '<span class="badge rejected" style="font-size:11px; padding:4px 10px; margin-top:4px;">On Leave - Mess Closed</span>' 
-                : '<span class="badge approved" style="font-size:11px; padding:4px 10px; margin-top:4px;">Present - Mess Active</span>'}
-            </div>
-          </div>
-          
-          <div style="max-height: 150px; overflow-y: auto;">
-            <h4 style="font-size:14px; margin-bottom:8px;">Leaves History</h4>
-            <div style="display:flex; flex-direction:column; gap:6px;">
-              ${leavesHTML}
-            </div>
-          </div>
-
-          <div style="max-height: 150px; overflow-y: auto;">
-            <h4 style="font-size:14px; margin-bottom:8px;">Meal Bookings Log</h4>
-            <div>
-              ${mealsHTML}
-            </div>
-          </div>
-        `;
-
-        detailModal.classList.add('active');
-      }
+      btn.addEventListener('click', (e) => {
+        const studentId = e.target.closest('.btn-view-student').dataset.stuId;
+        showStudentDetailModal(studentId);
+      });
     });
-  });
 
   if (state.wardenActiveTab === 'health') attachHealthViewEvents();
   if (state.wardenActiveTab === 'attendance') attachAttendanceViewEvents();
@@ -2230,6 +2469,10 @@ function attachWardenEvents() {
       render();
     });
   });
+
+  if (state.wardenActiveTab === 'behaviour') attachBehaviourRegisterEvents();
+  if (state.wardenActiveTab === 'dining') attachWardenDiningEvents();
+  if (state.wardenActiveTab === 'leaves') attachCalendarEvents();
 }
 
 // Chart.js render function
@@ -2376,6 +2619,9 @@ function renderAdminDashboard() {
           <button class="nav-item ${state.adminActiveTab === 'health' ? 'active' : ''}" data-tab="health">
             ${ICONS.shield} Health Logs
           </button>
+          <button class="nav-item ${state.adminActiveTab === 'behaviour' ? 'active' : ''}" data-tab="behaviour">
+            ${ICONS.clipboard} Behaviour Register
+          </button>
         </nav>
         
         <div class="sidebar-footer">
@@ -2389,7 +2635,7 @@ function renderAdminDashboard() {
       <main class="main-content">
         <header class="header-container">
           <div class="header-title-section">
-            <h1>${state.adminActiveTab === 'menu' ? 'Mess Menu Management' : state.adminActiveTab === 'leaves' ? 'Student Absence Registry' : state.adminActiveTab === 'attendance' ? 'Gate & Attendance' : state.adminActiveTab === 'health' ? 'Health & Medical Logs' : 'Student Directory'}</h1>
+            <h1>${state.adminActiveTab === 'menu' ? 'Mess Menu Management' : state.adminActiveTab === 'leaves' ? 'Student Absence Registry' : state.adminActiveTab === 'attendance' ? 'Gate & Attendance' : state.adminActiveTab === 'health' ? 'Health & Medical Logs' : state.adminActiveTab === 'behaviour' ? 'Student Behaviour Register' : 'Student Directory'}</h1>
             <p>Admin Control Panel • 5 Student Capacity</p>
           </div>
           
@@ -2427,21 +2673,10 @@ function renderAdminDashboard() {
               <button type="submit" class="btn-primary" style="align-self:flex-start; background:var(--primary); padding:12px 24px; font-weight:700;">Update Daily Mess Menu</button>
             </form>
           </div>
-        ` : state.adminActiveTab === 'leaves' ? renderWardenLeaves() : state.adminActiveTab === 'attendance' ? renderWardenAttendanceView() : state.adminActiveTab === 'health' ? renderWardenHealthView() : renderWardenDirectory()}
+        ` : state.adminActiveTab === 'leaves' ? renderWardenLeaves() : state.adminActiveTab === 'attendance' ? renderWardenAttendanceView() : state.adminActiveTab === 'health' ? renderWardenHealthView() : state.adminActiveTab === 'behaviour' ? renderBehaviourLogsRegister() : renderWardenDirectory()}
       </main>
 
-      <!-- Student Detail Modal -->
-      <div id="student-detail-modal" class="modal-overlay">
-        <div class="modal-container">
-          <div class="modal-header">
-            <h3 class="modal-title" id="modal-student-name">Student Details</h3>
-            <button class="modal-close" id="btn-close-detail-modal">${ICONS.x}</button>
-          </div>
-          <div id="modal-student-content" style="display:flex; flex-direction:column; gap:15px;">
-            <!-- filled dynamically -->
-          </div>
-        </div>
-      </div>
+
 
       <!-- Add Student Modal -->
       <div id="add-student-modal" class="modal-overlay">
@@ -2532,6 +2767,7 @@ function attachAdminEvents() {
 
   if (state.adminActiveTab === 'health') attachHealthViewEvents();
   if (state.adminActiveTab === 'attendance') attachAttendanceViewEvents();
+  if (state.adminActiveTab === 'behaviour') attachBehaviourRegisterEvents();
 
   if (state.adminActiveTab === 'directory') {
     const dirSearchInput = document.getElementById('dir-search');
@@ -2632,49 +2868,14 @@ function attachAdminEvents() {
 
     document.querySelectorAll('.btn-view-student').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const id = e.target.dataset.stuId;
-        const student = state.db.find(s => s.id === id);
-        if (!student) return;
-        
-        const modal = document.getElementById('student-detail-modal');
-        const title = document.getElementById('modal-student-name');
-        const content = document.getElementById('modal-student-content');
-        
-        title.innerHTML = `Student Directory Log: ${student.name}`;
-        
-        content.innerHTML = `
-          <div style="background:#f3f4f6; border-radius:8px; padding:15px; border:1px solid var(--border-color);">
-            <p><strong>Roll ID:</strong> ${student.id}</p>
-            <p><strong>Room / Block:</strong> ${student.room} (Block ${student.block})</p>
-            <p><strong>Contact Email:</strong> ${student.email}</p>
-            <p><strong>Phone Number:</strong> ${student.phone}</p>
-          </div>
-          <div>
-            <h4 style="margin-bottom:8px; display:flex; justify-content:space-between;">
-              <span>Leave / Outing Records</span>
-              <span style="font-size:12px; font-weight:normal; color:var(--text-secondary);">${student.leaves.length} logs</span>
-            </h4>
-            <div style="max-height:200px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
-              ${student.leaves.length === 0 ? `<p style="font-size:13px; color:var(--text-muted); text-align:center; padding:10px;">No leave history</p>` : 
-                student.leaves.map(l => `
-                  <div style="background:#fff; border:1px solid var(--border-color); border-radius:6px; padding:10px; display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                      <span style="font-size:12px; font-weight:700; color:var(--text-primary);">${formatDisplayDate(l.startDate)} - ${formatDisplayDate(l.endDate)}</span><br>
-                      <span style="font-size:10px; font-weight:600; color:var(--primary); text-transform:uppercase;">${l.type === 'outing' ? 'Going Out' : 'On Leave'}</span>
-                    </div>
-                    <span class="badge ${l.status}" style="font-size:10px; padding:4px 8px;">${l.status}</span>
-                  </div>
-                `).join('')}
-            </div>
-          </div>
-        `;
-        
-        modal.classList.add('active');
+        const studentId = e.target.closest('.btn-view-student').dataset.stuId;
+        showStudentDetailModal(studentId);
       });
     });
 
     if (state.adminActiveTab === 'health') attachHealthViewEvents();
     if (state.adminActiveTab === 'attendance') attachAttendanceViewEvents();
+    if (state.adminActiveTab === 'behaviour') attachBehaviourRegisterEvents();
     const closeDetailModalBtn = document.getElementById('btn-close-detail-modal');
     if (closeDetailModalBtn) {
       closeDetailModalBtn.addEventListener('click', () => {
@@ -2702,6 +2903,7 @@ function attachAdminEvents() {
       });
     });
   }
+  if (state.adminActiveTab === 'leaves') attachCalendarEvents();
 }
 
 // View template: SUPER ADMIN DASHBOARD
@@ -2709,7 +2911,7 @@ function renderSuperadminDashboard() {
   const adminUsers = [
     { name: "Siddharth K T", role: "Superadmin", pin: "Hidden", id: "SAD-02" },
     { name: "Shwetha S", role: "Superadmin", pin: "Hidden", id: "SAD-03" },
-    { name: "Chief Warden Console", role: "Warden", pin: "1234", id: "WDN-01" },
+    { name: "Chief Warden Console", role: "Warden", pin: "Password", id: "WDN-01" },
     { name: "Campus Admin Console", role: "Admin", pin: "5678", id: "ADM-01" },
     { name: "Super Admin Control", role: "Superadmin", pin: "9999", id: "SAD-01" }
   ];
@@ -2757,6 +2959,9 @@ function renderSuperadminDashboard() {
           <button class="nav-item ${state.superActiveTab === 'health' ? 'active' : ''}" data-tab="health">
             ${ICONS.shield} Health Logs
           </button>
+          <button class="nav-item ${state.superActiveTab === 'behaviour' ? 'active' : ''}" data-tab="behaviour">
+            ${ICONS.clipboard} Behaviour Register
+          </button>
         </nav>
         
         <div class="sidebar-footer">
@@ -2770,7 +2975,7 @@ function renderSuperadminDashboard() {
       <main class="main-content">
         <header class="header-container">
           <div class="header-title-section">
-            <h1>${state.superActiveTab === 'dashboard' ? 'Master System Dashboard' : state.superActiveTab === 'logs' ? 'System Activity Logs' : state.superActiveTab === 'directory' ? 'Student Directory' : state.superActiveTab === 'attendance' ? 'Gate & Attendance' : state.superActiveTab === 'health' ? 'Health & Medical Logs' : 'Database Maintenance'}</h1>
+            <h1>${state.superActiveTab === 'dashboard' ? 'Master System Dashboard' : state.superActiveTab === 'logs' ? 'System Activity Logs' : state.superActiveTab === 'directory' ? 'Student Directory' : state.superActiveTab === 'attendance' ? 'Gate & Attendance' : state.superActiveTab === 'health' ? 'Health & Medical Logs' : state.superActiveTab === 'behaviour' ? 'Student Behaviour Register' : 'Database Maintenance'}</h1>
             <p>Superadmin Master Panel • Root Access Enabled</p>
           </div>
         </header>
@@ -2886,7 +3091,7 @@ function renderSuperadminDashboard() {
               </div>
             </div>
           </div>
-        ` : state.superActiveTab === 'directory' ? renderWardenDirectory() : state.superActiveTab === 'attendance' ? renderWardenAttendanceView() : state.superActiveTab === 'health' ? renderWardenHealthView() : ''}
+        ` : state.superActiveTab === 'directory' ? renderWardenDirectory() : state.superActiveTab === 'attendance' ? renderWardenAttendanceView() : state.superActiveTab === 'health' ? renderWardenHealthView() : state.superActiveTab === 'behaviour' ? renderBehaviourLogsRegister() : ''}
       </main>
     </div>
   `;
@@ -2922,6 +3127,7 @@ function attachSuperadminEvents() {
 
   if (state.superActiveTab === 'health') attachHealthViewEvents();
   if (state.superActiveTab === 'attendance') attachAttendanceViewEvents();
+  if (state.superActiveTab === 'behaviour') attachBehaviourRegisterEvents();
   // Handle database maintenance resets
   if (state.superActiveTab === 'database') {
     const resetBtn = document.getElementById('super-btn-reset-db');
@@ -2948,6 +3154,14 @@ function attachSuperadminEvents() {
 
   if (state.superActiveTab === 'health') attachHealthViewEvents();
   if (state.superActiveTab === 'attendance') attachAttendanceViewEvents();
+
+  // btn-view-student from superadmin directory
+  document.querySelectorAll('.btn-view-student').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const studentId = e.target.closest('.btn-view-student').dataset.stuId;
+      showStudentDetailModal(studentId);
+    });
+  });
 
   // btn-view-health from superadmin directory
   document.querySelectorAll('.btn-view-health').forEach(btn => {
@@ -3020,4 +3234,779 @@ if (document.readyState === 'loading') {
   window.addEventListener('DOMContentLoaded', initApp);
 } else {
   initApp();
+}
+
+// Renders the behaviour logs list section
+function renderBehaviourLogs(student, isReadOnly) {
+  const logs = student.behaviourLogs || [];
+  const sortedLogs = [...logs].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const getSeverityBadgeClass = (severity) => {
+    switch (severity) {
+      case 'positive': return 'badge approved';
+      case 'warning': return 'badge pending';
+      case 'critical': return 'badge rejected';
+      default: return 'badge info';
+    }
+  };
+
+  const getSeverityLabel = (severity) => {
+    switch (severity) {
+      case 'positive': return 'Commendable';
+      case 'warning': return 'Warning';
+      case 'critical': return 'Critical';
+      default: return 'General';
+    }
+  };
+
+  const logsHTML = sortedLogs.length === 0 
+    ? `<div style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: var(--bg-card); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+         <span style="font-size: 32px; display: block; margin-bottom: 12px;">📋</span>
+         No behaviour logs or observations recorded.
+       </div>`
+    : sortedLogs.map(log => `
+        <div style="border-left: 4px solid ${
+          log.severity === 'positive' ? 'var(--success)' : 
+          log.severity === 'warning' ? 'var(--warning)' : 
+          log.severity === 'critical' ? 'var(--danger)' : 'var(--text-muted)'
+        }; background: var(--bg-card); padding: 16px 20px; margin-bottom: 12px; border-radius: var(--radius-sm); border-top: 1px solid var(--border-color); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <span style="font-size: 12px; font-weight: 600; color: var(--text-muted);">${formatDisplayDate(log.date)}</span>
+              <span class="${getSeverityBadgeClass(log.severity)}" style="font-size: 10px; margin-left: 8px; text-transform: uppercase; padding: 2px 6px;">${getSeverityLabel(log.severity)}</span>
+            </div>
+            ${!isReadOnly ? `
+              <div style="display: flex; gap: 8px;">
+                <button class="btn-edit-log" data-log-id="${log.id}" style="background: none; border: none; color: var(--primary); cursor: pointer; font-size: 12px; font-weight: 600; padding: 2px;">Edit</button>
+                <button class="btn-delete-log" data-log-id="${log.id}" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 12px; font-weight: 600; padding: 2px;">Delete</button>
+              </div>
+            ` : ''}
+          </div>
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Category: ${log.category}</div>
+          <p style="font-size: 13.5px; color: var(--text-primary); margin: 0; line-height: 1.45;">${log.description}</p>
+          <div style="font-size: 11px; color: var(--text-secondary); text-align: right; font-style: italic; margin-top: 4px;">
+            Recorded by: ${log.recordedBy || 'System'}
+          </div>
+        </div>
+      `).join('');
+
+  return `
+    <div class="dashboard-panel">
+      <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
+        <div>
+          <h2 class="panel-title" style="display:flex; align-items:center; gap:8px;">${ICONS.clipboard} Behaviour &amp; Observation Log</h2>
+          <p style="font-size:12px; color:var(--text-secondary); margin-top: 2px;">Official records of student conduct and commendations</p>
+        </div>
+        ${!isReadOnly ? `
+          <button id="btn-add-log" class="btn-primary" style="padding: 8px 16px; font-size: 13px; font-weight: 600;">
+            + Add Log Entry
+          </button>
+        ` : ''}
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        ${logsHTML}
+      </div>
+    </div>
+  `;
+}
+
+// Unified detail modal display for Warden, Admin, and Superadmin
+function showStudentDetailModal(studentId) {
+  const student = state.db.find(s => s.id === studentId);
+  if (!student) return;
+
+  const detailModal = document.getElementById('student-detail-modal');
+  const modalName = document.getElementById('modal-student-name');
+  const modalContent = document.getElementById('modal-student-content');
+
+  if (!detailModal || !modalName || !modalContent) return;
+
+  modalName.innerText = `Student Profile: ${student.name}`;
+
+  const activeTodayOnLeave = isStudentOnLeave(student, getDateString(0));
+
+  const leavesHTML = student.leaves.length === 0 
+    ? '<p style="font-size:13px; color:var(--text-muted); text-align:center; padding:10px;">No leave requests registered.</p>'
+    : student.leaves.map(l => `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-input); padding:8px 12px; border-radius:4px; font-size:13px; margin-bottom:4px;">
+          <span>
+            <strong>${formatDisplayDate(l.startDate)} ${l.startTime ? `(${l.startTime})` : ''} - ${formatDisplayDate(l.endDate)} ${l.endTime ? `(${l.endTime})` : ''}</strong><br>
+            <span style="font-size:10px; font-weight:600; color:var(--primary); text-transform:uppercase; display:block; margin:2px 0;">Type: ${l.type === 'outing' ? 'Going Out' : 'On Leave'} • ${l.isOvernight ? 'Overnight' : 'Same Day'}</span>
+            <span style="font-size:11px; color:var(--text-secondary);">"${l.reason}"</span>
+          </span>
+          <span class="badge ${l.status}" style="font-size:10px; padding:3px 8px;">${l.status}</span>
+        </div>
+      `).join('');
+
+  const mealsHTML = student.mealBookings.length === 0
+    ? '<p style="font-size:13px; color:var(--text-muted); text-align:center; padding:10px;">No meals booked for the upcoming week.</p>'
+    : student.mealBookings.map(b => `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-input); padding:8px 12px; border-radius:4px; font-size:13px; margin-bottom:6px;">
+          <span><strong>${formatDisplayDate(b.date)}</strong></span>
+          <span style="font-size:11px; color:var(--primary);">
+            ${[
+              b.breakfast ? 'Breakfast' : '',
+              b.lunch ? 'Lunch' : '',
+              b.snacks ? 'Snacks' : '',
+              b.dinner ? 'Dinner' : ''
+            ].filter(Boolean).join(', ') || 'No Meals Selected'}
+          </span>
+        </div>
+      `).join('');
+
+  const isReadOnly = (state.currentView === 'warden');
+  const logs = student.behaviourLogs || [];
+  const sortedLogs = [...logs].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const getSeverityBadgeClass = (severity) => {
+    switch (severity) {
+      case 'positive': return 'badge approved';
+      case 'warning': return 'badge pending';
+      case 'critical': return 'badge rejected';
+      default: return 'badge info';
+    }
+  };
+
+  const getSeverityLabel = (severity) => {
+    switch (severity) {
+      case 'positive': return 'Commendable';
+      case 'warning': return 'Warning';
+      case 'critical': return 'Critical';
+      default: return 'General';
+    }
+  };
+
+  const logsHTML = sortedLogs.length === 0
+    ? `<p style="font-size:13px; color:var(--text-muted); text-align:center; padding:20px; border:1px dashed var(--border-color); border-radius:6px;">No behaviour records found.</p>`
+    : sortedLogs.map(log => `
+        <div style="background:var(--bg-input); border-left: 4px solid ${
+          log.severity === 'positive' ? 'var(--success)' : 
+          log.severity === 'warning' ? 'var(--warning)' : 
+          log.severity === 'critical' ? 'var(--danger)' : 'var(--text-muted)'
+        }; padding:10px 14px; border-radius:4px; font-size:13px; margin-bottom:8px; display:flex; flex-direction:column; gap:4px; border-top:1px solid var(--border-color); border-right:1px solid var(--border-color); border-bottom:1px solid var(--border-color);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>
+              <strong>${formatDisplayDate(log.date)}</strong>
+              <span class="${getSeverityBadgeClass(log.severity)}" style="font-size:9px; padding:2px 5px; margin-left:6px; text-transform:uppercase;">${getSeverityLabel(log.severity)}</span>
+            </span>
+            ${!isReadOnly ? `
+              <div style="display:flex; gap:8px;">
+                <button class="btn-edit-log" data-log-id="${log.id}" style="background:none; border:none; color:var(--primary); cursor:pointer; font-size:11px; font-weight:600; padding:0;">Edit</button>
+                <button class="btn-delete-log" data-log-id="${log.id}" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:11px; font-weight:600; padding:0;">Delete</button>
+              </div>
+            ` : ''}
+          </div>
+          <div style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Category: ${log.category}</div>
+          <p style="margin:2px 0; color:var(--text-primary); line-height:1.35;">${log.description}</p>
+          <div style="font-size:10px; color:var(--text-secondary); text-align:right; font-style:italic;">By: ${log.recordedBy || 'System'}</div>
+        </div>
+      `).join('');
+
+  modalContent.innerHTML = `
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; border-bottom:1px solid var(--border-color); padding-bottom:12px;">
+      <div>
+        <span style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Roll Number</span><br>
+        <strong>${student.id}</strong>
+      </div>
+      <div>
+        <span style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Room &amp; Block</span><br>
+        <strong>Room ${student.room} (Block ${student.block})</strong>
+      </div>
+      <div>
+        <span style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Email Address</span><br>
+        <span style="font-size:13px;">${student.email}</span>
+      </div>
+      <div>
+        <span style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Phone Number</span><br>
+        <span style="font-size:13px;">${student.phone}</span>
+      </div>
+      <div style="grid-column:span 2; margin-top:4px;">
+        <span style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Mess Status Today</span><br>
+        ${activeTodayOnLeave 
+          ? '<span class="badge rejected" style="font-size:10px; padding:3px 8px; margin-top:2px; display:inline-block;">On Leave - Mess Closed</span>' 
+          : '<span class="badge approved" style="font-size:10px; padding:3px 8px; margin-top:2px; display:inline-block;">Present - Mess Active</span>'}
+      </div>
+    </div>
+    
+    <div style="max-height: 140px; overflow-y: auto; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+      <h4 style="font-size:13px; margin: 8px 0; text-transform:uppercase; color:var(--text-secondary); letter-spacing:0.5px;">Leaves History</h4>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        ${leavesHTML}
+      </div>
+    </div>
+
+    <div style="max-height: 140px; overflow-y: auto; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+      <h4 style="font-size:13px; margin: 8px 0; text-transform:uppercase; color:var(--text-secondary); letter-spacing:0.5px;">Meal Bookings Log</h4>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        ${mealsHTML}
+      </div>
+    </div>
+
+    <div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin: 8px 0;">
+        <h4 style="font-size:13px; margin:0; text-transform:uppercase; color:var(--text-secondary); letter-spacing:0.5px;">Behaviour &amp; Observation Log</h4>
+        ${!isReadOnly ? `
+          <button id="btn-add-log" class="btn-primary" style="padding:4px 8px; font-size:11px; font-weight:600;">+ Add Entry</button>
+        ` : ''}
+      </div>
+      <div style="max-height: 160px; overflow-y:auto; display:flex; flex-direction:column; gap:4px;">
+        ${logsHTML}
+      </div>
+    </div>
+  `;
+
+  detailModal.classList.add('active');
+
+  // Attach Behaviour Log interactions inside modal
+  if (!isReadOnly) {
+    const addBtn = document.getElementById('btn-add-log');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        document.getElementById('behaviour-modal-title').innerText = "Add Behaviour Log";
+        document.getElementById('behaviour-log-id').value = "";
+        document.getElementById('behaviour-student-id').value = student.id;
+        document.getElementById('behaviour-date').value = getDateString(0);
+        document.getElementById('behaviour-category').value = "General";
+        document.getElementById('behaviour-severity').value = "neutral";
+        document.getElementById('behaviour-description').value = "";
+        document.getElementById('behaviour-log-modal').classList.add('active');
+      });
+    }
+
+    modalContent.querySelectorAll('.btn-edit-log').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const logId = e.target.dataset.logId;
+        const log = student.behaviourLogs.find(l => l.id === logId);
+        if (!log) return;
+
+        document.getElementById('behaviour-modal-title').innerText = "Edit Behaviour Log";
+        document.getElementById('behaviour-log-id').value = log.id;
+        document.getElementById('behaviour-student-id').value = student.id;
+        document.getElementById('behaviour-date').value = log.date;
+        document.getElementById('behaviour-category').value = log.category;
+        document.getElementById('behaviour-severity').value = log.severity;
+        document.getElementById('behaviour-description').value = log.description;
+        document.getElementById('behaviour-log-modal').classList.add('active');
+      });
+    });
+
+    modalContent.querySelectorAll('.btn-delete-log').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const logId = e.target.dataset.logId;
+        if (confirm("Are you sure you want to delete this behaviour log entry?")) {
+          const res = updateBehaviourLog(student.id, { id: logId }, 'delete');
+          if (res && res.success) {
+            state.db = res.students;
+            showToast("Behaviour log deleted successfully", "success");
+            showStudentDetailModal(student.id);
+            render();
+          }
+        }
+      });
+    });
+  }
+}
+
+// Global modal event binder for adding/updating behavior logs
+function attachGlobalBehaviourEvents() {
+  const closeBtn = document.getElementById('btn-close-behaviour-modal');
+  const cancelBtn = document.getElementById('btn-cancel-behaviour');
+  const modal = document.getElementById('behaviour-log-modal');
+
+  const closeModal = () => {
+    if (modal) modal.classList.remove('active');
+  };
+
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+
+  const form = document.getElementById('behaviour-log-form');
+  if (form) {
+    // Avoid double submission attachments
+    const newForm = form.cloneNode(true);
+    form.parentNode.replaceChild(newForm, form);
+    
+    // Bind cancel again since clone removes listeners
+    const newCancel = document.getElementById('btn-cancel-behaviour');
+    if (newCancel) newCancel.addEventListener('click', closeModal);
+    const newClose = document.getElementById('btn-close-behaviour-modal');
+    if (newClose) newClose.addEventListener('click', closeModal);
+
+    newForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const logId = document.getElementById('behaviour-log-id').value;
+      let studentId = document.getElementById('behaviour-student-id').value;
+      if (!studentId) {
+        studentId = document.getElementById('behaviour-student-select').value;
+      }
+      const date = document.getElementById('behaviour-date').value;
+      const category = document.getElementById('behaviour-category').value;
+      const severity = document.getElementById('behaviour-severity').value;
+      const description = document.getElementById('behaviour-description').value;
+
+      const action = logId ? 'edit' : 'add';
+      const recordedBy = state.currentView === 'admin' ? 'Campus Admin Console' : (state.currentView === 'superadmin' ? 'Super Admin Control' : 'System');
+
+      const res = updateBehaviourLog(studentId, {
+        id: logId,
+        date,
+        category,
+        severity,
+        description,
+        recordedBy
+      }, action);
+
+      if (res && res.success) {
+        state.db = res.students;
+        showToast(logId ? "Behaviour log updated!" : "Behaviour log added!", "success");
+        closeModal();
+        if (document.getElementById('behaviour-student-id').value) {
+          showStudentDetailModal(studentId);
+        }
+        render();
+      } else {
+        showToast("Failed to save behaviour log", "error");
+      }
+    });
+  }
+}
+
+// Dedicated Behaviour Logs Register View
+function renderBehaviourLogsRegister() {
+  const isReadOnly = (state.currentView === 'warden');
+  
+  // Gather all logs across all students
+  const allLogs = [];
+  state.db.forEach(student => {
+    if (student.behaviourLogs) {
+      student.behaviourLogs.forEach(log => {
+        allLogs.push({
+          studentId: student.id,
+          studentName: student.name,
+          studentRoom: student.room,
+          studentBlock: student.block,
+          ...log
+        });
+      });
+    }
+  });
+
+  // Apply filters
+  const filtered = allLogs.filter(log => {
+    const term = state.behaviourSearch.toLowerCase();
+    const matchesSearch = log.studentName.toLowerCase().includes(term) ||
+                          log.studentId.toLowerCase().includes(term) ||
+                          log.description.toLowerCase().includes(term);
+
+    const matchesCategory = state.behaviourCategoryFilter === 'all' || log.category === state.behaviourCategoryFilter;
+    const matchesSeverity = state.behaviourSeverityFilter === 'all' || log.severity === state.behaviourSeverityFilter;
+
+    return matchesSearch && matchesCategory && matchesSeverity;
+  });
+
+  // Sort logs: newest first
+  filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const getSeverityBadgeClass = (severity) => {
+    switch (severity) {
+      case 'positive': return 'badge approved';
+      case 'warning': return 'badge pending';
+      case 'critical': return 'badge rejected';
+      default: return 'badge info';
+    }
+  };
+
+  const getSeverityLabel = (severity) => {
+    switch (severity) {
+      case 'positive': return 'Commendable';
+      case 'warning': return 'Warning';
+      case 'critical': return 'Critical';
+      default: return 'General';
+    }
+  };
+
+  const logsHTML = filtered.length === 0
+    ? `<tr>
+         <td colspan="6" style="text-align:center; padding:30px; color:var(--text-secondary);">No behaviour logs found matching the filters.</td>
+       </tr>`
+    : filtered.map(log => `
+        <tr>
+          <td><strong>${log.studentName}</strong><br><span style="font-size:11px; color:var(--text-muted);">${log.studentId} • Room ${log.studentRoom}</span></td>
+          <td>${formatDisplayDate(log.date)}</td>
+          <td><span style="font-weight:600; font-size:12px;">${log.category}</span></td>
+          <td><span class="${getSeverityBadgeClass(log.severity)}" style="font-size:10px; padding:3px 8px; text-transform:uppercase;">${getSeverityLabel(log.severity)}</span></td>
+          <td style="max-width:300px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;" title="${log.description}">"${log.description}"</td>
+          <td style="text-align:right;">
+            <div style="display:flex; justify-content:flex-end; gap:6px;">
+              ${!isReadOnly ? `
+                <button class="table-btn btn-edit-register-log" data-log-id="${log.id}" data-stu-id="${log.studentId}">Edit</button>
+                <button class="table-btn btn-delete-register-log" data-log-id="${log.id}" data-stu-id="${log.studentId}" style="background:#fee2e2; color:#b91c1c; border-color:#fca5a5;">Remove</button>
+              ` : `
+                <span style="font-size:11px; color:var(--text-secondary); font-style:italic;">By: ${log.recordedBy || 'System'}</span>
+              `}
+            </div>
+          </td>
+        </tr>
+      `).join('');
+
+  return `
+    <div class="dashboard-panel dashboard-full">
+      <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h2 class="panel-title">${ICONS.clipboard} Student Behaviour &amp; Observation Registry</h2>
+        ${!isReadOnly ? `
+          <button id="btn-register-add-log" class="btn-primary" style="padding: 8px 16px; font-size: 13px; font-weight:600;">
+            + Record Observation
+          </button>
+        ` : ''}
+      </div>
+
+      <div class="filter-row" style="margin-bottom: 20px;">
+        <div class="search-input-wrapper">
+          ${ICONS.search}
+          <input type="text" id="behaviour-register-search" class="search-input" placeholder="Search by student, ID, details..." value="${state.behaviourSearch}">
+        </div>
+        
+        <div class="filter-actions">
+          <select id="behaviour-register-category-filter" class="filter-select">
+            <option value="all" ${state.behaviourCategoryFilter === 'all' ? 'selected' : ''}>All Categories</option>
+            <option value="Academic" ${state.behaviourCategoryFilter === 'Academic' ? 'selected' : ''}>Academic</option>
+            <option value="Discipline" ${state.behaviourCategoryFilter === 'Discipline' ? 'selected' : ''}>Discipline</option>
+            <option value="Social" ${state.behaviourCategoryFilter === 'Social' ? 'selected' : ''}>Social</option>
+            <option value="General" ${state.behaviourCategoryFilter === 'General' ? 'selected' : ''}>General / Other</option>
+          </select>
+          
+          <select id="behaviour-register-severity-filter" class="filter-select">
+            <option value="all" ${state.behaviourSeverityFilter === 'all' ? 'selected' : ''}>All Types</option>
+            <option value="positive" ${state.behaviourSeverityFilter === 'positive' ? 'selected' : ''}>Commendable</option>
+            <option value="neutral" ${state.behaviourSeverityFilter === 'neutral' ? 'selected' : ''}>General</option>
+            <option value="warning" ${state.behaviourSeverityFilter === 'warning' ? 'selected' : ''}>Warning</option>
+            <option value="critical" ${state.behaviourSeverityFilter === 'critical' ? 'selected' : ''}>Critical</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="directory-table-wrapper">
+        <table class="directory-table">
+          <thead>
+            <tr>
+              <th>Student Info</th>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Type</th>
+              <th>Description</th>
+              <th style="text-align:right;">${isReadOnly ? 'Recorder' : 'Actions'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${logsHTML}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function attachBehaviourRegisterEvents() {
+  const isReadOnly = (state.currentView === 'warden');
+  const searchInput = document.getElementById('behaviour-register-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      state.behaviourSearch = e.target.value;
+      render();
+      const input = document.getElementById('behaviour-register-search');
+      if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+    });
+  }
+
+  const catFilter = document.getElementById('behaviour-register-category-filter');
+  if (catFilter) {
+    catFilter.addEventListener('change', (e) => {
+      state.behaviourCategoryFilter = e.target.value;
+      render();
+    });
+  }
+
+  const sevFilter = document.getElementById('behaviour-register-severity-filter');
+  if (sevFilter) {
+    sevFilter.addEventListener('change', (e) => {
+      state.behaviourSeverityFilter = e.target.value;
+      render();
+    });
+  }
+
+  if (!isReadOnly) {
+    const addBtn = document.getElementById('btn-register-add-log');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        document.getElementById('behaviour-modal-title').innerText = "Record Student Observation";
+        document.getElementById('behaviour-log-id').value = "";
+        document.getElementById('behaviour-student-id').value = "";
+        
+        // Show the student select dropdown
+        const selectContainer = document.getElementById('behaviour-student-select-container');
+        if (selectContainer) selectContainer.style.display = 'block';
+
+        document.getElementById('behaviour-date').value = getDateString(0);
+        document.getElementById('behaviour-category').value = "General";
+        document.getElementById('behaviour-severity').value = "neutral";
+        document.getElementById('behaviour-description').value = "";
+        document.getElementById('behaviour-log-modal').classList.add('active');
+      });
+    }
+
+    document.querySelectorAll('.btn-edit-register-log').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const logId = e.target.dataset.logId;
+        const studentId = e.target.dataset.stuId;
+        const student = state.db.find(s => s.id === studentId);
+        if (!student) return;
+
+        const log = student.behaviourLogs.find(l => l.id === logId);
+        if (!log) return;
+
+        document.getElementById('behaviour-modal-title').innerText = "Edit Behaviour Log";
+        document.getElementById('behaviour-log-id').value = log.id;
+        document.getElementById('behaviour-student-id').value = studentId;
+
+        // Hide the student select dropdown, we edit for a specific student
+        const selectContainer = document.getElementById('behaviour-student-select-container');
+        if (selectContainer) selectContainer.style.display = 'none';
+
+        document.getElementById('behaviour-date').value = log.date;
+        document.getElementById('behaviour-category').value = log.category;
+        document.getElementById('behaviour-severity').value = log.severity;
+        document.getElementById('behaviour-description').value = log.description;
+        document.getElementById('behaviour-log-modal').classList.add('active');
+      });
+    });
+
+    document.querySelectorAll('.btn-delete-register-log').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const logId = e.target.dataset.logId;
+        const studentId = e.target.dataset.stuId;
+        if (confirm("Are you sure you want to remove this behaviour log entry?")) {
+          const res = updateBehaviourLog(studentId, { id: logId }, 'delete');
+          if (res && res.success) {
+            state.db = res.students;
+            showToast("Behaviour log entry removed successfully", "success");
+            render();
+          }
+        }
+      });
+    });
+  }
+}
+
+// Dedicated Warden Dining & Meals Tracker
+function renderWardenDining() {
+  const selectedDate = state.diningDate;
+
+  // Filter students based on search
+  const term = state.diningSearch.toLowerCase();
+  const filteredStudents = state.db.filter(s => {
+    return s.name.toLowerCase().includes(term) || s.id.toLowerCase().includes(term);
+  });
+
+  const getMealStatusForDate = (student, dateStr) => {
+    const isLeave = student.leaves.some(leave => {
+      return (leave.status === 'approved' || leave.status === 'pending') && 
+             dateStr >= leave.startDate && dateStr <= leave.endDate;
+    });
+
+    if (isLeave) {
+      return {
+        breakfast: false,
+        lunch: false,
+        snacks: false,
+        dinner: false,
+        onLeave: true
+      };
+    }
+
+    const booking = student.mealBookings.find(b => b.date === dateStr);
+    return {
+      breakfast: booking ? !!booking.breakfast : false,
+      lunch: booking ? !!booking.lunch : false,
+      snacks: booking ? !!booking.snacks : false,
+      dinner: booking ? !!booking.dinner : false,
+      onLeave: false
+    };
+  };
+
+  const getBehaviourSummary = (student) => {
+    if (!student.behaviourLogs || student.behaviourLogs.length === 0) {
+      return `<span class="badge approved" style="background:#f0fdf4; color:#16a34a; border-color:#bbf7d0; font-size:11px;">Good Conduct (0 Logs)</span>`;
+    }
+
+    let positive = 0;
+    let warning = 0;
+    let critical = 0;
+    let neutral = 0;
+
+    student.behaviourLogs.forEach(log => {
+      if (log.severity === 'positive') positive++;
+      else if (log.severity === 'warning') warning++;
+      else if (log.severity === 'critical') critical++;
+      else neutral++;
+    });
+
+    let badges = [];
+    if (critical > 0) {
+      badges.push(`<span class="badge rejected" style="font-size:10px; padding:2px 6px;">${critical} Critical</span>`);
+    }
+    if (warning > 0) {
+      badges.push(`<span class="badge pending" style="font-size:10px; padding:2px 6px;">${warning} Warning</span>`);
+    }
+    if (positive > 0) {
+      badges.push(`<span class="badge approved" style="font-size:10px; padding:2px 6px;">${positive} Comm.</span>`);
+    }
+    if (neutral > 0 && badges.length === 0) {
+      badges.push(`<span class="badge info" style="font-size:10px; padding:2px 6px;">${neutral} Gen</span>`);
+    }
+
+    return `<div style="display:flex; gap:4px; flex-wrap:wrap; cursor:pointer;" class="dining-view-behaviour-trigger" data-stu-id="${student.id}">${badges.join('')}</div>`;
+  };
+
+  const studentsHTML = filteredStudents.length === 0
+    ? `<tr>
+         <td colspan="6" style="text-align:center; padding:30px; color:var(--text-secondary);">No students found matching the search criteria.</td>
+       </tr>`
+    : filteredStudents.map(student => {
+        const status = getMealStatusForDate(student, selectedDate);
+        
+        const renderCheckMark = (optedIn, onLeave) => {
+          if (onLeave) {
+            return `<span style="color:var(--text-muted); font-size:11px; font-weight:600; opacity:0.6; text-transform:uppercase;">Cancelled (Leave)</span>`;
+          }
+          return optedIn 
+            ? `<span style="color:#16a34a; font-weight:700; display:inline-flex; align-items:center; gap:4px; font-size:13px;">✔ Opted In</span>`
+            : `<span style="color:#ef4444; font-weight:600; display:inline-flex; align-items:center; gap:4px; opacity:0.75; font-size:13px;">✖ Opted Out</span>`;
+        };
+
+        return `
+          <tr>
+            <td>
+              <strong>${student.name}</strong><br>
+              <span style="font-size:11px; color:var(--text-muted);">${student.id} • Room ${student.room}</span>
+            </td>
+            <td>${renderCheckMark(status.breakfast, status.onLeave)}</td>
+            <td>${renderCheckMark(status.lunch, status.onLeave)}</td>
+            <td>${renderCheckMark(status.snacks, status.onLeave)}</td>
+            <td>${renderCheckMark(status.dinner, status.onLeave)}</td>
+            <td>${getBehaviourSummary(student)}</td>
+          </tr>
+        `;
+      }).join('');
+
+  return `
+    <div class="dashboard-panel dashboard-full">
+      <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h2 class="panel-title">${ICONS.coffee} Daily Dining Tracker &amp; Student Behaviour</h2>
+        <div style="font-size:12px; color:var(--text-secondary);">Tracking meal options and active conduct flags</div>
+      </div>
+
+      <div class="filter-row" style="margin-bottom: 20px; display:flex; gap:15px; flex-wrap:wrap; align-items:center;">
+        <div class="search-input-wrapper" style="flex:1; min-width:200px;">
+          ${ICONS.search}
+          <input type="text" id="dining-tracker-search" class="search-input" placeholder="Search student by name or ID..." value="${state.diningSearch}">
+        </div>
+        
+        <div style="display:flex; align-items:center; gap:10px;">
+          <label for="dining-tracker-date" style="font-size:13px; font-weight:600; color:var(--text-secondary);">Target Date:</label>
+          <input type="date" id="dining-tracker-date" class="form-input" style="padding: 6px 12px; font-size:13px; max-width:160px; margin:0;" value="${selectedDate}">
+        </div>
+      </div>
+
+      <div class="directory-table-wrapper">
+        <table class="directory-table">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Breakfast</th>
+              <th>Lunch</th>
+              <th>Snacks</th>
+              <th>Dinner</th>
+              <th>Student Behaviour Log Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${studentsHTML}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function attachWardenDiningEvents() {
+  const searchInput = document.getElementById('dining-tracker-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      state.diningSearch = e.target.value;
+      render();
+      const input = document.getElementById('dining-tracker-search');
+      if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+    });
+  }
+
+  const dateInput = document.getElementById('dining-tracker-date');
+  if (dateInput) {
+    dateInput.addEventListener('change', (e) => {
+      state.diningDate = e.target.value;
+      render();
+    });
+  }
+
+  // Click behaviour summaries to open detail modal
+  document.querySelectorAll('.dining-view-behaviour-trigger').forEach(element => {
+    element.addEventListener('click', (e) => {
+      const studentId = e.currentTarget.dataset.stuId;
+      if (studentId) {
+        showStudentDetailModal(studentId);
+      }
+    });
+  });
+}
+
+// Calendar Navigation and Date Selection Events
+function attachCalendarEvents() {
+  const prevBtn = document.getElementById('btn-calendar-prev');
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => {
+      if (state.calendarMonth === 0) {
+        state.calendarMonth = 11;
+        state.calendarYear--;
+      } else {
+        state.calendarMonth--;
+      }
+      render();
+    });
+  }
+
+  const nextBtn = document.getElementById('btn-calendar-next');
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      if (state.calendarMonth === 11) {
+        state.calendarMonth = 0;
+        state.calendarYear++;
+      } else {
+        state.calendarMonth++;
+      }
+      render();
+    });
+  }
+
+  // Click day cells to change selected date
+  document.querySelectorAll('.calendar-day-cell').forEach(cell => {
+    cell.addEventListener('click', (e) => {
+      const clickedCell = e.currentTarget;
+      const date = clickedCell.dataset.date;
+      if (date) {
+        state.calendarSelectedDate = date;
+        render();
+      }
+    });
+  });
 }

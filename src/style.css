@@ -2297,3 +2297,159 @@ input:disabled + .slider {
   border-radius: 4px;
   font-weight: 600;
 }
+
+/* Toggle Switch Style */
+.toggle-container {
+  display: inline-block;
+  position: relative;
+}
+.toggle-checkbox {
+  display: none;
+}
+.toggle-switch-label {
+  display: block;
+  width: 70px;
+  height: 32px;
+  background-color: #cbd5e1;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.3s ease;
+}
+.toggle-switch-label::after {
+  content: 'NO';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  transition: all 0.3s ease;
+}
+.toggle-switch-label::before {
+  content: 'YES';
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 2;
+}
+.toggle-switch-handle {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  background-color: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  z-index: 1;
+}
+.toggle-checkbox:checked + .toggle-switch-label {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+.toggle-checkbox:checked + .toggle-switch-label::after {
+  opacity: 0;
+}
+.toggle-checkbox:checked + .toggle-switch-label::before {
+  opacity: 1;
+}
+.toggle-checkbox:checked + .toggle-switch-label .toggle-switch-handle {
+  left: 41px;
+}
+
+/* Calendar Styles */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: var(--border-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.calendar-week-header {
+  background: var(--bg-sidebar);
+  color: var(--text-secondary);
+  font-weight: 700;
+  text-align: center;
+  padding: 10px 5px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.calendar-day-cell {
+  background: var(--bg-card);
+  min-height: 80px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.calendar-day-cell:hover {
+  background: var(--bg-input);
+}
+
+.calendar-day-cell.other-month {
+  opacity: 0.4;
+}
+
+.calendar-day-cell.selected {
+  background: rgba(59, 130, 246, 0.08);
+  border: 1.5px solid var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.calendar-day-cell.today {
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.calendar-day-cell.today .day-number {
+  background: var(--success);
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+
+.day-number {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text-primary);
+  align-self: flex-start;
+}
+
+.calendar-leaf-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.calendar-leaf-pill {
+  transition: transform 0.1s ease;
+}
+
+.calendar-leaf-pill:hover {
+  transform: scale(1.03);
+}

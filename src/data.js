@@ -67,7 +67,8 @@ function generateRandomStudent(index) {
     mealBookings: [],
     complaints: [],
     entryExitLogs: [],
-    healthRecords: []
+    healthRecords: [],
+    behaviourLogs: []
   };
 }
 
@@ -99,7 +100,7 @@ export function isStudentOnLeave(student, dateStr) {
   });
 }
 
-const DB_VERSION = 'v4'; // bump this whenever seed data changes
+const DB_VERSION = 'v5'; // bump this whenever seed data changes
 
 // Initialize the Database
 export function initDB() {
@@ -114,6 +115,7 @@ export function initDB() {
         if (!student.entryExitLogs) student.entryExitLogs = [];
         if (!student.bed) student.bed = 'Bed A';
         if (!student.sharing) student.sharing = 2;
+        if (!student.behaviourLogs) student.behaviourLogs = [];
       });
       return parsed;
     }
@@ -150,6 +152,36 @@ export function initDB() {
       }
     }
   });
+
+  // Seed behaviour logs
+  students[0].behaviourLogs = [
+    {
+      id: "OB-STU001-1",
+      date: getDateString(-5),
+      category: "Academic",
+      severity: "positive",
+      description: "Represented the hostel in the inter-college quiz competition and won first place.",
+      recordedBy: "Chief Warden Console"
+    },
+    {
+      id: "OB-STU001-2",
+      date: getDateString(-2),
+      category: "Discipline",
+      severity: "warning",
+      description: "Arrived 15 minutes late after check-in hours without prior notification.",
+      recordedBy: "Chief Warden Console"
+    }
+  ];
+  students[1].behaviourLogs = [
+    {
+      id: "OB-STU002-1",
+      date: getDateString(-4),
+      category: "Social",
+      severity: "positive",
+      description: "Volunteered to clean the hostel common community room and organize the books.",
+      recordedBy: "Campus Admin Console"
+    }
+  ];
 
   // Seed leaves for some students
   // Student 1 (Aarav Sharma - STU001): Approved outing today
@@ -270,7 +302,7 @@ export function saveDB(students) {
 }
 
 // Apply leave for a student
-export function applyLeave(studentId, startDate, endDate, reason, type = 'leave', submittedBy = 'student') {
+export function applyLeave(studentId, startDate, endDate, reason, type = 'leave', submittedBy = 'student', startTime = '', endTime = '', isOvernight = false) {
   const students = initDB();
   const student = students.find(s => s.id === studentId);
   if (!student) return null;
@@ -283,7 +315,10 @@ export function applyLeave(studentId, startDate, endDate, reason, type = 'leave'
     reason,
     type, // 'leave' or 'outing'
     submittedBy, // 'student' or 'parent'
-    status: submittedBy === 'parent' ? 'approved' : 'pending'
+    status: submittedBy === 'parent' ? 'approved' : 'pending',
+    startTime,
+    endTime,
+    isOvernight: !!isOvernight
   };
 
   student.leaves.push(newLeave);
@@ -386,6 +421,38 @@ export function updateMealBookings(studentId, dateStr, meals, cancellationDetail
   // Verify they are not on leave
   if (isStudentOnLeave(student, dateStr)) {
     return { success: false, error: "Cannot book meals while on leave!" };
+  }
+
+  // Verify 24h deadline
+  const breakfastTime = new Date(`${dateStr}T07:30:00`).getTime();
+  const deadline = breakfastTime - (24 * 60 * 60 * 1000);
+  const crossed = Date.now() > deadline;
+
+  if (crossed) {
+    const existingBooking = student.mealBookings.find(b => b.date === dateStr) || {
+      breakfast: false,
+      lunch: false,
+      snacks: false,
+      dinner: false
+    };
+
+    if (cancellationDetails) {
+      return { success: false, error: "Cannot cancel meal: the 24-hour deadline has passed." };
+    }
+    for (const key of ['breakfast', 'lunch', 'snacks', 'dinner']) {
+      if (existingBooking[key] && !meals[key]) {
+        return { success: false, error: `Cannot cancel ${key}: the 24-hour deadline has passed.` };
+      }
+    }
+
+    for (const key of ['breakfast', 'lunch', 'snacks', 'dinner']) {
+      if (!existingBooking[key] && meals[key]) {
+        const hasCanceledBefore = student.mealCancellations && student.mealCancellations.some(c => c.date === dateStr && c.meal === key);
+        if (hasCanceledBefore) {
+          return { success: false, error: `Cannot book ${key}: meal was already rejected and deadline has passed.` };
+        }
+      }
+    }
   }
 
   const existingBookingIndex = student.mealBookings.findIndex(b => b.date === dateStr);
@@ -543,3 +610,42 @@ export function getBedAssignments(students) {
   return Object.values(rooms).sort((a, b) => a.room.localeCompare(b.room));
 }
 
+
+// Add, update or delete behaviour log
+export function updateBehaviourLog(studentId, logData, actionType = 'add') {
+  const students = initDB();
+  const student = students.find(s => s.id === studentId);
+  if (!student) return null;
+
+  if (!student.behaviourLogs) {
+    student.behaviourLogs = [];
+  }
+
+  if (actionType === 'add') {
+    const newLog = {
+      id: `OB-${studentId}-${Date.now()}`,
+      date: logData.date || getDateString(0),
+      category: logData.category,
+      severity: logData.severity,
+      description: logData.description,
+      recordedBy: logData.recordedBy || 'System'
+    };
+    student.behaviourLogs.push(newLog);
+  } else if (actionType === 'edit') {
+    const logIndex = student.behaviourLogs.findIndex(l => l.id === logData.id);
+    if (logIndex >= 0) {
+      student.behaviourLogs[logIndex] = {
+        ...student.behaviourLogs[logIndex],
+        category: logData.category,
+        severity: logData.severity,
+        description: logData.description,
+        date: logData.date || student.behaviourLogs[logIndex].date
+      };
+    }
+  } else if (actionType === 'delete') {
+    student.behaviourLogs = student.behaviourLogs.filter(l => l.id !== logData.id);
+  }
+
+  saveDB(students);
+  return { success: true, students };
+}
