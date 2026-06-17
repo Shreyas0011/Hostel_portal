@@ -10,8 +10,10 @@ import {
   approveLeave, 
   rejectLeave, 
   updateMealBookings, 
-  getAnalyticsForDate, 
-  getWardenDashboardStats,
+  getAnalyticsForDate,
+  hasMealBookingDeadlinePassed,
+  hasMealBeenRejected,
+  formatMealBookingDeadline,
   reportComplaint,
   logEntryExit,
   getBedAssignments,
@@ -50,7 +52,7 @@ const state = {
   loginTab: 'student', // 'student' | 'parent' | 'warden' | 'admin' | 'superadmin'
   studentActiveTab: 'meals', // 'meals' | 'leave' | 'behaviour'
   parentActiveTab: 'leave', // 'leave' | 'meals'
-  wardenActiveTab: 'overview', // 'overview' | 'leaves' | 'directory'
+  wardenActiveTab: 'leaves', // 'leaves' | 'dining' | 'behaviour'
   adminActiveTab: 'menu', // 'menu' | 'leaves' | 'directory'
   superActiveTab: 'dashboard', // 'dashboard' | 'logs' | 'database'
   
@@ -210,9 +212,6 @@ function render() {
       attachParentEvents();
     } else if (state.currentView === 'warden') {
       attachWardenEvents();
-      if (state.wardenActiveTab === 'overview') {
-        renderWardenChart();
-      }
     } else if (state.currentView === 'admin') {
       attachAdminEvents();
     } else if (state.currentView === 'superadmin') {
@@ -308,7 +307,7 @@ function attachLoginEvents() {
       if (normalizedEmail === 'warden@hostel.edu') {
         if (password === 'warden123') {
           state.currentView = 'warden';
-          state.wardenActiveTab = 'overview';
+          state.wardenActiveTab = 'leaves';
           showToast('Logged in as Hostel Warden', 'success');
           render();
         } else {
@@ -412,7 +411,7 @@ function attachLoginEvents() {
   if (demoWarden) {
     demoWarden.addEventListener('click', () => {
       state.currentView = 'warden';
-      state.wardenActiveTab = 'overview';
+      state.wardenActiveTab = 'leaves';
       showToast('Logged in as Hostel Warden', 'success');
       render();
     });
@@ -524,7 +523,7 @@ function renderStudentDashboard() {
     <div id="meal-cancel-modal" class="modal-overlay">
       <div class="modal-container" style="max-width: 400px; padding: 25px;">
         <div class="modal-header">
-          <h3 class="modal-title">Meal Cancellation</h3>
+          <h3 class="modal-title">Reject Meal</h3>
           <button type="button" id="btn-close-meal-modal" class="modal-close">&times;</button>
         </div>
         <form id="meal-cancel-form" style="display: flex; flex-direction: column; gap: 15px;">
@@ -533,14 +532,14 @@ function renderStudentDashboard() {
           
           <div>
             <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.4; margin: 0 0 10px 0;">
-              Please state the reason for cancelling <strong id="meal-cancel-name-text"></strong> on <strong id="meal-cancel-date-text"></strong>:
+              Please state the reason for rejecting <strong id="meal-cancel-name-text"></strong> on <strong id="meal-cancel-date-text"></strong>:
             </p>
             <textarea id="meal-cancel-reason" class="form-textarea" required placeholder="e.g. Dining outside / unwell / parent visiting..." style="width: 100%; height: 90px; resize: none; margin-top: 5px; box-sizing: border-box;"></textarea>
           </div>
           
           <div style="display: flex; justify-content: flex-end; gap: 10px;">
-            <button type="button" id="btn-cancel-meal-cancel" class="btn-reject" style="padding: 8px 16px; margin: 0;">Cancel</button>
-            <button type="submit" class="btn-approve" style="background: var(--danger); padding: 8px 16px; margin: 0;">Confirm Cancel</button>
+            <button type="button" id="btn-cancel-meal-cancel" class="btn-reject" style="padding: 8px 16px; margin: 0;">Back</button>
+            <button type="submit" class="btn-approve" style="background: var(--danger); padding: 8px 16px; margin: 0;">Confirm Reject</button>
           </div>
         </form>
       </div>
@@ -687,13 +686,11 @@ function attachStudentEvents() {
       };
 
       // 24h deadline validation
-      const breakfastTime = new Date(`${date}T07:30:00`).getTime();
-      const deadline = breakfastTime - (24 * 60 * 60 * 1000);
-      const crossed = Date.now() > deadline;
+      const deadlinePassed = hasMealBookingDeadlinePassed(date);
 
       if (action === 'cancel') {
-        if (crossed) {
-          showToast(`Cannot cancel ${mealName}: the 24-hour deadline has passed.`, 'error');
+        if (deadlinePassed) {
+          showToast(`Cannot reject ${mealName}: the 8:00 AM deadline has passed.`, 'error');
           return;
         }
         const modal = document.getElementById('meal-cancel-modal');
@@ -706,12 +703,9 @@ function attachStudentEvents() {
           modal.classList.add('active');
         }
       } else {
-        if (crossed) {
-          const hasCanceledBefore = student.mealCancellations && student.mealCancellations.some(c => c.date === date && c.meal === meal);
-          if (hasCanceledBefore) {
-            showToast(`Cannot book ${mealName}: meal was already rejected and deadline has passed.`, 'error');
-            return;
-          }
+        if (deadlinePassed && hasMealBeenRejected(student, date, meal)) {
+          showToast(`Cannot accept ${mealName}: meal was already rejected and deadline has passed.`, 'error');
+          return;
         }
         booking[meal] = true;
         const res = updateMealBookings(student.id, date, {
@@ -723,10 +717,10 @@ function attachStudentEvents() {
 
         if (res && res.success) {
           state.db = res.students;
-          showToast(`${mealName} meal booked!`, 'success');
+          showToast(`${mealName} meal accepted!`, 'success');
           render();
         } else {
-          showToast(res ? res.error : 'Failed to book meal', 'error');
+          showToast(res ? res.error : 'Failed to accept meal', 'error');
         }
       }
     });
@@ -757,10 +751,8 @@ function attachStudentEvents() {
       if (!student) return;
 
       // 24h deadline validation
-      const breakfastTime = new Date(`${date}T07:30:00`).getTime();
-      const deadline = breakfastTime - (24 * 60 * 60 * 1000);
-      if (Date.now() > deadline) {
-        showToast('Cannot cancel meal: the 24-hour deadline has passed.', 'error');
+      if (hasMealBookingDeadlinePassed(date)) {
+        showToast('Cannot reject meal: the 8:00 AM deadline has passed.', 'error');
         return;
       }
 
@@ -787,7 +779,7 @@ function attachStudentEvents() {
       if (res && res.success) {
         state.db = res.students;
         closeCancelModal();
-        showToast(`${meal.charAt(0).toUpperCase() + meal.slice(1)} meal cancelled successfully!`, 'success');
+        showToast(`${meal.charAt(0).toUpperCase() + meal.slice(1)} meal rejected successfully!`, 'success');
         render();
       } else {
         showToast(res ? res.error : 'Failed to cancel meal', 'error');
@@ -1111,6 +1103,74 @@ function attachParentEvents() {
 }
 
 // SHARED TEMPLATE: Meals planner (Disabled/Read-only for Parents)
+function renderMealActionButtons(student, dateStr, mealKey, mealName, isBooked, isReadOnly) {
+  if (isReadOnly) return '';
+
+  const deadlinePassed = hasMealBookingDeadlinePassed(dateStr);
+  const wasRejected = hasMealBeenRejected(student, dateStr, mealKey);
+
+  if (deadlinePassed) {
+    if (isBooked) {
+      return `<span class="meal-status-label accepted">Accepted</span>`;
+    }
+    if (wasRejected) {
+      return `<span class="meal-status-label rejected">Rejected</span>`;
+    }
+    return `
+      <button class="meal-action-btn accept-btn meal-action-icon-btn book-btn"
+              data-date="${dateStr}"
+              data-meal="${mealKey}"
+              data-meal-name="${mealName}"
+              data-action="book">
+        Accept
+      </button>
+    `;
+  }
+
+  if (isBooked) {
+    return `
+      <span class="meal-status-label accepted">Accepted</span>
+      <button class="meal-action-btn reject-btn meal-action-icon-btn cancel-btn"
+              data-date="${dateStr}"
+              data-meal="${mealKey}"
+              data-meal-name="${mealName}"
+              data-action="cancel">
+        Reject
+      </button>
+    `;
+  }
+
+  if (wasRejected) {
+    return `
+      <button class="meal-action-btn accept-btn meal-action-icon-btn book-btn"
+              data-date="${dateStr}"
+              data-meal="${mealKey}"
+              data-meal-name="${mealName}"
+              data-action="book">
+        Accept
+      </button>
+      <span class="meal-status-label rejected">Rejected</span>
+    `;
+  }
+
+  return `
+    <button class="meal-action-btn accept-btn meal-action-icon-btn book-btn"
+            data-date="${dateStr}"
+            data-meal="${mealKey}"
+            data-meal-name="${mealName}"
+            data-action="book">
+      Accept
+    </button>
+    <button class="meal-action-btn reject-btn meal-action-icon-btn cancel-btn"
+            data-date="${dateStr}"
+            data-meal="${mealKey}"
+            data-meal-name="${mealName}"
+            data-action="cancel">
+      Reject
+    </button>
+  `;
+}
+
 function renderMealsPlanner(student, isReadOnly) {
   const menu = JSON.parse(localStorage.getItem('hostel_mess_menu')) || {
     breakfast: "Masala Dosa, Chutney, Sambhar & Coffee",
@@ -1149,6 +1209,7 @@ function renderMealsPlanner(student, isReadOnly) {
       snacks: false,
       dinner: false
     };
+    const deadlinePassed = hasMealBookingDeadlinePassed(dateStr);
 
     daysHTML += `
       <div class="meal-day-card ${onLeave ? 'on-leave' : ''}">
@@ -1156,6 +1217,13 @@ function renderMealsPlanner(student, isReadOnly) {
           <div>
             <div class="meal-day-title">${offset === 0 ? 'Today' : offset === 1 ? 'Tomorrow' : displayDate.split(',')[0]}</div>
             <div class="meal-day-date">${displayDate.split(',')[1]}</div>
+            ${!onLeave && !isReadOnly ? `
+              <div class="meal-deadline-note ${deadlinePassed ? 'passed' : ''}">
+                ${deadlinePassed
+                  ? 'Deadline passed (8:00 AM) — accept only'
+                  : `Book or reject by ${formatMealBookingDeadline(dateStr)}`}
+              </div>
+            ` : ''}
           </div>
           ${onLeave ? (isPending ? `<span class="meal-pending-badge">${leaveStatusText}</span>` : `<span class="meal-leave-badge">${leaveStatusText}</span>`) : ''}
         </div>
@@ -1179,65 +1247,7 @@ function renderMealsPlanner(student, isReadOnly) {
                       <span class="meal-time" style="font-size: 11px; color: var(--text-muted); font-weight: 600;">${mealTime}</span>
                     </div>
                     <div class="meal-action-container" style="display: flex; align-items: center; gap: 8px;">
-                      <span class="meal-status-symbol ${isBooked ? 'booked' : 'cancelled'}" title="${isBooked ? 'Booked' : 'Not Booked'}">
-                        ${isBooked ? '✓' : '✗'}
-                      </span>
-                      ${!isReadOnly ? (() => {
-                        const breakfastTime = new Date(`${dateStr}T07:30:00`).getTime();
-                        const deadline = breakfastTime - (24 * 60 * 60 * 1000);
-                        const crossed = Date.now() > deadline;
-                        const hasCanceledBefore = student.mealCancellations && student.mealCancellations.some(c => c.date === dateStr && c.meal === mealKey);
-                        const hasRejected = !isBooked && hasCanceledBefore;
-
-                        if (crossed) {
-                          if (isBooked) {
-                            return `<span style="font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Locked</span>`;
-                          } else {
-                            if (hasRejected) {
-                              return `<span style="font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Rejected</span>`;
-                            } else {
-                              return `
-                                <button class="meal-action-icon-btn book-btn" 
-                                        data-date="${dateStr}" 
-                                        data-meal="${mealKey}" 
-                                        data-meal-name="${mealName}"
-                                        data-action="book"
-                                        title="Book Meal">
-                                  ${ICONS.check}
-                                </button>
-                              `;
-                            }
-                          }
-                        } else {
-                          return isBooked ? `
-                            <button class="meal-action-icon-btn cancel-btn" 
-                                    data-date="${dateStr}" 
-                                    data-meal="${mealKey}" 
-                                    data-meal-name="${mealName}"
-                                    data-action="cancel"
-                                    title="Cancel Meal">
-                              ${ICONS.x}
-                            </button>
-                          ` : `
-                            <button class="meal-action-icon-btn book-btn" 
-                                    data-date="${dateStr}" 
-                                    data-meal="${mealKey}" 
-                                    data-meal-name="${mealName}"
-                                    data-action="book"
-                                    title="Book Meal">
-                              ${ICONS.check}
-                            </button>
-                            <button class="meal-action-icon-btn cancel-btn" 
-                                    data-date="${dateStr}" 
-                                    data-meal="${mealKey}" 
-                                    data-meal-name="${mealName}"
-                                    data-action="cancel"
-                                    title="Cancel Meal">
-                              ${ICONS.x}
-                            </button>
-                          `;
-                        }
-                      })() : ''}
+                      ${renderMealActionButtons(student, dateStr, mealKey, mealName, isBooked, isReadOnly)}
                     </div>
                   </div>
                 `;
@@ -1259,8 +1269,18 @@ function renderMealsPlanner(student, isReadOnly) {
     <div class="dashboard-panel">
       <div class="panel-header">
         <h2 class="panel-title">${ICONS.coffee} 7-Day Dining Schedule</h2>
-        <span style="font-size:12px; color:var(--text-secondary);">${isReadOnly ? "View Only Mode (Parents cannot toggle child's meals)" : 'Changes are saved automatically'}</span>
+        <span style="font-size:12px; color:var(--text-secondary);">${isReadOnly ? "View Only Mode (Parents cannot toggle child's meals)" : 'Accept or reject meals until 8:00 AM the day before'}</span>
       </div>
+
+      ${!isReadOnly ? `
+        <div class="leave-alert-banner" style="margin-bottom: 20px;">
+          ${ICONS.alert}
+          <div>
+            <h4>8:00 AM Meal Booking Policy</h4>
+            <p>Until <strong>8:00 AM on the day before</strong>, you can <strong>Accept</strong> or <strong>Reject</strong> each meal. After 8:00 AM, only <strong>Accept</strong> remains available — reject is no longer allowed.</p>
+          </div>
+        </div>
+      ` : ''}
       
       <div class="meal-planner-grid">
         ${daysHTML}
@@ -1656,8 +1676,6 @@ function attachAttendanceViewEvents() {
 
 // View template: WARDEN DASHBOARD
 function renderWardenDashboard() {
-  const stats = getWardenDashboardStats(state.db);
-
   return `
     <div class="dashboard-layout">
       <!-- Mobile Toggle -->
@@ -1683,29 +1701,14 @@ function renderWardenDashboard() {
         </div>
         
         <nav class="sidebar-nav">
-          <button class="nav-item ${state.wardenActiveTab === 'overview' ? 'active' : ''}" data-tab="overview">
-            ${ICONS.home} General Overview
-          </button>
           <button class="nav-item ${state.wardenActiveTab === 'leaves' ? 'active' : ''}" data-tab="leaves">
-            ${ICONS.calendar} Student Absence Logs
+            ${ICONS.calendar} Student Leave Database
           </button>
           <button class="nav-item ${state.wardenActiveTab === 'dining' ? 'active' : ''}" data-tab="dining">
-            ${ICONS.coffee} Dining &amp; Meals
-          </button>
-          <button class="nav-item ${state.wardenActiveTab === 'directory' ? 'active' : ''}" data-tab="directory">
-            ${ICONS.users} Student Directory
-          </button>
-          <button class="nav-item ${state.wardenActiveTab === 'beds' ? 'active' : ''}" data-tab="beds">
-            ${ICONS.key} Bed Assignments
-          </button>
-          <button class="nav-item ${state.wardenActiveTab === 'attendance' ? 'active' : ''}" data-tab="attendance">
-            ${ICONS.users} Gate &amp; Attendance
-          </button>
-          <button class="nav-item ${state.wardenActiveTab === 'health' ? 'active' : ''}" data-tab="health">
-            ${ICONS.shield} Health Logs
+            ${ICONS.coffee} Meal Data
           </button>
           <button class="nav-item ${state.wardenActiveTab === 'behaviour' ? 'active' : ''}" data-tab="behaviour">
-            ${ICONS.clipboard} Behaviour Register
+            ${ICONS.clipboard} Behaviour Log
           </button>
         </nav>
         
@@ -1720,101 +1723,13 @@ function renderWardenDashboard() {
       <main class="main-content">
         <header class="header-container">
           <div class="header-title-section">
-            <h1>${state.wardenActiveTab === 'overview' ? 'Dashboard Overview' : state.wardenActiveTab === 'leaves' ? 'Student Absence Registry' : state.wardenActiveTab === 'dining' ? 'Dining Tracker & Meal Opt-ins' : state.wardenActiveTab === 'beds' ? 'Room & Bed Assignments' : state.wardenActiveTab === 'attendance' ? 'Gate & Attendance' : state.wardenActiveTab === 'health' ? 'Health Logs' : state.wardenActiveTab === 'behaviour' ? 'Student Behaviour Register' : 'Student Directory'}</h1>
-            <p>Admin Control Panel • 5 Student Capacity</p>
-          </div>
-          
-          <div style="display:flex; gap:10px;">
-            ${state.wardenActiveTab === 'directory' ? `<button class="btn-primary" id="btn-add-student-modal">${ICONS.plus} Add Student</button>` : ''}
+            <h1>${state.wardenActiveTab === 'leaves' ? 'Student Leave Database' : state.wardenActiveTab === 'dining' ? 'Meal Data' : 'Student Behaviour Log'}</h1>
+            <p>Warden Control Panel • Leave, Dining &amp; Behaviour</p>
           </div>
         </header>
 
-        <!-- Stats row (General statistics) -->
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon primary">${ICONS.users}</div>
-            <div class="stat-details">
-              <span class="stat-label">Total Students</span>
-              <span class="stat-value">${stats.totalStudents}</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon success">${ICONS.home}</div>
-            <div class="stat-details">
-              <span class="stat-label">Active In Hostel</span>
-              <span class="stat-value">${stats.inHostel}</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon danger">${ICONS.calendar}</div>
-            <div class="stat-details">
-              <span class="stat-label">Active On Leave Today</span>
-              <span class="stat-value">${stats.onLeaveToday}</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon warning">${ICONS.waste}</div>
-            <div class="stat-details">
-              <span class="stat-label">Wastage Avoided</span>
-              <span class="stat-value">${stats.avoidedMeals} plates</span>
-            </div>
-          </div>
-        </div>
-
-        ${state.wardenActiveTab === 'overview' ? renderWardenOverview(stats) : 
-          state.wardenActiveTab === 'leaves' ? renderWardenLeaves() : 
-          state.wardenActiveTab === 'dining' ? renderWardenDining() : 
-          state.wardenActiveTab === 'beds' ? renderBedAssignments() :
-          state.wardenActiveTab === 'attendance' ? renderWardenAttendanceView() :
-          state.wardenActiveTab === 'health' ? renderWardenHealthView() :
-          state.wardenActiveTab === 'behaviour' ? renderBehaviourLogsRegister() :
-          renderWardenDirectory()}
+        ${state.wardenActiveTab === 'leaves' ? renderWardenLeaves() : state.wardenActiveTab === 'dining' ? renderWardenDining() : renderBehaviourLogsRegister()}
       </main>
-
-
-
-      <!-- Add Student Modal -->
-      <div id="add-student-modal" class="modal-overlay">
-        <div class="modal-container">
-          <div class="modal-header">
-            <h3 class="modal-title">Register New Student</h3>
-            <button class="modal-close" id="btn-close-add-modal">${ICONS.x}</button>
-          </div>
-          <form id="add-student-form">
-            <div class="form-grid">
-              <div class="form-group-full">
-                <label class="form-label" for="new-student-name">Full Name</label>
-                <input type="text" id="new-student-name" class="form-input" required placeholder="John Doe">
-              </div>
-              <div>
-                <label class="form-label" for="new-student-block">Block</label>
-                <select id="new-student-block" class="form-input" required>
-                  <option value="A">Block A</option>
-                  <option value="B">Block B</option>
-                  <option value="C">Block C</option>
-                  <option value="D">Block D</option>
-                </select>
-              </div>
-              <div>
-                <label class="form-label" for="new-student-room">Room Number</label>
-                <input type="text" id="new-student-room" class="form-input" required placeholder="A-102">
-              </div>
-              <div class="form-group-full">
-                <label class="form-label" for="new-student-email">Email Address</label>
-                <input type="email" id="new-student-email" class="form-input" required placeholder="john.doe@hostel.edu">
-              </div>
-              <div class="form-group-full">
-                <label class="form-label" for="new-student-phone">Contact Number</label>
-                <input type="text" id="new-student-phone" class="form-input" required placeholder="+91 9876543210">
-              </div>
-            </div>
-            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
-              <button type="button" class="btn-secondary" id="btn-cancel-add-student">Cancel</button>
-              <button type="submit" class="btn-primary">Register Student</button>
-            </div>
-          </form>
-        </div>
-      </div>
     </div>
   `;
 }
@@ -2294,185 +2209,9 @@ function attachWardenEvents() {
     });
   }
 
-  const goToLeavesBtn = document.getElementById('btn-go-to-leaves');
-  if (goToLeavesBtn) {
-    goToLeavesBtn.addEventListener('click', () => {
-      state.wardenActiveTab = 'leaves';
-      render();
-    });
-  }
-
-  const dirSearchInput = document.getElementById('dir-search');
-  if (dirSearchInput) {
-    dirSearchInput.addEventListener('input', (e) => {
-      state.directorySearch = e.target.value;
-      state.directoryPage = 1;
-      render();
-      const input = document.getElementById('dir-search');
-      if (input) {
-        input.focus();
-        input.setSelectionRange(input.value.length, input.value.length);
-      }
-    });
-  }
-
-  const blockFilter = document.getElementById('dir-block-filter');
-  if (blockFilter) {
-    blockFilter.addEventListener('change', (e) => {
-      state.directoryBlockFilter = e.target.value;
-      state.directoryPage = 1;
-      render();
-    });
-  }
-
-  const statusFilter = document.getElementById('dir-status-filter');
-  if (statusFilter) {
-    statusFilter.addEventListener('change', (e) => {
-      state.directoryStatusFilter = e.target.value;
-      state.directoryPage = 1;
-      render();
-    });
-  }
-
-  const prevBtn = document.getElementById('btn-page-prev');
-  if (prevBtn) {
-    prevBtn.addEventListener('click', () => {
-      if (state.directoryPage > 1) {
-        state.directoryPage--;
-        render();
-      }
-    });
-  }
-
-  const nextBtn = document.getElementById('btn-page-next');
-  if (nextBtn) {
-    nextBtn.addEventListener('click', () => {
-      state.directoryPage++;
-      render();
-    });
-  }
-
-  const addStudentModalBtn = document.getElementById('btn-add-student-modal');
-  const addStudentModal = document.getElementById('add-student-modal');
-  const closeAddModalBtn = document.getElementById('btn-close-add-modal');
-  const cancelAddBtn = document.getElementById('btn-cancel-add-student');
-  const addForm = document.getElementById('add-student-form');
-
-  if (addStudentModalBtn && addStudentModal) {
-    addStudentModalBtn.addEventListener('click', () => {
-      addStudentModal.classList.add('active');
-    });
-  }
-
-  const closeAddModal = () => {
-    if (addStudentModal) addStudentModal.classList.remove('active');
-    if (addForm) addForm.reset();
-  };
-
-  if (closeAddModalBtn) closeAddModalBtn.addEventListener('click', closeAddModal);
-  if (cancelAddBtn) cancelAddBtn.addEventListener('click', closeAddModal);
-
-  if (addForm) {
-    addForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      
-      const name = document.getElementById('new-student-name').value;
-      const block = document.getElementById('new-student-block').value;
-      const room = document.getElementById('new-student-room').value;
-      const email = document.getElementById('new-student-email').value;
-      const phone = document.getElementById('new-student-phone').value;
-
-      const newId = `STU${String(state.db.length + 1).padStart(3, '0')}`;
-      
-      const newStudent = {
-        id: newId,
-        name,
-        room,
-        block,
-        email,
-        phone,
-        leaves: [],
-        mealBookings: []
-      };
-
-      state.db.push(newStudent);
-      saveDB(state.db);
-      
-      showToast(`Registered student ${name} under ID ${newId}!`, 'success');
-      closeAddModal();
-      render();
-    });
-  }
-
-  document.querySelectorAll('.btn-view-health').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const studentId = e.target.dataset.stuId;
-        state.viewHealthStudentId = studentId;
-        if (state.currentView === 'warden') state.wardenActiveTab = 'health';
-        if (state.currentView === 'admin') state.adminActiveTab = 'health';
-        if (state.currentView === 'superadmin') state.superActiveTab = 'health';
-        render();
-      });
-    });
-
-    document.querySelectorAll('.btn-view-attendance').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const studentId = e.target.dataset.stuId;
-        state.viewAttendanceStudentId = studentId;
-        if (state.currentView === 'warden') state.wardenActiveTab = 'attendance';
-        if (state.currentView === 'admin') state.adminActiveTab = 'attendance';
-        if (state.currentView === 'superadmin') state.superActiveTab = 'attendance';
-        render();
-      });
-    });
-
-    document.querySelectorAll('.btn-view-student').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const studentId = e.target.closest('.btn-view-student').dataset.stuId;
-        showStudentDetailModal(studentId);
-      });
-    });
-
-  if (state.wardenActiveTab === 'health') attachHealthViewEvents();
-  if (state.wardenActiveTab === 'attendance') attachAttendanceViewEvents();
-  const detailModalClose = document.getElementById('btn-close-detail-modal');
-  if (detailModalClose) {
-    detailModalClose.addEventListener('click', () => {
-      const detailModal = document.getElementById('student-detail-modal');
-      if (detailModal) detailModal.classList.remove('active');
-    });
-  }
-
-  if (state.wardenActiveTab === 'health') attachHealthViewEvents();
-  if (state.wardenActiveTab === 'attendance') attachAttendanceViewEvents();
-
-  // btn-view-health from directory
-  document.querySelectorAll('.btn-view-health').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const studentId = e.target.closest('.btn-view-health').dataset.stuId;
-      state.viewHealthStudentId = studentId;
-      if (state.currentView === 'warden') state.wardenActiveTab = 'health';
-      if (state.currentView === 'admin') state.adminActiveTab = 'health';
-      if (state.currentView === 'superadmin') state.superActiveTab = 'health';
-      render();
-    });
-  });
-
-  // btn-view-attendance from directory
-  document.querySelectorAll('.btn-view-attendance').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const studentId = e.target.closest('.btn-view-attendance').dataset.stuId;
-      state.viewAttendanceStudentId = studentId;
-      if (state.currentView === 'warden') state.wardenActiveTab = 'attendance';
-      if (state.currentView === 'admin') state.adminActiveTab = 'attendance';
-      if (state.currentView === 'superadmin') state.superActiveTab = 'attendance';
-      render();
-    });
-  });
-
-  if (state.wardenActiveTab === 'behaviour') attachBehaviourRegisterEvents();
   if (state.wardenActiveTab === 'dining') attachWardenDiningEvents();
   if (state.wardenActiveTab === 'leaves') attachCalendarEvents();
+  if (state.wardenActiveTab === 'behaviour') attachBehaviourRegisterEvents();
 }
 
 // Chart.js render function

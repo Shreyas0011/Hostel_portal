@@ -2062,6 +2062,57 @@ input:disabled + .slider {
   box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
 }
 
+.meal-action-btn {
+  min-width: 64px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.meal-action-btn.accept-btn {
+  border-radius: 999px;
+}
+
+.meal-action-btn.reject-btn {
+  border-radius: 999px;
+}
+
+.meal-status-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+.meal-status-label.accepted {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.meal-status-label.rejected {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.meal-deadline-note {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.meal-deadline-note.passed {
+  color: #b45309;
+}
+
 .meal-status-symbol {
   width: 24px;
   height: 24px;

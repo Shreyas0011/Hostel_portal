@@ -89,6 +89,36 @@ export function formatDisplayDate(dateStr) {
   return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+// Meal booking cutoff: 8:00 AM on the day before (24 hours before 8:00 AM on the target day)
+const MEAL_BOOKING_CUTOFF_HOUR = 8;
+
+export function getMealBookingDeadline(dateStr) {
+  const targetDayCutoff = new Date(`${dateStr}T${String(MEAL_BOOKING_CUTOFF_HOUR).padStart(2, '0')}:00:00`);
+  return targetDayCutoff.getTime() - (24 * 60 * 60 * 1000);
+}
+
+export function hasMealBookingDeadlinePassed(dateStr) {
+  return Date.now() > getMealBookingDeadline(dateStr);
+}
+
+export function hasMealBeenRejected(student, dateStr, mealKey) {
+  return !!(student.mealCancellations && student.mealCancellations.some(
+    c => c.date === dateStr && c.meal === mealKey
+  ));
+}
+
+export function formatMealBookingDeadline(dateStr) {
+  const deadline = new Date(getMealBookingDeadline(dateStr));
+  return deadline.toLocaleString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
 // Check if a date falls in a student's approved or pending leaves
 export function isStudentOnLeave(student, dateStr) {
   const targetTime = new Date(dateStr).getTime();
@@ -423,10 +453,7 @@ export function updateMealBookings(studentId, dateStr, meals, cancellationDetail
     return { success: false, error: "Cannot book meals while on leave!" };
   }
 
-  // Verify 24h deadline
-  const breakfastTime = new Date(`${dateStr}T07:30:00`).getTime();
-  const deadline = breakfastTime - (24 * 60 * 60 * 1000);
-  const crossed = Date.now() > deadline;
+  const crossed = hasMealBookingDeadlinePassed(dateStr);
 
   if (crossed) {
     const existingBooking = student.mealBookings.find(b => b.date === dateStr) || {
@@ -437,19 +464,18 @@ export function updateMealBookings(studentId, dateStr, meals, cancellationDetail
     };
 
     if (cancellationDetails) {
-      return { success: false, error: "Cannot cancel meal: the 24-hour deadline has passed." };
+      return { success: false, error: "Cannot reject meal: the 8:00 AM deadline has passed." };
     }
     for (const key of ['breakfast', 'lunch', 'snacks', 'dinner']) {
       if (existingBooking[key] && !meals[key]) {
-        return { success: false, error: `Cannot cancel ${key}: the 24-hour deadline has passed.` };
+        return { success: false, error: `Cannot reject ${key}: the 8:00 AM deadline has passed.` };
       }
     }
 
     for (const key of ['breakfast', 'lunch', 'snacks', 'dinner']) {
       if (!existingBooking[key] && meals[key]) {
-        const hasCanceledBefore = student.mealCancellations && student.mealCancellations.some(c => c.date === dateStr && c.meal === key);
-        if (hasCanceledBefore) {
-          return { success: false, error: `Cannot book ${key}: meal was already rejected and deadline has passed.` };
+        if (hasMealBeenRejected(student, dateStr, key)) {
+          return { success: false, error: `Cannot accept ${key}: meal was already rejected and deadline has passed.` };
         }
       }
     }
