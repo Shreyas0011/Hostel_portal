@@ -130,6 +130,41 @@ export function isStudentOnLeave(student, dateStr) {
   });
 }
 
+// Check if a meal is booked/accepted for a student at a given date
+export function isMealBooked(student, dateStr, mealKey) {
+  // If student is on leave, they shouldn't have meals
+  if (isStudentOnLeave(student, dateStr)) {
+    return false;
+  }
+  // If explicitly rejected, it is not booked
+  if (hasMealBeenRejected(student, dateStr, mealKey)) {
+    return false;
+  }
+  // If deadline has passed, it is auto accepted
+  if (hasMealBookingDeadlinePassed(dateStr)) {
+    return true;
+  }
+  // Otherwise check if explicitly booked
+  const booking = student.mealBookings.find(b => b.date === dateStr);
+  return booking ? !!booking[mealKey] : false;
+}
+
+// Returns the acceptance type for a meal:
+// 'manual'   – student explicitly accepted before deadline
+// 'auto'     – deadline passed, not rejected → auto-accepted
+// 'rejected' – explicitly rejected by student
+// 'opted-out'– before deadline, not yet accepted
+// 'leave'    – student is on leave
+export function getMealAcceptanceType(student, dateStr, mealKey) {
+  if (isStudentOnLeave(student, dateStr)) return 'leave';
+  if (hasMealBeenRejected(student, dateStr, mealKey)) return 'rejected';
+  const booking = student.mealBookings.find(b => b.date === dateStr);
+  const explicitlyBooked = booking && !!booking[mealKey];
+  if (explicitlyBooked) return 'manual';
+  if (hasMealBookingDeadlinePassed(dateStr)) return 'auto';
+  return 'opted-out';
+}
+
 const DB_VERSION = 'v5'; // bump this whenever seed data changes
 
 // Initialize the Database
@@ -525,16 +560,10 @@ export function getAnalyticsForDate(students, dateStr) {
   let dinner = 0;
 
   students.forEach(student => {
-    // If student is on leave, they shouldn't have meals, but let's be double sure
-    if (isStudentOnLeave(student, dateStr)) return;
-
-    const booking = student.mealBookings.find(b => b.date === dateStr);
-    if (booking) {
-      if (booking.breakfast) breakfast++;
-      if (booking.lunch) lunch++;
-      if (booking.snacks) snacks++;
-      if (booking.dinner) dinner++;
-    }
+    if (isMealBooked(student, dateStr, 'breakfast')) breakfast++;
+    if (isMealBooked(student, dateStr, 'lunch')) lunch++;
+    if (isMealBooked(student, dateStr, 'snacks')) snacks++;
+    if (isMealBooked(student, dateStr, 'dinner')) dinner++;
   });
 
   return { breakfast, lunch, snacks, dinner };

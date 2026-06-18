@@ -5,6 +5,8 @@ import {
   getDateString, 
   formatDisplayDate, 
   isStudentOnLeave, 
+  isMealBooked,
+  getMealAcceptanceType,
   applyLeave, 
   cancelLeave, 
   approveLeave, 
@@ -53,6 +55,7 @@ const state = {
   studentActiveTab: 'meals', // 'meals' | 'leave' | 'behaviour'
   parentActiveTab: 'leave', // 'leave' | 'meals'
   wardenActiveTab: 'leaves', // 'leaves' | 'dining' | 'behaviour'
+  adminMenuDay: 0,  // 0 = default template, 1-7 = day offset from today
   adminActiveTab: 'menu', // 'menu' | 'leaves' | 'directory'
   superActiveTab: 'dashboard', // 'dashboard' | 'logs' | 'database'
   
@@ -75,6 +78,37 @@ const state = {
 
 // Chart.js instance holder
 let mealChartInstance = null;
+
+// ─── Menu Helpers ───────────────────────────────────────────
+const DEFAULT_MENU = {
+  breakfast: 'Masala Dosa, Chutney, Sambhar & Coffee',
+  lunch:     'Jeera Rice, Dal Fry, Roti, Aloo Gobi & Buttermilk',
+  snacks:    'Veg Samosa, Green Chutney & Tea',
+  dinner:    'Veg Biryani, Raita, Paneer Butter Masala & Gulab Jamun'
+};
+
+function getMenuForDate(dateStr) {
+  const raw = localStorage.getItem('hostel_mess_menu');
+  if (!raw) return DEFAULT_MENU;
+  const store = JSON.parse(raw);
+  // Backward-compat: old flat format had breakfast/lunch directly
+  if (store.breakfast) return store;
+  return store[dateStr] || store['default'] || DEFAULT_MENU;
+}
+
+function getMenuStore() {
+  const raw = localStorage.getItem('hostel_mess_menu');
+  if (!raw) return { default: { ...DEFAULT_MENU } };
+  const store = JSON.parse(raw);
+  // Migrate old flat format
+  if (store.breakfast) return { default: store };
+  if (!store.default) store.default = { ...DEFAULT_MENU };
+  return store;
+}
+
+function saveMenuStore(store) {
+  localStorage.setItem('hostel_mess_menu', JSON.stringify(store));
+}
 
 // Force Light theme classes clean
 document.documentElement.className = '';
@@ -924,7 +958,7 @@ function renderParentDashboard() {
             ${ICONS.calendar} Request Leave
           </button>
           <button class="nav-item ${state.parentActiveTab === 'meals' ? 'active' : ''}" data-tab="meals">
-            ${ICONS.coffee} View Mess Menu
+            ${ICONS.coffee} Meal Status
           </button>
           <button class="nav-item ${state.parentActiveTab === 'attendance' ? 'active' : ''}" data-tab="attendance">
             ${ICONS.users} Attendance & History
@@ -948,7 +982,7 @@ function renderParentDashboard() {
       <main class="main-content">
         <header class="header-container">
           <div class="header-title-section">
-            <h1>${state.parentActiveTab === 'leave' ? 'Student Leave Application' : state.parentActiveTab === 'meals' ? "Child's Dining Planner" : state.parentActiveTab === 'health' ? "Child's Health Records" : state.parentActiveTab === 'behaviour' ? "Child's Behaviour Log" : "Attendance & History"}</h1>
+            <h1>${state.parentActiveTab === 'leave' ? 'Student Leave Application' : state.parentActiveTab === 'meals' ? "Ward's Meal Status" : state.parentActiveTab === 'health' ? "Child's Health Records" : state.parentActiveTab === 'behaviour' ? "Child's Behaviour Log" : "Attendance & History"}</h1>
             <p>Parent Control Portal • Student: ${student.name} (${student.id})</p>
           </div>
           
@@ -1104,7 +1138,21 @@ function attachParentEvents() {
 
 // SHARED TEMPLATE: Meals planner (Disabled/Read-only for Parents)
 function renderMealActionButtons(student, dateStr, mealKey, mealName, isBooked, isReadOnly) {
-  if (isReadOnly) return '';
+  if (isReadOnly) {
+    // Parent view: show acceptance status clearly
+    const type = getMealAcceptanceType(student, dateStr, mealKey);
+    if (type === 'manual') {
+      return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#15803d;background:#dcfce7;padding:5px 10px;border-radius:20px;border:1px solid #bbf7d0;">✔ Accepted <span style="font-size:9px;background:#16a34a;color:#fff;padding:1px 5px;border-radius:4px;">MANUAL</span></span>`;
+    }
+    if (type === 'auto') {
+      return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#1d4ed8;background:#dbeafe;padding:5px 10px;border-radius:20px;border:1px solid #bfdbfe;">✔ Accepted <span style="font-size:9px;background:#2563eb;color:#fff;padding:1px 5px;border-radius:4px;">AUTO</span></span>`;
+    }
+    if (type === 'rejected') {
+      return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#b91c1c;background:#fee2e2;padding:5px 10px;border-radius:20px;border:1px solid #fca5a5;">✖ Rejected</span>`;
+    }
+    // opted-out (deadline not passed, not booked)
+    return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#64748b;background:#f1f5f9;padding:5px 10px;border-radius:20px;border:1px solid #e2e8f0;">– Not Opted In</span>`;
+  }
 
   const deadlinePassed = hasMealBookingDeadlinePassed(dateStr);
   const wasRejected = hasMealBeenRejected(student, dateStr, mealKey);
@@ -1172,13 +1220,6 @@ function renderMealActionButtons(student, dateStr, mealKey, mealName, isBooked, 
 }
 
 function renderMealsPlanner(student, isReadOnly) {
-  const menu = JSON.parse(localStorage.getItem('hostel_mess_menu')) || {
-    breakfast: "Masala Dosa, Chutney, Sambhar & Coffee",
-    lunch: "Jeera Rice, Dal Fry, Roti, Aloo Gobi & Buttermilk",
-    snacks: "Veg Samosa, Green Chutney & Tea",
-    dinner: "Veg Biryani, Raita, Paneer Butter Masala & Gulab Jamun"
-  };
-
   let daysHTML = '';
   
   for (let offset = 0; offset < 7; offset++) {
@@ -1238,7 +1279,7 @@ function renderMealsPlanner(student, isReadOnly) {
           <div class="meal-options-list">
             ${(() => {
               const makeMealRow = (mealName, mealKey, mealMenu, mealTime) => {
-                const isBooked = booking[mealKey];
+                const isBooked = isMealBooked(student, dateStr, mealKey);
                 return `
                   <div class="meal-option-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color);">
                     <div class="meal-label-info">
@@ -1252,11 +1293,12 @@ function renderMealsPlanner(student, isReadOnly) {
                   </div>
                 `;
               };
+              const dayMenu = getMenuForDate(dateStr);
               return [
-                makeMealRow('Breakfast', 'breakfast', menu.breakfast, '07:30 AM - 09:00 AM'),
-                makeMealRow('Lunch', 'lunch', menu.lunch, '12:30 PM - 02:00 PM'),
-                makeMealRow('Snacks', 'snacks', menu.snacks, '04:30 PM - 05:30 PM'),
-                makeMealRow('Dinner', 'dinner', menu.dinner, '07:30 PM - 09:00 PM')
+                makeMealRow('Breakfast', 'breakfast', dayMenu.breakfast, '07:30 AM - 09:00 AM'),
+                makeMealRow('Lunch',     'lunch',     dayMenu.lunch,     '12:30 PM - 02:00 PM'),
+                makeMealRow('Snacks',    'snacks',    dayMenu.snacks,    '04:30 PM - 05:30 PM'),
+                makeMealRow('Dinner',    'dinner',    dayMenu.dinner,    '07:30 PM - 09:00 PM')
               ].join('');
             })()}
           </div>
@@ -1272,7 +1314,20 @@ function renderMealsPlanner(student, isReadOnly) {
         <span style="font-size:12px; color:var(--text-secondary);">${isReadOnly ? "View Only Mode (Parents cannot toggle child's meals)" : 'Accept or reject meals until 8:00 AM the day before'}</span>
       </div>
 
-      ${!isReadOnly ? `
+      ${isReadOnly ? `
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-start;">
+          ${ICONS.shield}
+          <div>
+            <h4 style="font-size:14px;font-weight:700;color:#1d4ed8;margin-bottom:4px;">Read-Only View — Meal Status</h4>
+            <p style="font-size:13px;color:#1e40af;line-height:1.5;">This shows your ward's meal acceptance status for the next 7 days. 
+              <span style="font-weight:700;color:#15803d;">✔ MANUAL</span> = your ward accepted it themselves &nbsp;·&nbsp;
+              <span style="font-weight:700;color:#1d4ed8;">✔ AUTO</span> = auto-accepted after 8 AM deadline &nbsp;·&nbsp;
+              <span style="font-weight:700;color:#b91c1c;">✖ Rejected</span> = opted out &nbsp;·&nbsp;
+              <span style="font-weight:700;color:#64748b;">– Not Opted In</span> = not yet decided.
+            </p>
+          </div>
+        </div>
+      ` : `
         <div class="leave-alert-banner" style="margin-bottom: 20px;">
           ${ICONS.alert}
           <div>
@@ -1280,7 +1335,7 @@ function renderMealsPlanner(student, isReadOnly) {
             <p>Until <strong>8:00 AM on the day before</strong>, you can <strong>Accept</strong> or <strong>Reject</strong> each meal. After 8:00 AM, only <strong>Accept</strong> remains available — reject is no longer allowed.</p>
           </div>
         </div>
-      ` : ''}
+      `}
       
       <div class="meal-planner-grid">
         ${daysHTML}
@@ -2311,12 +2366,75 @@ function renderWardenChart() {
 
 // View template: ADMIN DASHBOARD
 function renderAdminDashboard() {
-  const menu = JSON.parse(localStorage.getItem('hostel_mess_menu')) || {
-    breakfast: "Masala Dosa, Chutney, Sambhar & Coffee",
-    lunch: "Jeera Rice, Dal Fry, Roti, Aloo Gobi & Buttermilk",
-    snacks: "Veg Samosa, Green Chutney & Tea",
-    dinner: "Veg Biryani, Raita, Paneer Butter Masala & Gulab Jamun"
-  };
+  // 7-day menu planner
+  const menuStore  = getMenuStore();
+  const activeDay  = state.adminMenuDay; // 0 = default, 1-7 = offset
+  const activeDateStr = activeDay === 0 ? null : getDateString(activeDay - 1);
+  const activeMenu = activeDateStr ? (menuStore[activeDateStr] || menuStore['default'] || DEFAULT_MENU)
+                                   : (menuStore['default'] || DEFAULT_MENU);
+  const hasOverride = (dateStr) => dateStr && !!menuStore[dateStr] && menuStore[dateStr] !== menuStore['default'];
+
+  const DAY_NAMES = ['Default', 'Today', 'Tomorrow', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'];
+
+  const menuTabsHTML = DAY_NAMES.map((name, idx) => {
+    const dateStr = idx === 0 ? null : getDateString(idx - 1);
+    const overrideExists = idx > 0 && !!menuStore[dateStr];
+    const shortDate = dateStr ? new Date(dateStr).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) : '';
+    return `
+      <button class="menu-day-tab ${activeDay === idx ? 'active' : ''}" data-menu-day="${idx}">
+        ${name}${shortDate ? `<span style="display:block;font-size:9px;opacity:0.75;">${shortDate}</span>` : ''}
+        ${overrideExists ? `<span class="menu-override-dot" title="Custom menu set"></span>` : ''}
+      </button>`;
+  }).join('');
+
+  const menuPanelHTML = `
+    <div class="dashboard-panel dashboard-full">
+      <div class="panel-header" style="margin-bottom:0;">
+        <h2 class="panel-title">${ICONS.coffee} 7-Day Mess Menu Planner</h2>
+        <span style="font-size:12px;color:var(--text-secondary);">Set a default menu, then override specific days</span>
+      </div>
+
+      <div class="menu-day-tabs-row">
+        ${menuTabsHTML}
+      </div>
+
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#1e40af;">
+        ${activeDay === 0
+          ? `<strong>Default Menu</strong> — applies to every day that doesn't have a custom override. Any day you leave uncustomised will show this menu.`
+          : `<strong>${DAY_NAMES[activeDay]}</strong> menu${menuStore[activeDateStr] ? ` · <span style="color:#15803d;font-weight:700;">Custom override active</span>` : ` — currently showing the default menu. Save below to create an override.`}`}
+      </div>
+
+      <form id="admin-menu-form" style="display:flex;flex-direction:column;gap:18px;">
+        <input type="hidden" id="menu-day-key" value="${activeDateStr || 'default'}">
+        <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="form-group-full">
+            <label class="form-label" style="font-weight:700;">☀️ Breakfast &nbsp;<span style="font-size:11px;font-weight:500;color:var(--text-muted);">07:30 AM – 09:00 AM</span></label>
+            <textarea id="menu-breakfast" class="form-textarea" style="height:60px;">${activeMenu.breakfast || ''}</textarea>
+          </div>
+          <div class="form-group-full">
+            <label class="form-label" style="font-weight:700;">🌤️ Lunch &nbsp;<span style="font-size:11px;font-weight:500;color:var(--text-muted);">12:30 PM – 02:00 PM</span></label>
+            <textarea id="menu-lunch" class="form-textarea" style="height:60px;">${activeMenu.lunch || ''}</textarea>
+          </div>
+          <div class="form-group-full">
+            <label class="form-label" style="font-weight:700;">🌙 Snacks &nbsp;<span style="font-size:11px;font-weight:500;color:var(--text-muted);">04:30 PM – 05:30 PM</span></label>
+            <textarea id="menu-snacks" class="form-textarea" style="height:60px;">${activeMenu.snacks || ''}</textarea>
+          </div>
+          <div class="form-group-full">
+            <label class="form-label" style="font-weight:700;">🌃 Dinner &nbsp;<span style="font-size:11px;font-weight:500;color:var(--text-muted);">07:30 PM – 09:00 PM</span></label>
+            <textarea id="menu-dinner" class="form-textarea" style="height:60px;">${activeMenu.dinner || ''}</textarea>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+          <button type="submit" class="btn-primary" style="padding:12px 24px;font-weight:700;">
+            ${ICONS.check} Save ${activeDay === 0 ? 'Default Menu' : DAY_NAMES[activeDay] + ' Menu'}
+          </button>
+          ${activeDay > 0 && menuStore[activeDateStr] ? `
+            <button type="button" id="btn-reset-day-menu" class="btn-secondary" style="padding:12px 20px;color:#ef4444;border-color:rgba(239,68,68,0.3);">
+              ${ICONS.x} Reset to Default
+            </button>` : ''}
+        </div>
+      </form>
+    </div>`;
 
   return `
     <div class="dashboard-layout">
@@ -2346,6 +2464,9 @@ function renderAdminDashboard() {
           <button class="nav-item ${state.adminActiveTab === 'menu' ? 'active' : ''}" data-tab="menu">
             ${ICONS.coffee} Mess Menu Setup
           </button>
+          <button class="nav-item ${state.adminActiveTab === 'dining' ? 'active' : ''}" data-tab="dining">
+            ${ICONS.coffee} Meal Data
+          </button>
           <button class="nav-item ${state.adminActiveTab === 'directory' ? 'active' : ''}" data-tab="directory">
             ${ICONS.users} Student Directory
           </button>
@@ -2374,7 +2495,7 @@ function renderAdminDashboard() {
       <main class="main-content">
         <header class="header-container">
           <div class="header-title-section">
-            <h1>${state.adminActiveTab === 'menu' ? 'Mess Menu Management' : state.adminActiveTab === 'leaves' ? 'Student Absence Registry' : state.adminActiveTab === 'attendance' ? 'Gate & Attendance' : state.adminActiveTab === 'health' ? 'Health & Medical Logs' : state.adminActiveTab === 'behaviour' ? 'Student Behaviour Register' : 'Student Directory'}</h1>
+            <h1>${state.adminActiveTab === 'menu' ? 'Mess Menu Management' : state.adminActiveTab === 'dining' ? 'Meal Data & Acceptance' : state.adminActiveTab === 'leaves' ? 'Student Absence Registry' : state.adminActiveTab === 'attendance' ? 'Gate & Attendance' : state.adminActiveTab === 'health' ? 'Health & Medical Logs' : state.adminActiveTab === 'behaviour' ? 'Student Behaviour Register' : 'Student Directory'}</h1>
             <p>Admin Control Panel • 5 Student Capacity</p>
           </div>
           
@@ -2383,36 +2504,7 @@ function renderAdminDashboard() {
           </div>
         </header>
 
-        ${state.adminActiveTab === 'menu' ? `
-          <div class="dashboard-panel dashboard-full">
-            <div class="panel-header">
-              <h2 class="panel-title">${ICONS.coffee} Configure Daily Mess Dishes</h2>
-            </div>
-            
-            <form id="admin-menu-form" style="padding:20px 0; display:flex; flex-direction:column; gap:20px;">
-              <div class="form-grid">
-                <div class="form-group-full">
-                  <label class="form-label" style="font-weight:700;">Breakfast Dish Details (07:30 AM - 09:00 AM)</label>
-                  <textarea id="menu-breakfast" class="form-textarea" required style="height:60px;">${menu.breakfast}</textarea>
-                </div>
-                <div class="form-group-full">
-                  <label class="form-label" style="font-weight:700;">Lunch Dish Details (12:30 PM - 02:00 PM)</label>
-                  <textarea id="menu-lunch" class="form-textarea" required style="height:60px;">${menu.lunch}</textarea>
-                </div>
-                <div class="form-group-full">
-                  <label class="form-label" style="font-weight:700;">Snacks Dish Details (04:30 PM - 05:30 PM)</label>
-                  <textarea id="menu-snacks" class="form-textarea" required style="height:60px;">${menu.snacks}</textarea>
-                </div>
-                <div class="form-group-full">
-                  <label class="form-label" style="font-weight:700;">Dinner Dish Details (07:30 PM - 09:00 PM)</label>
-                  <textarea id="menu-dinner" class="form-textarea" required style="height:60px;">${menu.dinner}</textarea>
-                </div>
-              </div>
-              
-              <button type="submit" class="btn-primary" style="align-self:flex-start; background:var(--primary); padding:12px 24px; font-weight:700;">Update Daily Mess Menu</button>
-            </form>
-          </div>
-        ` : state.adminActiveTab === 'leaves' ? renderWardenLeaves() : state.adminActiveTab === 'attendance' ? renderWardenAttendanceView() : state.adminActiveTab === 'health' ? renderWardenHealthView() : state.adminActiveTab === 'behaviour' ? renderBehaviourLogsRegister() : renderWardenDirectory()}
+        ${state.adminActiveTab === 'menu' ? menuPanelHTML : state.adminActiveTab === 'dining' ? renderWardenDining() : state.adminActiveTab === 'leaves' ? renderWardenLeaves() : state.adminActiveTab === 'attendance' ? renderWardenAttendanceView() : state.adminActiveTab === 'health' ? renderWardenHealthView() : state.adminActiveTab === 'behaviour' ? renderBehaviourLogsRegister() : renderWardenDirectory()}
       </main>
 
 
@@ -2488,18 +2580,41 @@ function attachAdminEvents() {
     });
   }
 
+  // Menu day tab switching
+  document.querySelectorAll('.menu-day-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.adminMenuDay = parseInt(btn.dataset.menuDay, 10);
+      render();
+    });
+  });
+
   const menuForm = document.getElementById('admin-menu-form');
   if (menuForm) {
     menuForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      const updatedMenu = {
+      const key = document.getElementById('menu-day-key').value; // 'default' or 'YYYY-MM-DD'
+      const store = getMenuStore();
+      store[key] = {
         breakfast: document.getElementById('menu-breakfast').value,
-        lunch: document.getElementById('menu-lunch').value,
-        snacks: document.getElementById('menu-snacks').value,
-        dinner: document.getElementById('menu-dinner').value
+        lunch:     document.getElementById('menu-lunch').value,
+        snacks:    document.getElementById('menu-snacks').value,
+        dinner:    document.getElementById('menu-dinner').value
       };
-      localStorage.setItem('hostel_mess_menu', JSON.stringify(updatedMenu));
-      showToast("Daily Mess Menu updated successfully!", "success");
+      saveMenuStore(store);
+      showToast(key === 'default' ? 'Default menu updated!' : `Menu for ${key} saved!`, 'success');
+      render();
+    });
+  }
+
+  const resetDayBtn = document.getElementById('btn-reset-day-menu');
+  if (resetDayBtn) {
+    resetDayBtn.addEventListener('click', () => {
+      const key = document.getElementById('menu-day-key').value;
+      if (key === 'default') return;
+      const store = getMenuStore();
+      delete store[key];
+      saveMenuStore(store);
+      showToast(`Custom menu for ${key} removed. Default menu will be shown.`, 'info');
       render();
     });
   }
@@ -2507,6 +2622,7 @@ function attachAdminEvents() {
   if (state.adminActiveTab === 'health') attachHealthViewEvents();
   if (state.adminActiveTab === 'attendance') attachAttendanceViewEvents();
   if (state.adminActiveTab === 'behaviour') attachBehaviourRegisterEvents();
+  if (state.adminActiveTab === 'dining') attachWardenDiningEvents();
 
   if (state.adminActiveTab === 'directory') {
     const dirSearchInput = document.getElementById('dir-search');
@@ -2701,6 +2817,9 @@ function renderSuperadminDashboard() {
           <button class="nav-item ${state.superActiveTab === 'behaviour' ? 'active' : ''}" data-tab="behaviour">
             ${ICONS.clipboard} Behaviour Register
           </button>
+          <button class="nav-item ${state.superActiveTab === 'dining' ? 'active' : ''}" data-tab="dining">
+            ${ICONS.coffee} Meal Data
+          </button>
         </nav>
         
         <div class="sidebar-footer">
@@ -2714,7 +2833,7 @@ function renderSuperadminDashboard() {
       <main class="main-content">
         <header class="header-container">
           <div class="header-title-section">
-            <h1>${state.superActiveTab === 'dashboard' ? 'Master System Dashboard' : state.superActiveTab === 'logs' ? 'System Activity Logs' : state.superActiveTab === 'directory' ? 'Student Directory' : state.superActiveTab === 'attendance' ? 'Gate & Attendance' : state.superActiveTab === 'health' ? 'Health & Medical Logs' : state.superActiveTab === 'behaviour' ? 'Student Behaviour Register' : 'Database Maintenance'}</h1>
+            <h1>${state.superActiveTab === 'dashboard' ? 'Master System Dashboard' : state.superActiveTab === 'logs' ? 'System Activity Logs' : state.superActiveTab === 'directory' ? 'Student Directory' : state.superActiveTab === 'attendance' ? 'Gate & Attendance' : state.superActiveTab === 'health' ? 'Health & Medical Logs' : state.superActiveTab === 'behaviour' ? 'Student Behaviour Register' : state.superActiveTab === 'dining' ? 'Meal Data & Acceptance' : 'Database Maintenance'}</h1>
             <p>Superadmin Master Panel • Root Access Enabled</p>
           </div>
         </header>
@@ -2830,7 +2949,7 @@ function renderSuperadminDashboard() {
               </div>
             </div>
           </div>
-        ` : state.superActiveTab === 'directory' ? renderWardenDirectory() : state.superActiveTab === 'attendance' ? renderWardenAttendanceView() : state.superActiveTab === 'health' ? renderWardenHealthView() : state.superActiveTab === 'behaviour' ? renderBehaviourLogsRegister() : ''}
+        ` : state.superActiveTab === 'dining' ? renderWardenDining() : state.superActiveTab === 'directory' ? renderWardenDirectory() : state.superActiveTab === 'attendance' ? renderWardenAttendanceView() : state.superActiveTab === 'health' ? renderWardenHealthView() : state.superActiveTab === 'behaviour' ? renderBehaviourLogsRegister() : ''}
       </main>
     </div>
   `;
@@ -2867,6 +2986,7 @@ function attachSuperadminEvents() {
   if (state.superActiveTab === 'health') attachHealthViewEvents();
   if (state.superActiveTab === 'attendance') attachAttendanceViewEvents();
   if (state.superActiveTab === 'behaviour') attachBehaviourRegisterEvents();
+  if (state.superActiveTab === 'dining') attachWardenDiningEvents();
   // Handle database maintenance resets
   if (state.superActiveTab === 'database') {
     const resetBtn = document.getElementById('super-btn-reset-db');
@@ -3080,19 +3200,22 @@ function showStudentDetailModal(studentId) {
 
   const mealsHTML = student.mealBookings.length === 0
     ? '<p style="font-size:13px; color:var(--text-muted); text-align:center; padding:10px;">No meals booked for the upcoming week.</p>'
-    : student.mealBookings.map(b => `
-        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-input); padding:8px 12px; border-radius:4px; font-size:13px; margin-bottom:6px;">
-          <span><strong>${formatDisplayDate(b.date)}</strong></span>
-          <span style="font-size:11px; color:var(--primary);">
-            ${[
-              b.breakfast ? 'Breakfast' : '',
-              b.lunch ? 'Lunch' : '',
-              b.snacks ? 'Snacks' : '',
-              b.dinner ? 'Dinner' : ''
-            ].filter(Boolean).join(', ') || 'No Meals Selected'}
-          </span>
-        </div>
-      `).join('');
+    : student.mealBookings.map(b => {
+        const activeMeals = [
+          isMealBooked(student, b.date, 'breakfast') ? 'Breakfast' : '',
+          isMealBooked(student, b.date, 'lunch') ? 'Lunch' : '',
+          isMealBooked(student, b.date, 'snacks') ? 'Snacks' : '',
+          isMealBooked(student, b.date, 'dinner') ? 'Dinner' : ''
+        ].filter(Boolean);
+        return `
+          <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-input); padding:8px 12px; border-radius:4px; font-size:13px; margin-bottom:6px;">
+            <span><strong>${formatDisplayDate(b.date)}</strong></span>
+            <span style="font-size:11px; color:var(--primary);">
+              ${activeMeals.join(', ') || 'No Meals Selected'}
+            </span>
+          </div>
+        `;
+      }).join('');
 
   const isReadOnly = (state.currentView === 'warden');
   const logs = student.behaviourLogs || [];
@@ -3549,12 +3672,9 @@ function renderWardenDining() {
   });
 
   const getMealStatusForDate = (student, dateStr) => {
-    const isLeave = student.leaves.some(leave => {
-      return (leave.status === 'approved' || leave.status === 'pending') && 
-             dateStr >= leave.startDate && dateStr <= leave.endDate;
-    });
+    const onLeave = isStudentOnLeave(student, dateStr);
 
-    if (isLeave) {
+    if (onLeave) {
       return {
         breakfast: false,
         lunch: false,
@@ -3564,12 +3684,11 @@ function renderWardenDining() {
       };
     }
 
-    const booking = student.mealBookings.find(b => b.date === dateStr);
     return {
-      breakfast: booking ? !!booking.breakfast : false,
-      lunch: booking ? !!booking.lunch : false,
-      snacks: booking ? !!booking.snacks : false,
-      dinner: booking ? !!booking.dinner : false,
+      breakfast: isMealBooked(student, dateStr, 'breakfast'),
+      lunch: isMealBooked(student, dateStr, 'lunch'),
+      snacks: isMealBooked(student, dateStr, 'snacks'),
+      dinner: isMealBooked(student, dateStr, 'dinner'),
       onLeave: false
     };
   };
@@ -3608,6 +3727,113 @@ function renderWardenDining() {
     return `<div style="display:flex; gap:4px; flex-wrap:wrap; cursor:pointer;" class="dining-view-behaviour-trigger" data-stu-id="${student.id}">${badges.join('')}</div>`;
   };
 
+  // ─── Meal count summary cards (all students, ignores search) ───
+  const MEAL_DEFS = [
+    { key: 'breakfast', label: 'Breakfast', time: '07:30 AM – 09:00 AM' },
+    { key: 'lunch',     label: 'Lunch',     time: '12:30 PM – 02:00 PM' },
+    { key: 'snacks',    label: 'Snacks',    time: '04:30 PM – 05:30 PM' },
+    { key: 'dinner',    label: 'Dinner',    time: '07:30 PM – 09:00 PM' }
+  ];
+
+  // Renders a list of students with an optional small badge
+  const makeStudentRows = (list, badgeFn = null) =>
+    list.length === 0
+      ? `<div style="font-size:12px; color:var(--text-muted); padding:4px 6px; font-style:italic;">None</div>`
+      : list.map(s => `
+          <div class="meal-count-student-row">
+            <span class="student-dot"></span>
+            <span class="sname">${s.name}</span>
+            <span class="smeta">${s.id} · Rm ${s.room}</span>
+            ${badgeFn ? badgeFn(s) : ''}
+          </div>`).join('');
+
+  const mealSummaryCards = MEAL_DEFS.map(({ key, label, time }) => {
+    const manualOptedIn = [];
+    const autoOptedIn   = [];
+    const optedOut      = [];
+    const rejectedList  = [];
+    const onLeaveList   = [];
+
+    state.db.forEach(student => {
+      const type = getMealAcceptanceType(student, selectedDate, key);
+      if      (type === 'leave')    onLeaveList.push(student);
+      else if (type === 'rejected') rejectedList.push(student);
+      else if (type === 'manual')   manualOptedIn.push(student);
+      else if (type === 'auto')     autoOptedIn.push(student);
+      else                          optedOut.push(student);
+    });
+
+    const totalOptedIn = manualOptedIn.length + autoOptedIn.length;
+    const totalOptedOut = optedOut.length + rejectedList.length;
+
+    // Badge for manual vs auto in opted-in list
+    const manualBadge = () => `<span style="font-size:9px;font-weight:700;background:#dcfce7;color:#15803d;padding:2px 5px;border-radius:4px;flex-shrink:0;">MANUAL</span>`;
+    const autoBadge   = () => `<span style="font-size:9px;font-weight:700;background:#dbeafe;color:#1d4ed8;padding:2px 5px;border-radius:4px;flex-shrink:0;">AUTO</span>`;
+    const rejBadge    = () => `<span style="font-size:9px;font-weight:700;background:#fee2e2;color:#b91c1c;padding:2px 5px;border-radius:4px;flex-shrink:0;">REJECTED</span>`;
+
+    // Build combined opted-in list with sub-headers if both types exist
+    const buildOptedInList = () => {
+      if (totalOptedIn === 0) return `<div style="font-size:12px; color:var(--text-muted); padding:4px 6px; font-style:italic;">None</div>`;
+      let html = '';
+      if (manualOptedIn.length > 0) {
+        if (autoOptedIn.length > 0) html += `<div style="font-size:10px;font-weight:700;color:#15803d;text-transform:uppercase;padding:4px 6px 2px;letter-spacing:0.5px;">Manually Accepted (${manualOptedIn.length})</div>`;
+        html += makeStudentRows(manualOptedIn, manualBadge);
+      }
+      if (autoOptedIn.length > 0) {
+        if (manualOptedIn.length > 0) html += `<div style="font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;padding:6px 6px 2px;letter-spacing:0.5px;">Auto-Accepted (${autoOptedIn.length})</div>`;
+        html += makeStudentRows(autoOptedIn, autoBadge);
+      }
+      return html;
+    };
+
+    const buildOptedOutList = () => {
+      if (totalOptedOut === 0) return `<div style="font-size:12px; color:var(--text-muted); padding:4px 6px; font-style:italic;">None</div>`;
+      let html = '';
+      if (optedOut.length > 0) html += makeStudentRows(optedOut);
+      if (rejectedList.length > 0) {
+        if (optedOut.length > 0) html += `<div style="font-size:10px;font-weight:700;color:#b91c1c;text-transform:uppercase;padding:6px 6px 2px;letter-spacing:0.5px;">Explicitly Rejected (${rejectedList.length})</div>`;
+        html += makeStudentRows(rejectedList, rejBadge);
+      }
+      return html;
+    };
+
+    return `
+      <div class="meal-summary-card">
+        <div class="meal-summary-header">
+          <span class="meal-summary-title">${label}</span>
+          <span class="meal-summary-time">${time}</span>
+        </div>
+        <div class="meal-summary-dropdowns">
+          <details class="meal-count-details opted-in">
+            <summary class="meal-count-summary">
+              <span class="meal-count-bubble">${totalOptedIn}</span>
+              <span class="meal-count-label">Opted In</span>
+              ${manualOptedIn.length > 0 && autoOptedIn.length > 0 ? `<span style="font-size:10px;color:var(--text-muted);">${manualOptedIn.length}M · ${autoOptedIn.length}A</span>` : ''}
+              <span class="meal-count-chevron">▼</span>
+            </summary>
+            <div class="meal-count-list">${buildOptedInList()}</div>
+          </details>
+          <details class="meal-count-details opted-out">
+            <summary class="meal-count-summary">
+              <span class="meal-count-bubble">${totalOptedOut}</span>
+              <span class="meal-count-label">Opted Out</span>
+              <span class="meal-count-chevron">▼</span>
+            </summary>
+            <div class="meal-count-list">${buildOptedOutList()}</div>
+          </details>
+          ${onLeaveList.length > 0 ? `
+          <details class="meal-count-details on-leave">
+            <summary class="meal-count-summary">
+              <span class="meal-count-bubble">${onLeaveList.length}</span>
+              <span class="meal-count-label">On Leave</span>
+              <span class="meal-count-chevron">▼</span>
+            </summary>
+            <div class="meal-count-list">${makeStudentRows(onLeaveList)}</div>
+          </details>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
   const studentsHTML = filteredStudents.length === 0
     ? `<tr>
          <td colspan="6" style="text-align:center; padding:30px; color:var(--text-secondary);">No students found matching the search criteria.</td>
@@ -3615,13 +3841,15 @@ function renderWardenDining() {
     : filteredStudents.map(student => {
         const status = getMealStatusForDate(student, selectedDate);
         
-        const renderCheckMark = (optedIn, onLeave) => {
+        const renderCheckMark = (mealKey, onLeave) => {
           if (onLeave) {
             return `<span style="color:var(--text-muted); font-size:11px; font-weight:600; opacity:0.6; text-transform:uppercase;">Cancelled (Leave)</span>`;
           }
-          return optedIn 
-            ? `<span style="color:#16a34a; font-weight:700; display:inline-flex; align-items:center; gap:4px; font-size:13px;">✔ Opted In</span>`
-            : `<span style="color:#ef4444; font-weight:600; display:inline-flex; align-items:center; gap:4px; opacity:0.75; font-size:13px;">✖ Opted Out</span>`;
+          const type = getMealAcceptanceType(student, selectedDate, mealKey);
+          if (type === 'manual')   return `<span style="color:#16a34a; font-weight:700; display:inline-flex; align-items:center; gap:5px; font-size:13px;">✔ <span style="font-size:9px;font-weight:700;background:#dcfce7;color:#15803d;padding:2px 5px;border-radius:4px;">MANUAL</span></span>`;
+          if (type === 'auto')     return `<span style="color:#2563eb; font-weight:700; display:inline-flex; align-items:center; gap:5px; font-size:13px;">✔ <span style="font-size:9px;font-weight:700;background:#dbeafe;color:#1d4ed8;padding:2px 5px;border-radius:4px;">AUTO</span></span>`;
+          if (type === 'rejected') return `<span style="color:#ef4444; font-weight:600; display:inline-flex; align-items:center; gap:5px; font-size:13px;">✖ <span style="font-size:9px;font-weight:700;background:#fee2e2;color:#b91c1c;padding:2px 5px;border-radius:4px;">REJECTED</span></span>`;
+          return `<span style="color:#94a3b8; font-weight:600; display:inline-flex; align-items:center; gap:4px; opacity:0.75; font-size:13px;">– Not Set</span>`;
         };
 
         return `
@@ -3630,10 +3858,10 @@ function renderWardenDining() {
               <strong>${student.name}</strong><br>
               <span style="font-size:11px; color:var(--text-muted);">${student.id} • Room ${student.room}</span>
             </td>
-            <td>${renderCheckMark(status.breakfast, status.onLeave)}</td>
-            <td>${renderCheckMark(status.lunch, status.onLeave)}</td>
-            <td>${renderCheckMark(status.snacks, status.onLeave)}</td>
-            <td>${renderCheckMark(status.dinner, status.onLeave)}</td>
+            <td>${renderCheckMark('breakfast', status.onLeave)}</td>
+            <td>${renderCheckMark('lunch',     status.onLeave)}</td>
+            <td>${renderCheckMark('snacks',    status.onLeave)}</td>
+            <td>${renderCheckMark('dinner',    status.onLeave)}</td>
             <td>${getBehaviourSummary(student)}</td>
           </tr>
         `;
@@ -3656,6 +3884,11 @@ function renderWardenDining() {
           <label for="dining-tracker-date" style="font-size:13px; font-weight:600; color:var(--text-secondary);">Target Date:</label>
           <input type="date" id="dining-tracker-date" class="form-input" style="padding: 6px 12px; font-size:13px; max-width:160px; margin:0;" value="${selectedDate}">
         </div>
+      </div>
+
+      <!-- Meal Summary Cards -->
+      <div class="meal-summary-grid">
+        ${mealSummaryCards}
       </div>
 
       <div class="directory-table-wrapper">
