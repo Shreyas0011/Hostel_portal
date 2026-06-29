@@ -22,47 +22,49 @@ const BED_LABELS_2 = ['Bed A', 'Bed B'];
 const BED_LABELS_3 = ['Bed A', 'Bed B', 'Bed C'];
 
 function generateRandomStudent(index) {
-  let firstName, lastName;
-  if (index === 1) {
-    firstName = "Aarav";
-    lastName = "Sharma";
-  } else if (index === 2) {
-    firstName = "Vihaan";
-    lastName = "Verma";
-  } else if (index === 3) {
-    firstName = "Aditya";
-    lastName = "Bhat";
-  } else if (index === 4) {
-    firstName = "Siddharth";
-    lastName = "Pillai";
-  } else {
-    firstName = "Krishna";
-    lastName = "Verma";
-  }
+  // Fixed demo student roster — ordered for reproducibility
+  const ROSTER = [
+    { firstName: 'Aarav',     lastName: 'Sharma',   usn: 'TCG2021CS001', course: 'B.E. Computer Science',    dept: 'CSE', year: 3, phone: '+91 98765 10001', parentEmail: 'rajesh.sharma@transcendgroup.org',  parentName: 'Rajesh Sharma'  },
+    { firstName: 'Priya',     lastName: 'Nair',     usn: 'TCG2021EC002', course: 'B.E. Electronics',          dept: 'ECE', year: 3, phone: '+91 98765 10002', parentEmail: 'sunita.nair@transcendgroup.org',   parentName: 'Sunita Nair'    },
+    { firstName: 'Vihaan',    lastName: 'Verma',    usn: 'TCG2022ME003', course: 'B.E. Mechanical',           dept: 'ME',  year: 2, phone: '+91 98765 10003', parentEmail: 'parent.vihaan.verma@hostel.edu',   parentName: 'Parent of Vihaan' },
+    { firstName: 'Aditya',    lastName: 'Bhat',     usn: 'TCG2022CS004', course: 'B.E. Computer Science',    dept: 'CSE', year: 2, phone: '+91 98765 10004', parentEmail: 'parent.aditya.bhat@hostel.edu',    parentName: 'Parent of Aditya' },
+    { firstName: 'Siddharth', lastName: 'Pillai',   usn: 'TCG2023EE005', course: 'B.E. Electrical',           dept: 'EE',  year: 1, phone: '+91 98765 10005', parentEmail: 'parent.siddharth.pillai@hostel.edu', parentName: 'Parent of Siddharth' },
+    { firstName: 'Krishna',   lastName: 'Verma',    usn: 'TCG2022CS006', course: 'B.E. Computer Science',    dept: 'CSE', year: 2, phone: '+91 98765 10006', parentEmail: 'parent.krishna.verma@hostel.edu',  parentName: 'Parent of Krishna' },
+    { firstName: 'Kavya',     lastName: 'Reddy',    usn: 'TCG2023CE007', course: 'B.E. Civil Engineering',    dept: 'CE',  year: 1, phone: '+91 98765 10007', parentEmail: 'parent.kavya.reddy@hostel.edu',    parentName: 'Parent of Kavya' },
+  ];
+
+  const entry = ROSTER[(index - 1) % ROSTER.length];
+  const { firstName, lastName, usn, course, dept, year, phone, parentEmail, parentName } = entry;
   const name = `${firstName} ${lastName}`;
-  
+
   const id = `STU${String(index).padStart(3, '0')}`;
-  const block = BLOCKS[index % BLOCKS.length];
-  const floor = ((index - 1) % 4) + 1; // Floors 1 to 4
-  // Alternate room suffix so we get mix of 2-sharing and 3-sharing
-  const roomSuffix = ['01', '02', '03', '04'][index % 4];
+  const block = BLOCKS[(index - 1) % BLOCKS.length];
+  const floor = ((index - 1) % 4) + 1;
+  const roomSuffix = ['01', '02', '03', '04'][(index - 1) % 4];
   const room = `${block}-${floor}${roomSuffix}`;
   const sharing = SHARING_TYPE[roomSuffix] || 2;
   const bedLabels = sharing === 3 ? BED_LABELS_3 : BED_LABELS_2;
-  const bed = bedLabels[index % bedLabels.length];
+  const bed = bedLabels[(index - 1) % bedLabels.length];
 
-  const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@hostel.edu`;
-  const phone = `+91 98765${index}4321`;
-  
+  // Use @transcendgroup.org for the first two flagship demo accounts
+  const emailDomain = index <= 2 ? 'transcendgroup.org' : 'hostel.edu';
+  const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@${emailDomain}`;
+
   return {
     id,
     name,
+    usn,
     room,
     block,
     bed,
     sharing,
+    course,
+    dept,
+    year,
     email,
     phone,
+    parentEmail,
+    parentName,
     leaves: [],
     mealBookings: [],
     complaints: [],
@@ -165,7 +167,7 @@ export function getMealAcceptanceType(student, dateStr, mealKey) {
   return 'opted-out';
 }
 
-const DB_VERSION = 'v5'; // bump this whenever seed data changes
+const DB_VERSION = 'v7'; // bump this whenever seed data changes
 
 // Initialize the Database
 export function initDB() {
@@ -174,13 +176,14 @@ export function initDB() {
 
   if (cached && cachedVersion === DB_VERSION) {
     const parsed = JSON.parse(cached);
-    if (parsed.length === 5) {
+    if (parsed.length === 7) {
       parsed.forEach(student => {
         if (!student.complaints) student.complaints = [];
         if (!student.entryExitLogs) student.entryExitLogs = [];
         if (!student.bed) student.bed = 'Bed A';
         if (!student.sharing) student.sharing = 2;
         if (!student.behaviourLogs) student.behaviourLogs = [];
+        if (!student.healthRecords) student.healthRecords = [];
       });
       return parsed;
     }
@@ -189,9 +192,9 @@ export function initDB() {
   // Version mismatch or no cache — clear and re-seed
   localStorage.removeItem('hostel_portal_db');
 
-  // Create 5 students
+  // Create 7 students (2 flagship demo + 5 supporting)
   const students = [];
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= 7; i++) {
     students.push(generateRandomStudent(i));
   }
 
@@ -200,12 +203,10 @@ export function initDB() {
   const tomorrow = getDateString(1);
   const dayAfter = getDateString(2);
 
-  // Seed meals for all 5 students
-  students.forEach((student, index) => {
-    // Generate some meal bookings for the next 7 days
+  // Seed meals for all 7 students
+  students.forEach((student) => {
     for (let offset = 0; offset < 7; offset++) {
       const date = getDateString(offset);
-      // Give ~60% probability of booking meals
       if (Math.random() < 0.6) {
         student.mealBookings.push({
           date,
@@ -218,108 +219,107 @@ export function initDB() {
     }
   });
 
-  // Seed behaviour logs
+  // ── Behaviour Logs ──────────────────────────────────────────
+  // STU001 – Aarav Sharma
   students[0].behaviourLogs = [
-    {
-      id: "OB-STU001-1",
-      date: getDateString(-5),
-      category: "Academic",
-      severity: "positive",
-      description: "Represented the hostel in the inter-college quiz competition and won first place.",
-      recordedBy: "Chief Warden Console"
-    },
-    {
-      id: "OB-STU001-2",
-      date: getDateString(-2),
-      category: "Discipline",
-      severity: "warning",
-      description: "Arrived 15 minutes late after check-in hours without prior notification.",
-      recordedBy: "Chief Warden Console"
-    }
+    { id: 'OB-STU001-1', date: getDateString(-5), category: 'Academic',   severity: 'positive', description: 'Represented the hostel in the inter-college quiz and won first place.',    recordedBy: 'Ramesh Kumar (Warden)' },
+    { id: 'OB-STU001-2', date: getDateString(-2), category: 'Discipline', severity: 'warning',  description: 'Arrived 15 minutes late after check-in hours without prior notification.', recordedBy: 'Ramesh Kumar (Warden)' }
   ];
+  // STU002 – Priya Nair
   students[1].behaviourLogs = [
-    {
-      id: "OB-STU002-1",
-      date: getDateString(-4),
-      category: "Social",
-      severity: "positive",
-      description: "Volunteered to clean the hostel common community room and organize the books.",
-      recordedBy: "Campus Admin Console"
-    }
+    { id: 'OB-STU002-1', date: getDateString(-6), category: 'Academic',   severity: 'positive', description: 'Secured first rank in the department semester examinations.',             recordedBy: 'Anita Joseph (Warden)' },
+    { id: 'OB-STU002-2', date: getDateString(-1), category: 'Social',     severity: 'positive', description: 'Organized a cultural fest committee meeting in the common room.',         recordedBy: 'Campus Admin' }
+  ];
+  // STU003 – Vihaan Verma
+  students[2].behaviourLogs = [
+    { id: 'OB-STU003-1', date: getDateString(-4), category: 'Social',     severity: 'positive', description: 'Volunteered to clean the hostel common room and organize the library.',   recordedBy: 'Campus Admin' }
   ];
 
-  // Seed leaves for some students
-  // Student 1 (Aarav Sharma - STU001): Approved outing today
+  // ── Health Records ───────────────────────────────────────────
+  // STU001 – Aarav Sharma
+  students[0].healthRecords = [
+    { id: 'HR-STU001-1', date: 'Mon, Jun 10', time: '09:30 AM', symptoms: 'Mild fever, headache', temperature: '99.2°F', status: 'Recovered', note: 'Given paracetamol. Advised rest for 1 day.' }
+  ];
+  // STU002 – Priya Nair
+  students[1].healthRecords = [
+    { id: 'HR-STU002-1', date: 'Wed, Jun 18', time: '11:00 AM', symptoms: 'Cold, sore throat',   temperature: '98.6°F', status: 'Recovered', note: 'Prescribed antihistamine. Fully recovered.' }
+  ];
+
+  // ── Complaints ───────────────────────────────────────────────
+  // STU001 – Aarav Sharma
+  students[0].complaints = [
+    { id: 'CMP-STU001-1', category: 'Internet',     subject: 'Wi-Fi not working in Room A-101',    details: 'The Wi-Fi router on floor 1 Block A has been down since Monday morning.',         status: 'Pending', dateReported: getDateString(-3), attachments: [] },
+    { id: 'CMP-STU001-2', category: 'Maintenance',  subject: 'Leaking tap in bathroom',            details: 'The bathroom tap in room A-101 has been leaking for 3 days.',                   status: 'Closed',  dateReported: getDateString(-8), attachments: [] }
+  ];
+  // STU002 – Priya Nair
+  students[1].complaints = [
+    { id: 'CMP-STU002-1', category: 'Mess',         subject: 'Food quality issue – dinner',        details: 'Dinner on Thursday was undercooked and tasted stale. Requests improvement.',     status: 'Pending', dateReported: getDateString(-2), attachments: [] }
+  ];
+
+  // ── Leaves ──────────────────────────────────────────────────
+  // STU001 (Aarav): Approved outing today by parent
   students[0].leaves.push({
-    id: "LV-STU001-1",
-    startDate: today,
-    endDate: today,
-    reason: "Visiting local guardian",
-    type: "outing",
-    submittedBy: "parent",
-    status: "approved"
+    id: 'LV-STU001-1', startDate: today, endDate: today,
+    startTime: '09:00 AM', endTime: '06:00 PM',
+    reason: 'Visiting local guardian', type: 'outing', submittedBy: 'parent', status: 'approved'
   });
   students[0].mealBookings = students[0].mealBookings.filter(b => b.date !== today);
 
-  // Student 2 (Vihaan Verma - STU002): Pending leave tomorrow & dayAfter
+  // STU002 (Priya): Pending leave request for tomorrow
   students[1].leaves.push({
-    id: "LV-STU002-1",
-    startDate: tomorrow,
-    endDate: dayAfter,
-    reason: "Going home for festival",
-    type: "leave",
-    submittedBy: "student",
-    status: "pending"
+    id: 'LV-STU002-1', startDate: tomorrow, endDate: dayAfter,
+    startTime: '09:00 AM', endTime: '06:00 PM',
+    reason: 'Going home for family function', type: 'leave', submittedBy: 'student', status: 'pending'
   });
 
-  // Student 3 (Aditya Bhat - STU003): Rejected leave in history
+  // STU003 (Vihaan): Rejected leave in history
   students[2].leaves.push({
-    id: "LV-STU003-1",
-    startDate: today,
-    endDate: today,
-    reason: "Shopping with friends",
-    type: "outing",
-    submittedBy: "student",
-    status: "rejected"
+    id: 'LV-STU003-1', startDate: today, endDate: today,
+    startTime: '09:00 AM', endTime: '06:00 PM',
+    reason: 'Shopping with friends', type: 'outing', submittedBy: 'student', status: 'rejected'
   });
 
-  // Seed realistic randomized entry/exit logs for all students (last 3 days)
-  // Per-student schedules: [{ type, hh, mm, note }] repeated across days
+  // ── Entry/Exit Logs ──────────────────────────────────────────
   const schedules = [
-    // STU001 (Aarav): Early riser, back by evening
-    [
+    [ // STU001 – Aarav: Early riser
       { type: 'exit',  h: 7,  m: 12, note: 'Morning walk / library' },
       { type: 'entry', h: 9,  m: 34, note: 'Returned after breakfast outing' },
       { type: 'exit',  h: 14, m: 5,  note: 'Afternoon class' },
       { type: 'entry', h: 17, m: 48, note: 'Back from college' },
     ],
-    // STU002 (Vihaan): Late morning outing
-    [
+    [ // STU002 – Priya: Regular schedule
+      { type: 'exit',  h: 8,  m: 45, note: 'Left for morning lecture' },
+      { type: 'entry', h: 13, m: 10, note: 'Returned for lunch' },
+      { type: 'exit',  h: 15, m: 30, note: 'Lab session' },
+      { type: 'entry', h: 18, m: 20, note: 'Back from lab' },
+    ],
+    [ // STU003 – Vihaan: Late morning
       { type: 'exit',  h: 10, m: 20, note: 'Went to market' },
       { type: 'entry', h: 12, m: 55, note: 'Returned before lunch' },
       { type: 'exit',  h: 16, m: 40, note: 'Evening outing with friends' },
       { type: 'entry', h: 20, m: 15, note: 'Night return to hostel' },
     ],
-    // STU003 (Aditya): Currently OUTSIDE — last log today is 'exit'
-    [
+    [ // STU004 – Aditya: Currently OUTSIDE
       { type: 'exit',  h: 8,  m: 30, note: 'Left for sports practice' },
       { type: 'entry', h: 11, m: 10, note: 'Returned after practice' },
       { type: 'exit',  h: 15, m: 25, note: 'Left for tuition' },
       { type: 'entry', h: 18, m: 50, note: 'Back from tuition' },
     ],
-    // STU004 (Siddharth): Regular schedule
-    [
+    [ // STU005 – Siddharth: Regular
       { type: 'exit',  h: 9,  m: 5,  note: 'Went to canteen' },
       { type: 'entry', h: 9,  m: 45, note: 'Returned to hostel' },
       { type: 'exit',  h: 17, m: 0,  note: 'Evening gym' },
       { type: 'entry', h: 19, m: 20, note: 'Back from gym' },
     ],
-    // STU005 (Krishna): Mid-day outing
-    [
+    [ // STU006 – Krishna: Mid-day
       { type: 'exit',  h: 11, m: 35, note: 'Went to bank / ATM' },
       { type: 'entry', h: 13, m: 10, note: 'Back after lunch outing' },
       { type: 'exit',  h: 18, m: 0,  note: 'Evening walk' },
       { type: 'entry', h: 19, m: 45, note: 'Returned to hostel' },
+    ],
+    [ // STU007 – Kavya: Evening outing
+      { type: 'exit',  h: 16, m: 0,  note: 'Went to stationery shop' },
+      { type: 'entry', h: 18, m: 30, note: 'Returned after shopping' },
     ],
   ];
 
@@ -328,23 +328,14 @@ export function initDB() {
   students.forEach((student, idx) => {
     const sch = schedules[idx] || schedules[0];
     const logs = [];
-
-    // Seed for last 3 days (oldest first so last entry = most recent)
     for (let d = 2; d >= 0; d--) {
       const date = getDateString(-d);
-
-      // For STU003 on today only: only push exit at end, no final re-entry
       const isToday = d === 0;
-      const isAditya = idx === 2;
-
+      const isOutside = idx === 3; // Aditya stays outside last event
       sch.forEach((evt, eIdx) => {
-        // Aditya today: skip the last entry event so he's "outside"
-        if (isAditya && isToday && eIdx === sch.length - 1) return;
-
-        // Add slight day-based variation to avoid identical times each day
+        if (isOutside && isToday && eIdx === sch.length - 1) return;
         const minVariation = (d * 3 + eIdx * 2) % 9;
         const mm = (evt.m + minVariation) % 60;
-
         logs.push({
           id: `LOG-${student.id}-${d}-${eIdx}`,
           type: evt.type,
@@ -353,13 +344,13 @@ export function initDB() {
         });
       });
     }
-
     student.entryExitLogs = logs;
   });
 
   saveDB(students);
   return students;
 }
+
 
 export function saveDB(students) {
   localStorage.setItem('hostel_portal_db', JSON.stringify(students));

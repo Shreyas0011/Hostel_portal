@@ -73,11 +73,112 @@ const state = {
   diningSearch: '',
   calendarYear: new Date().getFullYear(),
   calendarMonth: new Date().getMonth(),
-  calendarSelectedDate: getDateString(0)
+  calendarSelectedDate: getDateString(0),
+  editingHealthRecordId: null
 };
 
 // Chart.js instance holder
 let mealChartInstance = null;
+
+// Time Formatter for 12-hour format
+function formatTimeTo12Hr(timeStr) {
+  if (!timeStr) return '';
+  if (timeStr.toLowerCase().includes('am') || timeStr.toLowerCase().includes('pm')) {
+    return timeStr;
+  }
+  const parts = timeStr.split(':');
+  if (parts.length >= 2) {
+    let hours = parseInt(parts[0], 10);
+    let minutes = parts[1].slice(0, 2);
+    if (!isNaN(hours)) {
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const hoursStr = String(hours).padStart(2, '0');
+      return `${hoursStr}:${minutes} ${ampm}`;
+    }
+  }
+  return timeStr;
+}
+
+function showCustomConfirm(message, title = 'Confirm Action', type = 'info') {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay active';
+    overlay.style.zIndex = '9999';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+
+    let iconBg = '#eff6ff';
+    let iconColor = '#3b82f6';
+    let confirmBg = 'var(--primary)';
+    let confirmBorder = 'var(--primary)';
+    let svgIcon = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
+
+    if (type === 'danger') {
+      iconBg = '#fee2e2';
+      iconColor = '#ef4444';
+      confirmBg = '#dc2626';
+      confirmBorder = '#dc2626';
+      svgIcon = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+    } else if (type === 'success') {
+      iconBg = '#d1fae5';
+      iconColor = '#10b981';
+      confirmBg = '#10b981';
+      confirmBorder = '#10b981';
+      svgIcon = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    }
+
+    overlay.innerHTML = `
+      <div class="modal-container" style="max-width: 420px; width: 90%; padding: 24px; border-radius: 12px; border: 1px solid var(--border-color); background: #fff; box-shadow: var(--shadow-lg); animation: modalFadeIn 0.2s ease-out; transform: translateY(0);">
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div style="background:${iconBg}; color:${iconColor}; width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);">
+              ${svgIcon}
+            </div>
+            <h3 style="margin:0; font-size:18px; font-weight:700; color:var(--text-primary); font-family:inherit;">${title}</h3>
+          </div>
+          <p style="margin:0 0 4px; font-size:14px; color:var(--text-secondary); line-height:1.55; font-family:inherit;">${message}</p>
+          <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:6px;">
+            <button id="custom-confirm-cancel" style="background:#f3f4f6; border:1px solid #e5e7eb; color:#4b5563; font-weight:600; padding:10px 20px; font-size:13px; border-radius:6px; cursor:pointer; transition: all 0.2s; font-family:inherit;">
+              Cancel
+            </button>
+            <button id="custom-confirm-ok" style="background:${confirmBg}; border:1px solid ${confirmBorder}; color:white; font-weight:700; padding:10px 20px; font-size:13px; border-radius:6px; cursor:pointer; transition: all 0.2s; font-family:inherit; box-shadow: 0 2px 4px 0 rgba(0,0,0,0.1);">
+              Confirm
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const btnCancel = overlay.querySelector('#custom-confirm-cancel');
+    const btnOk = overlay.querySelector('#custom-confirm-ok');
+
+    btnCancel.onmouseover = () => { btnCancel.style.background = '#e5e7eb'; btnCancel.style.color = '#1f2937'; };
+    btnCancel.onmouseout = () => { btnCancel.style.background = '#f3f4f6'; btnCancel.style.color = '#4b5563'; };
+    
+    btnOk.onmouseover = () => { btnOk.style.filter = 'brightness(0.95)'; };
+    btnOk.onmouseout = () => { btnOk.style.filter = 'none'; };
+
+    const cleanup = (value) => {
+      overlay.style.opacity = '0';
+      overlay.style.transition = 'opacity 0.15s ease-out';
+      setTimeout(() => {
+        overlay.remove();
+        resolve(value);
+      }, 150);
+    };
+
+    btnCancel.addEventListener('click', () => cleanup(false));
+    btnOk.addEventListener('click', () => cleanup(true));
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) cleanup(false);
+    });
+  });
+}
 
 // ─── Menu Helpers ───────────────────────────────────────────
 const DEFAULT_MENU = {
@@ -272,7 +373,7 @@ function renderLoginView() {
           ${ICONS.shield}
           <span>TRANSCEND HOSTEL</span>
         </div>
-        <p class="login-subtitle">Facility & Dining Management System</p>
+        <p class="login-subtitle">Hostel Portal</p>
         
         <div id="login-form-area" style="margin-top: 20px;">
           <div class="login-form-group">
@@ -308,9 +409,11 @@ function renderLoginView() {
           </div>
         </div>
         
-        <div class="login-footer" style="margin-top: 25px; text-align: center; font-size: 11px; color: var(--text-muted); line-height: 1.6; border-top: 1px solid rgba(226, 232, 240, 0.1); padding-top: 15px;">
-          <p style="margin: 0; font-weight: 500;">Owned by Transcend group of institutions</p>
-          <p style="margin: 2px 0 0 0; opacity: 0.8;">Developed by Start Smart by SE</p>
+        <div class="login-footer" style="margin-top: 25px; text-align: center; line-height: 1.6; border-top: 1px solid rgba(226, 232, 240, 0.1); padding-top: 15px;">
+          <p style="margin: 0; font-weight: 800; text-transform: uppercase; color: #0f172a; font-size: 10.5px; letter-spacing: 0.05em;">Owned by Transcend group of institutions</p>
+          <p style="margin: 4px 0 0 0; text-transform: uppercase; font-size: 10.5px; font-weight: 600; color: #64748b; letter-spacing: 0.05em;">
+            Developed by <span style="color: #2563eb; font-weight: 700;">Start Smart, SE</span>
+          </p>
         </div>
       </div>
     </div>
@@ -482,12 +585,18 @@ function renderStudentDashboard() {
 
   return `
     <div class="dashboard-layout">
-      <!-- Mobile Toggle -->
-      <div style="position:fixed; top:15px; left:15px; z-index:999;">
-        <button id="mobile-toggle" class="mobile-menu-toggle">
-          ${ICONS.home}
+      <!-- Mobile Top Bar -->
+      <div class="mobile-top-bar">
+        <button id="mobile-toggle" class="mobile-menu-toggle" aria-label="Open navigation">
+          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
+        <div class="mobile-top-bar-brand">
+          ${ICONS.shield}
+          <span>TRANSCEND HOSTEL</span>
+        </div>
       </div>
+      <!-- Sidebar Backdrop -->
+      <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
 
       <!-- Sidebar -->
       <aside id="dashboard-sidebar" class="sidebar">
@@ -675,7 +784,14 @@ function attachStudentEvents() {
 
   if (mobileToggle && sidebar) {
     mobileToggle.addEventListener('click', () => {
-      sidebar.classList.toggle('mobile-open');
+      const isOpen = sidebar.classList.toggle('mobile-open');
+      const bd = document.getElementById('sidebar-backdrop');
+      if (bd) bd.classList.toggle('active', isOpen);
+    });
+    const bd = document.getElementById('sidebar-backdrop');
+    if (bd) bd.addEventListener('click', () => {
+      sidebar.classList.remove('mobile-open');
+      bd.classList.remove('active');
     });
   }
 
@@ -684,6 +800,8 @@ function attachStudentEvents() {
       const tab = e.target.closest('.nav-item').dataset.tab;
       state.studentActiveTab = tab;
       if (sidebar) sidebar.classList.remove('mobile-open');
+      const bd = document.getElementById('sidebar-backdrop');
+      if (bd) bd.classList.remove('active');
       render();
     });
   });
@@ -931,12 +1049,18 @@ function renderParentDashboard() {
 
   return `
     <div class="dashboard-layout">
-      <!-- Mobile Toggle -->
-      <div style="position:fixed; top:15px; left:15px; z-index:999;">
-        <button id="mobile-toggle" class="mobile-menu-toggle">
-          ${ICONS.home}
+      <!-- Mobile Top Bar -->
+      <div class="mobile-top-bar">
+        <button id="mobile-toggle" class="mobile-menu-toggle" aria-label="Open navigation">
+          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
+        <div class="mobile-top-bar-brand">
+          ${ICONS.shield}
+          <span>TRANSCEND HOSTEL</span>
+        </div>
       </div>
+      <!-- Sidebar Backdrop -->
+      <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
 
       <!-- Sidebar -->
       <aside id="dashboard-sidebar" class="sidebar">
@@ -1110,7 +1234,14 @@ function attachParentEvents() {
 
   if (mobileToggle && sidebar) {
     mobileToggle.addEventListener('click', () => {
-      sidebar.classList.toggle('mobile-open');
+      const isOpen = sidebar.classList.toggle('mobile-open');
+      const bd = document.getElementById('sidebar-backdrop');
+      if (bd) bd.classList.toggle('active', isOpen);
+    });
+    const bd = document.getElementById('sidebar-backdrop');
+    if (bd) bd.addEventListener('click', () => {
+      sidebar.classList.remove('mobile-open');
+      bd.classList.remove('active');
     });
   }
 
@@ -1387,12 +1518,36 @@ function renderLeaveSection(student, role) {
               <input type="date" id="leave-end-date" class="form-input" required min="${getDateString(0)}">
             </div>
             <div>
-              <label class="form-label" for="leave-start-time">Departure Time</label>
-              <input type="time" id="leave-start-time" class="form-input" required value="09:00">
+              <label class="form-label" style="font-weight: 600;">Departure Time</label>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <select id="leave-start-hour" class="form-input" style="flex: 1; padding: 10px 8px; font-weight: 600;" required>
+                  ${Array.from({length: 12}, (_, i) => `<option value="${i + 1}" ${i + 1 === 9 ? 'selected' : ''}>${String(i + 1).padStart(2, '0')}</option>`).join('')}
+                </select>
+                <span style="font-weight: bold; color: var(--text-secondary);">:</span>
+                <select id="leave-start-minute" class="form-input" style="flex: 1; padding: 10px 8px; font-weight: 600;" required>
+                  ${Array.from({length: 60}, (_, i) => `<option value="${i}" ${i === 0 ? 'selected' : ''}>${String(i).padStart(2, '0')}</option>`).join('')}
+                </select>
+                <select id="leave-start-ampm" class="form-input" style="flex: 1.2; padding: 10px 8px; font-weight: 700;" required>
+                  <option value="AM" selected>AM</option>
+                  <option value="PM">PM</option>
+                </select>
+              </div>
             </div>
             <div>
-              <label class="form-label" for="leave-end-time">Return Time</label>
-              <input type="time" id="leave-end-time" class="form-input" required value="18:00">
+              <label class="form-label" style="font-weight: 600;">Return Time</label>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <select id="leave-end-hour" class="form-input" style="flex: 1; padding: 10px 8px; font-weight: 600;" required>
+                  ${Array.from({length: 12}, (_, i) => `<option value="${i + 1}" ${i + 1 === 6 ? 'selected' : ''}>${String(i + 1).padStart(2, '0')}</option>`).join('')}
+                </select>
+                <span style="font-weight: bold; color: var(--text-secondary);">:</span>
+                <select id="leave-end-minute" class="form-input" style="flex: 1; padding: 10px 8px; font-weight: 600;" required>
+                  ${Array.from({length: 60}, (_, i) => `<option value="${i}" ${i === 0 ? 'selected' : ''}>${String(i).padStart(2, '0')}</option>`).join('')}
+                </select>
+                <select id="leave-end-ampm" class="form-input" style="flex: 1.2; padding: 10px 8px; font-weight: 700;" required>
+                  <option value="AM">AM</option>
+                  <option value="PM" selected>PM</option>
+                </select>
+              </div>
             </div>
             <div class="form-group-full">
               <label class="form-label" for="leave-type">Request Type</label>
@@ -1426,9 +1581,9 @@ function renderLeaveSection(student, role) {
             <div class="history-item">
               <div class="history-details">
                 <span class="history-dates">
-                  ${formatDisplayDate(leave.startDate)} ${leave.startTime ? `(${leave.startTime})` : ''} 
+                  ${formatDisplayDate(leave.startDate)} ${leave.startTime ? `(${formatTimeTo12Hr(leave.startTime)})` : ''} 
                   to 
-                  ${formatDisplayDate(leave.endDate)} ${leave.endTime ? `(${leave.endTime})` : ''}
+                  ${formatDisplayDate(leave.endDate)} ${leave.endTime ? `(${formatTimeTo12Hr(leave.endTime)})` : ''}
                 </span>
                 <div style="display: flex; gap: 8px; margin-top: 2px; margin-bottom: 4px; align-items: center;">
                   <span style="font-size:11px; font-weight:600; color:var(--primary); text-transform:uppercase;">
@@ -1492,8 +1647,15 @@ function attachLeaveFormEvents(role) {
       const startDate = document.getElementById('leave-start-date').value;
       const isOvernight = overnightCheckbox ? overnightCheckbox.checked : false;
       const endDate = isOvernight ? endDateInput.value : startDate;
-      const startTime = document.getElementById('leave-start-time').value;
-      const endTime = document.getElementById('leave-end-time').value;
+      const startHour = document.getElementById('leave-start-hour').value;
+      const startMin = document.getElementById('leave-start-minute').value;
+      const startAmPm = document.getElementById('leave-start-ampm').value;
+      const startTime = `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')} ${startAmPm}`;
+
+      const endHour = document.getElementById('leave-end-hour').value;
+      const endMin = document.getElementById('leave-end-minute').value;
+      const endAmPm = document.getElementById('leave-end-ampm').value;
+      const endTime = `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')} ${endAmPm}`;
       const type = document.getElementById('leave-type').value;
       const reason = document.getElementById('leave-reason').value;
 
@@ -1556,47 +1718,59 @@ function attachLeaveFormEvents(role) {
 }
 
 function renderHealthStatusSection(student, role) {
-  const isStudent = role === 'student';
+  const canEdit = role === 'admin' || role === 'superadmin';
   const records = student.healthRecords || [];
   const sortedRecords = [...records].reverse();
 
+  // If in edit mode, retrieve the record
+  let editingRecord = null;
+  if (canEdit && state.editingHealthRecordId) {
+    editingRecord = records.find(r => r.id === state.editingHealthRecordId);
+  }
+
   return `
     <div class="dashboard-grid">
-      ${isStudent ? `
+      ${canEdit ? `
       <div class="dashboard-panel">
         <div class="panel-header">
-          <h2 class="panel-title">${ICONS.shield} Report Health Status</h2>
+          <h2 class="panel-title">${ICONS.shield} ${editingRecord ? 'Edit' : 'Add'} Health / Medical Record</h2>
         </div>
         <form id="health-status-form" style="display:flex; flex-direction:column; gap:15px; margin-top:15px;">
+          <input type="hidden" id="health-record-id" value="${editingRecord ? editingRecord.id : ''}">
           <div>
             <label class="form-label">Current Symptoms</label>
-            <input type="text" id="health-symptoms" class="form-input" placeholder="e.g., Fever, Cough, Headache" required>
+            <input type="text" id="health-symptoms" class="form-input" placeholder="e.g., Fever, Cough, Headache" required value="${editingRecord ? editingRecord.symptoms : ''}">
           </div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
             <div>
               <label class="form-label">Body Temperature</label>
-              <input type="text" id="health-temp" class="form-input" placeholder="e.g., 98.6°F">
+              <input type="text" id="health-temp" class="form-input" placeholder="e.g., 98.6°F" value="${editingRecord ? editingRecord.temperature : ''}">
             </div>
             <div>
               <label class="form-label">Current Status</label>
               <select id="health-status" class="form-input">
-                <option value="Resting in Room">Resting in Room</option>
-                <option value="Needs Medical Attention">Needs Medical Attention</option>
-                <option value="Visiting Hospital">Visiting Hospital</option>
-                <option value="Recovered">Recovered / Normal</option>
+                <option value="Resting in Room" ${(editingRecord && editingRecord.status === 'Resting in Room') ? 'selected' : ''}>Resting in Room</option>
+                <option value="Needs Medical Attention" ${(editingRecord && editingRecord.status === 'Needs Medical Attention') ? 'selected' : ''}>Needs Medical Attention</option>
+                <option value="Visiting Hospital" ${(editingRecord && editingRecord.status === 'Visiting Hospital') ? 'selected' : ''}>Visiting Hospital</option>
+                <option value="Recovered" ${(editingRecord && editingRecord.status === 'Recovered') ? 'selected' : ''}>Recovered / Normal</option>
               </select>
             </div>
           </div>
           <div>
             <label class="form-label">Additional Notes</label>
-            <textarea id="health-note" class="form-input" rows="2" placeholder="Any medication taken or extra details?"></textarea>
+            <textarea id="health-note" class="form-input" rows="2" placeholder="Any medication taken or extra details?">${editingRecord ? editingRecord.note : ''}</textarea>
           </div>
-          <button type="submit" class="btn-primary" style="margin-top:10px;">Submit Health Report</button>
+          <div style="display:flex; gap:10px; margin-top:10px;">
+            <button type="submit" class="btn-primary" style="flex:1;">${editingRecord ? 'Update Health Record' : 'Add Health Record'}</button>
+            ${editingRecord ? `
+              <button type="button" id="btn-cancel-health-edit" class="btn-secondary" style="flex:1;">Cancel Edit</button>
+            ` : ''}
+          </div>
         </form>
       </div>
       ` : ''}
 
-      <div class="dashboard-panel ${!isStudent ? 'dashboard-full' : ''}">
+      <div class="dashboard-panel ${!canEdit ? 'dashboard-full' : ''}">
         <div class="panel-header">
           <h2 class="panel-title">${ICONS.settings} Health & Medical History</h2>
           <span style="font-size:12px; color:var(--text-secondary);">${records.length} records</span>
@@ -1620,6 +1794,13 @@ function renderHealthStatusSection(student, role) {
                 <span><strong>Temp:</strong> ${r.temperature || 'Not recorded'}</span>
               </div>
               ${r.note ? `<div style="background:#f3f4f6; padding:10px; border-radius:6px; font-size:13px; color:var(--text-primary); border-left:3px solid var(--primary);">${r.note}</div>` : ''}
+              
+              ${canEdit ? `
+                <div style="display:flex; gap:10px; margin-top:8px; justify-content:flex-end; border-top: 1px dashed var(--border-color); padding-top: 8px;">
+                  <button class="btn-edit-health" data-record-id="${r.id}" style="background:none; border:none; color:var(--primary); cursor:pointer; font-size:12px; font-weight:600; padding:0;">Edit</button>
+                  <button class="btn-delete-health" data-record-id="${r.id}" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:12px; font-weight:600; padding:0;">Delete</button>
+                </div>
+              ` : ''}
             </div>
           `).join('')}
         </div>
@@ -1649,7 +1830,7 @@ function renderWardenHealthView() {
       </div>
     </div>
     
-    ${renderHealthStatusSection(student, 'admin')}
+    ${renderHealthStatusSection(student, state.currentView)}
   `;
 }
 
@@ -1658,40 +1839,205 @@ function attachHealthViewEvents() {
   if (selectEl) {
     selectEl.addEventListener('change', (e) => {
       state.viewHealthStudentId = e.target.value;
+      state.editingHealthRecordId = null; // Clear edit mode when changing student
       render();
     });
   }
 
   const healthForm = document.getElementById('health-status-form');
-  if (healthForm && state.currentStudentId) {
+  if (healthForm) {
     healthForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      const student = state.db.find(s => s.id === state.currentStudentId);
+      
+      const isStaff = state.currentView === 'admin' || state.currentView === 'superadmin' || state.currentView === 'warden';
+      const targetStudentId = isStaff 
+        ? (state.viewHealthStudentId || (state.db[0] ? state.db[0].id : null))
+        : state.currentStudentId;
+        
+      if (!targetStudentId) return;
+      const student = state.db.find(s => s.id === targetStudentId);
       if (!student) return;
 
       if (!student.healthRecords) student.healthRecords = [];
 
+      const recordIdInput = document.getElementById('health-record-id');
       const symptoms = document.getElementById('health-symptoms').value;
       const temperature = document.getElementById('health-temp').value;
       const status = document.getElementById('health-status').value;
       const note = document.getElementById('health-note').value;
 
-      const d = new Date();
-      student.healthRecords.push({
-        id: 'HR-' + Date.now(),
-        date: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-        time: d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
-        symptoms,
-        temperature,
-        status,
-        note
-      });
+      if (recordIdInput && recordIdInput.value) {
+        // Edit existing record
+        const record = student.healthRecords.find(r => r.id === recordIdInput.value);
+        if (record) {
+          record.symptoms = symptoms;
+          record.temperature = temperature;
+          record.status = status;
+          record.note = note;
+          showToast('Health status updated successfully!', 'success');
+        }
+      } else {
+        // Add new record
+        const d = new Date();
+        student.healthRecords.push({
+          id: 'HR-' + Date.now(),
+          date: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+          time: d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+          symptoms,
+          temperature,
+          status,
+          note
+        });
+        showToast('Health status added successfully!', 'success');
+      }
 
+      state.editingHealthRecordId = null;
       saveDB(state.db);
-      showToast('Health status updated successfully!', 'success');
       render();
     });
+
+    const cancelEditBtn = document.getElementById('btn-cancel-health-edit');
+    if (cancelEditBtn) {
+      cancelEditBtn.addEventListener('click', () => {
+        state.editingHealthRecordId = null;
+        render();
+      });
+    }
   }
+
+  // Attach Edit/Delete buttons click events
+  document.querySelectorAll('.btn-edit-health').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      state.editingHealthRecordId = e.target.dataset.recordId;
+      render();
+    });
+  });
+
+  document.querySelectorAll('.btn-delete-health').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const recordId = e.target.dataset.recordId;
+      const isConfirmed = await showCustomConfirm(
+        'Are you sure you want to delete this health record?',
+        'Delete Health Record',
+        'danger'
+      );
+      if (isConfirmed) {
+        const isStaff = state.currentView === 'admin' || state.currentView === 'superadmin' || state.currentView === 'warden';
+        const targetStudentId = isStaff 
+          ? (state.viewHealthStudentId || (state.db[0] ? state.db[0].id : null))
+          : state.currentStudentId;
+
+        if (!targetStudentId) return;
+        const student = state.db.find(s => s.id === targetStudentId);
+        if (student && student.healthRecords) {
+          student.healthRecords = student.healthRecords.filter(r => r.id !== recordId);
+          if (state.editingHealthRecordId === recordId) {
+            state.editingHealthRecordId = null;
+          }
+          saveDB(state.db);
+          showToast('Health record deleted successfully!', 'success');
+          render();
+        }
+      }
+    });
+  });
+}
+
+function getAllComplaints() {
+  const list = [];
+  state.db.forEach(student => {
+    if (student.complaints) {
+      student.complaints.forEach(c => {
+        list.push({
+          studentId: student.id,
+          studentName: student.name,
+          studentRoom: student.room,
+          studentBlock: student.block,
+          ...c
+        });
+      });
+    }
+  });
+  return list.sort((a, b) => new Date(b.dateReported) - new Date(a.dateReported));
+}
+
+function renderWardenComplaintsView() {
+  const complaints = getAllComplaints();
+  
+  return `
+    <div class="dashboard-panel dashboard-full">
+      <div class="panel-header" style="justify-content:space-between;">
+        <h2 class="panel-title">${ICONS.complaint} Student Complaints Desk</h2>
+        <span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:700;">${complaints.length} Total Complaints</span>
+      </div>
+      
+      <div style="margin-top:20px; display:grid; grid-template-columns: 1fr; gap:15px; max-height: 600px; overflow-y: auto; padding-right: 5px;">
+        ${complaints.length === 0 ? `
+          <div class="empty-state">
+            ${ICONS.check}
+            <p>No complaints reported. Everything is perfect!</p>
+          </div>
+        ` : complaints.map(c => `
+          <div style="background:#f9fafb; border:1px solid var(--border-color); border-radius:8px; padding:20px; display:flex; flex-direction:column; gap:10px; position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+              <div>
+                <span class="badge" style="background:#f3f4f6; color:var(--text-primary); font-size:10px; font-weight:700; margin-bottom:4px; display:inline-block; text-transform:uppercase;">
+                  ${c.category}
+                </span>
+                <h4 style="margin:2px 0; font-size:16px; font-weight:700; color:var(--text-primary);">${c.subject}</h4>
+                <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">
+                  Reported by <strong>${c.studentName} (${c.studentId})</strong> • Room ${c.studentRoom} (Block ${c.studentBlock})
+                </div>
+                <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">
+                  Complaint ID: ${c.id} • Reported on ${formatDisplayDate(c.dateReported)}
+                </div>
+              </div>
+              <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+                <span class="badge ${c.status.toLowerCase() === 'pending' ? 'pending' : 'approved'}" style="font-size:12px; padding:4px 10px; font-weight:700;">
+                  ${c.status}
+                </span>
+                ${c.status.toLowerCase() === 'pending' ? `
+                  <button class="btn-close-complaint" data-student-id="${c.studentId}" data-complaint-id="${c.id}" style="padding:6px 12px; font-size:12px; font-weight:600; background:#10b981; border:1px solid #10b981; color:white; border-radius:4px; cursor:pointer;">
+                    Resolve &amp; Close
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+            <div style="background:#fff; border:1px solid var(--border-color); padding:12px; border-radius:6px; font-size:13px; color:var(--text-secondary); line-height:1.45; font-style:italic; border-left:3px solid var(--primary);">
+              "${c.details}"
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function attachWardenComplaintsEvents() {
+  document.querySelectorAll('.btn-close-complaint').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const studentId = e.target.dataset.studentId;
+      const complaintId = e.target.dataset.complaintId;
+      
+      const isConfirmed = await showCustomConfirm(
+        'Are you sure you want to mark this complaint as resolved and close it?',
+        'Resolve & Close Request',
+        'success'
+      );
+      if (isConfirmed) {
+        const student = state.db.find(s => s.id === studentId);
+        if (student && student.complaints) {
+          const complaint = student.complaints.find(c => c.id === complaintId);
+          if (complaint) {
+            complaint.status = 'Closed';
+            saveDB(state.db);
+            showToast('Complaint resolved and closed successfully!', 'success');
+            render();
+          }
+        }
+      }
+    });
+  });
 }
 
 function renderWardenAttendanceView() {
@@ -1733,12 +2079,18 @@ function attachAttendanceViewEvents() {
 function renderWardenDashboard() {
   return `
     <div class="dashboard-layout">
-      <!-- Mobile Toggle -->
-      <div style="position:fixed; top:15px; left:15px; z-index:999;">
-        <button id="mobile-toggle" class="mobile-menu-toggle">
-          ${ICONS.home}
+      <!-- Mobile Top Bar -->
+      <div class="mobile-top-bar">
+        <button id="mobile-toggle" class="mobile-menu-toggle" aria-label="Open navigation">
+          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
+        <div class="mobile-top-bar-brand">
+          ${ICONS.shield}
+          <span>TRANSCEND HOSTEL</span>
+        </div>
       </div>
+      <!-- Sidebar Backdrop -->
+      <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
 
       <!-- Sidebar -->
       <aside id="dashboard-sidebar" class="sidebar">
@@ -1765,6 +2117,9 @@ function renderWardenDashboard() {
           <button class="nav-item ${state.wardenActiveTab === 'behaviour' ? 'active' : ''}" data-tab="behaviour">
             ${ICONS.clipboard} Behaviour Log
           </button>
+          <button class="nav-item ${state.wardenActiveTab === 'complaints' ? 'active' : ''}" data-tab="complaints">
+            ${ICONS.complaint} Student Complaints
+          </button>
         </nav>
         
         <div class="sidebar-footer">
@@ -1778,12 +2133,12 @@ function renderWardenDashboard() {
       <main class="main-content">
         <header class="header-container">
           <div class="header-title-section">
-            <h1>${state.wardenActiveTab === 'leaves' ? 'Student Leave Database' : state.wardenActiveTab === 'dining' ? 'Meal Data' : 'Student Behaviour Log'}</h1>
+            <h1>${state.wardenActiveTab === 'leaves' ? 'Student Leave Database' : state.wardenActiveTab === 'dining' ? 'Meal Data' : state.wardenActiveTab === 'complaints' ? 'Student Complaints Desk' : 'Student Behaviour Log'}</h1>
             <p>Warden Control Panel • Leave, Dining &amp; Behaviour</p>
           </div>
         </header>
 
-        ${state.wardenActiveTab === 'leaves' ? renderWardenLeaves() : state.wardenActiveTab === 'dining' ? renderWardenDining() : renderBehaviourLogsRegister()}
+        ${state.wardenActiveTab === 'leaves' ? renderWardenLeaves() : state.wardenActiveTab === 'dining' ? renderWardenDining() : state.wardenActiveTab === 'complaints' ? renderWardenComplaintsView() : renderBehaviourLogsRegister()}
       </main>
     </div>
   `;
@@ -1846,8 +2201,8 @@ function renderWardenOverview(stats) {
                   </div>
                 </div>
                 <span class="approval-dates">
-                  ${formatDisplayDate(req.startDate)} ${req.startTime ? `(${req.startTime})` : ''}<br>
-                  to ${formatDisplayDate(req.endDate)} ${req.endTime ? `(${req.endTime})` : ''}
+                  ${formatDisplayDate(req.startDate)} ${req.startTime ? `(${formatTimeTo12Hr(req.startTime)})` : ''}<br>
+                  to ${formatDisplayDate(req.endDate)} ${req.endTime ? `(${formatTimeTo12Hr(req.endTime)})` : ''}
                 </span>
               </div>
               <p class="approval-reason">"${req.reason}"</p>
@@ -1918,13 +2273,15 @@ function renderWardenLeaves() {
     const list = [];
     state.db.forEach(student => {
       student.leaves.forEach(leave => {
-        if (dateStr >= leave.startDate && dateStr <= leave.endDate) {
-          list.push({
-            studentId: student.id,
-            studentName: student.name,
-            studentRoom: student.room,
-            ...leave
-          });
+        if (leave.type === 'leave' && leave.status === 'approved') {
+          if (dateStr >= leave.startDate && dateStr <= leave.endDate) {
+            list.push({
+              studentId: student.id,
+              studentName: student.name,
+              studentRoom: student.room,
+              ...leave
+            });
+          }
         }
       });
     });
@@ -1946,11 +2303,8 @@ function renderWardenLeaves() {
     const isToday = d.dateStr === getDateString(0);
 
     const leafPills = dateLeaves.slice(0, 2).map(l => {
-      const isOuting = l.type === 'outing';
-      const badgeStyle = isOuting 
-        ? 'background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0;' 
-        : 'background: #fff5f5; color: #e53e3e; border: 1px solid #fed7d7;';
-      return `<div class="calendar-leaf-pill" style="font-size: 10px; padding: 2px 4px; border-radius: 4px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; ${badgeStyle}" title="${l.studentName} (${isOuting ? 'Outing' : 'Leave'})">
+      const badgeStyle = 'background: #fff5f5; color: #e53e3e; border: 1px solid #fed7d7;';
+      return `<div class="calendar-leaf-pill" style="font-size: 10px; padding: 2px 4px; border-radius: 4px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; ${badgeStyle}" title="${l.studentName} (Absent)">
         ${l.studentName.split(' ')[0]}
       </div>`;
     }).join('');
@@ -1984,8 +2338,8 @@ function renderWardenLeaves() {
           <div>
             <div style="font-weight: 700; font-size: 14px; color: var(--text-primary);">${l.studentName} <span style="font-size:11px; font-weight:500; color:var(--text-muted);">(${l.studentId} • Room ${l.studentRoom})</span></div>
             <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
-              <strong>Departure:</strong> ${formatDisplayDate(l.startDate)} ${l.startTime ? `at ${l.startTime}` : ''} <br>
-              <strong>Return:</strong> ${formatDisplayDate(l.endDate)} ${l.endTime ? `at ${l.endTime}` : ''}
+              <strong>Departure:</strong> ${formatDisplayDate(l.startDate)} ${l.startTime ? `at ${formatTimeTo12Hr(l.startTime)}` : ''} <br>
+              <strong>Return:</strong> ${formatDisplayDate(l.endDate)} ${l.endTime ? `at ${formatTimeTo12Hr(l.endTime)}` : ''}
             </div>
             <div style="font-size: 12px; color: var(--text-muted); font-style: italic; margin-top: 4px;">"${l.reason}"</div>
           </div>
@@ -2242,7 +2596,14 @@ function attachWardenEvents() {
   
   if (mobileToggle && sidebar) {
     mobileToggle.addEventListener('click', () => {
-      sidebar.classList.toggle('mobile-open');
+      const isOpen = sidebar.classList.toggle('mobile-open');
+      const bd = document.getElementById('sidebar-backdrop');
+      if (bd) bd.classList.toggle('active', isOpen);
+    });
+    const bd = document.getElementById('sidebar-backdrop');
+    if (bd) bd.addEventListener('click', () => {
+      sidebar.classList.remove('mobile-open');
+      bd.classList.remove('active');
     });
   }
 
@@ -2251,6 +2612,8 @@ function attachWardenEvents() {
       const tab = e.target.closest('.nav-item').dataset.tab;
       state.wardenActiveTab = tab;
       if (sidebar) sidebar.classList.remove('mobile-open');
+      const bd = document.getElementById('sidebar-backdrop');
+      if (bd) bd.classList.remove('active');
       render();
     });
   });
@@ -2267,6 +2630,7 @@ function attachWardenEvents() {
   if (state.wardenActiveTab === 'dining') attachWardenDiningEvents();
   if (state.wardenActiveTab === 'leaves') attachCalendarEvents();
   if (state.wardenActiveTab === 'behaviour') attachBehaviourRegisterEvents();
+  if (state.wardenActiveTab === 'complaints') attachWardenComplaintsEvents();
 }
 
 // Chart.js render function
@@ -2438,12 +2802,18 @@ function renderAdminDashboard() {
 
   return `
     <div class="dashboard-layout">
-      <!-- Mobile Toggle -->
-      <div style="position:fixed; top:15px; left:15px; z-index:999;">
-        <button id="mobile-toggle" class="mobile-menu-toggle">
-          ${ICONS.home}
+      <!-- Mobile Top Bar -->
+      <div class="mobile-top-bar">
+        <button id="mobile-toggle" class="mobile-menu-toggle" aria-label="Open navigation">
+          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
+        <div class="mobile-top-bar-brand">
+          ${ICONS.settings}
+          <span>TRANSCEND HOSTEL</span>
+        </div>
       </div>
+      <!-- Sidebar Backdrop -->
+      <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
 
       <!-- Sidebar -->
       <aside id="dashboard-sidebar" class="sidebar">
@@ -2482,6 +2852,9 @@ function renderAdminDashboard() {
           <button class="nav-item ${state.adminActiveTab === 'behaviour' ? 'active' : ''}" data-tab="behaviour">
             ${ICONS.clipboard} Behaviour Register
           </button>
+          <button class="nav-item ${state.adminActiveTab === 'complaints' ? 'active' : ''}" data-tab="complaints">
+            ${ICONS.complaint} Student Complaints
+          </button>
         </nav>
         
         <div class="sidebar-footer">
@@ -2495,7 +2868,7 @@ function renderAdminDashboard() {
       <main class="main-content">
         <header class="header-container">
           <div class="header-title-section">
-            <h1>${state.adminActiveTab === 'menu' ? 'Mess Menu Management' : state.adminActiveTab === 'dining' ? 'Meal Data & Acceptance' : state.adminActiveTab === 'leaves' ? 'Student Absence Registry' : state.adminActiveTab === 'attendance' ? 'Gate & Attendance' : state.adminActiveTab === 'health' ? 'Health & Medical Logs' : state.adminActiveTab === 'behaviour' ? 'Student Behaviour Register' : 'Student Directory'}</h1>
+            <h1>${state.adminActiveTab === 'menu' ? 'Mess Menu Management' : state.adminActiveTab === 'dining' ? 'Meal Data & Acceptance' : state.adminActiveTab === 'leaves' ? 'Student Absence Registry' : state.adminActiveTab === 'attendance' ? 'Gate & Attendance' : state.adminActiveTab === 'health' ? 'Health & Medical Logs' : state.adminActiveTab === 'behaviour' ? 'Student Behaviour Register' : state.adminActiveTab === 'complaints' ? 'Student Complaints Desk' : 'Student Directory'}</h1>
             <p>Admin Control Panel • 5 Student Capacity</p>
           </div>
           
@@ -2504,7 +2877,7 @@ function renderAdminDashboard() {
           </div>
         </header>
 
-        ${state.adminActiveTab === 'menu' ? menuPanelHTML : state.adminActiveTab === 'dining' ? renderWardenDining() : state.adminActiveTab === 'leaves' ? renderWardenLeaves() : state.adminActiveTab === 'attendance' ? renderWardenAttendanceView() : state.adminActiveTab === 'health' ? renderWardenHealthView() : state.adminActiveTab === 'behaviour' ? renderBehaviourLogsRegister() : renderWardenDirectory()}
+        ${state.adminActiveTab === 'menu' ? menuPanelHTML : state.adminActiveTab === 'dining' ? renderWardenDining() : state.adminActiveTab === 'leaves' ? renderWardenLeaves() : state.adminActiveTab === 'attendance' ? renderWardenAttendanceView() : state.adminActiveTab === 'health' ? renderWardenHealthView() : state.adminActiveTab === 'behaviour' ? renderBehaviourLogsRegister() : state.adminActiveTab === 'complaints' ? renderWardenComplaintsView() : renderWardenDirectory()}
       </main>
 
 
@@ -2558,7 +2931,14 @@ function attachAdminEvents() {
   
   if (mobileToggle && sidebar) {
     mobileToggle.addEventListener('click', () => {
-      sidebar.classList.toggle('mobile-open');
+      const isOpen = sidebar.classList.toggle('mobile-open');
+      const bd = document.getElementById('sidebar-backdrop');
+      if (bd) bd.classList.toggle('active', isOpen);
+    });
+    const bd = document.getElementById('sidebar-backdrop');
+    if (bd) bd.addEventListener('click', () => {
+      sidebar.classList.remove('mobile-open');
+      bd.classList.remove('active');
     });
   }
 
@@ -2567,6 +2947,8 @@ function attachAdminEvents() {
       const tab = e.target.closest('.nav-item').dataset.tab;
       state.adminActiveTab = tab;
       if (sidebar) sidebar.classList.remove('mobile-open');
+      const bd = document.getElementById('sidebar-backdrop');
+      if (bd) bd.classList.remove('active');
       render();
     });
   });
@@ -2623,6 +3005,7 @@ function attachAdminEvents() {
   if (state.adminActiveTab === 'attendance') attachAttendanceViewEvents();
   if (state.adminActiveTab === 'behaviour') attachBehaviourRegisterEvents();
   if (state.adminActiveTab === 'dining') attachWardenDiningEvents();
+  if (state.adminActiveTab === 'complaints') attachWardenComplaintsEvents();
 
   if (state.adminActiveTab === 'directory') {
     const dirSearchInput = document.getElementById('dir-search');
@@ -2773,12 +3156,18 @@ function renderSuperadminDashboard() {
 
   return `
     <div class="dashboard-layout">
-      <!-- Mobile Toggle -->
-      <div style="position:fixed; top:15px; left:15px; z-index:999;">
-        <button id="mobile-toggle" class="mobile-menu-toggle">
-          ${ICONS.home}
+      <!-- Mobile Top Bar -->
+      <div class="mobile-top-bar">
+        <button id="mobile-toggle" class="mobile-menu-toggle" aria-label="Open navigation">
+          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
+        <div class="mobile-top-bar-brand">
+          ${ICONS.key}
+          <span>TRANSCEND HOSTEL</span>
+        </div>
       </div>
+      <!-- Sidebar Backdrop -->
+      <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
 
       <!-- Sidebar -->
       <aside id="dashboard-sidebar" class="sidebar">
@@ -2820,6 +3209,9 @@ function renderSuperadminDashboard() {
           <button class="nav-item ${state.superActiveTab === 'dining' ? 'active' : ''}" data-tab="dining">
             ${ICONS.coffee} Meal Data
           </button>
+          <button class="nav-item ${state.superActiveTab === 'complaints' ? 'active' : ''}" data-tab="complaints">
+            ${ICONS.complaint} Student Complaints
+          </button>
         </nav>
         
         <div class="sidebar-footer">
@@ -2833,7 +3225,7 @@ function renderSuperadminDashboard() {
       <main class="main-content">
         <header class="header-container">
           <div class="header-title-section">
-            <h1>${state.superActiveTab === 'dashboard' ? 'Master System Dashboard' : state.superActiveTab === 'logs' ? 'System Activity Logs' : state.superActiveTab === 'directory' ? 'Student Directory' : state.superActiveTab === 'attendance' ? 'Gate & Attendance' : state.superActiveTab === 'health' ? 'Health & Medical Logs' : state.superActiveTab === 'behaviour' ? 'Student Behaviour Register' : state.superActiveTab === 'dining' ? 'Meal Data & Acceptance' : 'Database Maintenance'}</h1>
+            <h1>${state.superActiveTab === 'dashboard' ? 'Master System Dashboard' : state.superActiveTab === 'logs' ? 'System Activity Logs' : state.superActiveTab === 'directory' ? 'Student Directory' : state.superActiveTab === 'attendance' ? 'Gate & Attendance' : state.superActiveTab === 'health' ? 'Health & Medical Logs' : state.superActiveTab === 'behaviour' ? 'Student Behaviour Register' : state.superActiveTab === 'dining' ? 'Meal Data & Acceptance' : state.superActiveTab === 'complaints' ? 'Student Complaints Desk' : 'Database Maintenance'}</h1>
             <p>Superadmin Master Panel • Root Access Enabled</p>
           </div>
         </header>
@@ -2949,7 +3341,7 @@ function renderSuperadminDashboard() {
               </div>
             </div>
           </div>
-        ` : state.superActiveTab === 'dining' ? renderWardenDining() : state.superActiveTab === 'directory' ? renderWardenDirectory() : state.superActiveTab === 'attendance' ? renderWardenAttendanceView() : state.superActiveTab === 'health' ? renderWardenHealthView() : state.superActiveTab === 'behaviour' ? renderBehaviourLogsRegister() : ''}
+        ` : state.superActiveTab === 'dining' ? renderWardenDining() : state.superActiveTab === 'directory' ? renderWardenDirectory() : state.superActiveTab === 'attendance' ? renderWardenAttendanceView() : state.superActiveTab === 'health' ? renderWardenHealthView() : state.superActiveTab === 'behaviour' ? renderBehaviourLogsRegister() : state.superActiveTab === 'complaints' ? renderWardenComplaintsView() : ''}
       </main>
     </div>
   `;
@@ -2961,7 +3353,14 @@ function attachSuperadminEvents() {
   
   if (mobileToggle && sidebar) {
     mobileToggle.addEventListener('click', () => {
-      sidebar.classList.toggle('mobile-open');
+      const isOpen = sidebar.classList.toggle('mobile-open');
+      const bd = document.getElementById('sidebar-backdrop');
+      if (bd) bd.classList.toggle('active', isOpen);
+    });
+    const bd = document.getElementById('sidebar-backdrop');
+    if (bd) bd.addEventListener('click', () => {
+      sidebar.classList.remove('mobile-open');
+      bd.classList.remove('active');
     });
   }
 
@@ -2970,6 +3369,8 @@ function attachSuperadminEvents() {
       const tab = e.target.closest('.nav-item').dataset.tab;
       state.superActiveTab = tab;
       if (sidebar) sidebar.classList.remove('mobile-open');
+      const bd = document.getElementById('sidebar-backdrop');
+      if (bd) bd.classList.remove('active');
       render();
     });
   });
@@ -2987,6 +3388,7 @@ function attachSuperadminEvents() {
   if (state.superActiveTab === 'attendance') attachAttendanceViewEvents();
   if (state.superActiveTab === 'behaviour') attachBehaviourRegisterEvents();
   if (state.superActiveTab === 'dining') attachWardenDiningEvents();
+  if (state.superActiveTab === 'complaints') attachWardenComplaintsEvents();
   // Handle database maintenance resets
   if (state.superActiveTab === 'database') {
     const resetBtn = document.getElementById('super-btn-reset-db');
@@ -3190,7 +3592,7 @@ function showStudentDetailModal(studentId) {
     : student.leaves.map(l => `
         <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-input); padding:8px 12px; border-radius:4px; font-size:13px; margin-bottom:4px;">
           <span>
-            <strong>${formatDisplayDate(l.startDate)} ${l.startTime ? `(${l.startTime})` : ''} - ${formatDisplayDate(l.endDate)} ${l.endTime ? `(${l.endTime})` : ''}</strong><br>
+            <strong>${formatDisplayDate(l.startDate)} ${l.startTime ? `(${formatTimeTo12Hr(l.startTime)})` : ''} - ${formatDisplayDate(l.endDate)} ${l.endTime ? `(${formatTimeTo12Hr(l.endTime)})` : ''}</strong><br>
             <span style="font-size:10px; font-weight:600; color:var(--primary); text-transform:uppercase; display:block; margin:2px 0;">Type: ${l.type === 'outing' ? 'Going Out' : 'On Leave'} • ${l.isOvernight ? 'Overnight' : 'Same Day'}</span>
             <span style="font-size:11px; color:var(--text-secondary);">"${l.reason}"</span>
           </span>
@@ -3354,9 +3756,14 @@ function showStudentDetailModal(studentId) {
     });
 
     modalContent.querySelectorAll('.btn-delete-log').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const logId = e.target.dataset.logId;
-        if (confirm("Are you sure you want to delete this behaviour log entry?")) {
+        const isConfirmed = await showCustomConfirm(
+          "Are you sure you want to delete this behaviour log entry?",
+          "Delete Behaviour Log",
+          "danger"
+        );
+        if (isConfirmed) {
           const res = updateBehaviourLog(student.id, { id: logId }, 'delete');
           if (res && res.success) {
             state.db = res.students;
@@ -3645,10 +4052,15 @@ function attachBehaviourRegisterEvents() {
     });
 
     document.querySelectorAll('.btn-delete-register-log').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const logId = e.target.dataset.logId;
         const studentId = e.target.dataset.stuId;
-        if (confirm("Are you sure you want to remove this behaviour log entry?")) {
+        const isConfirmed = await showCustomConfirm(
+          "Are you sure you want to remove this behaviour log entry?",
+          "Remove Behaviour Entry",
+          "danger"
+        );
+        if (isConfirmed) {
           const res = updateBehaviourLog(studentId, { id: logId }, 'delete');
           if (res && res.success) {
             state.db = res.students;
@@ -3982,3 +4394,4 @@ function attachCalendarEvents() {
     });
   });
 }
+

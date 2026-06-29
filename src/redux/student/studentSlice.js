@@ -1,0 +1,120 @@
+// src/redux/student/studentSlice.js
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { studentApi } from '../../api/studentApi';
+
+export const fetchProfileThunk = createAsyncThunk(
+  'student/fetchProfile',
+  async (studentId, { rejectWithValue }) => {
+    try {
+      const data = await studentApi.getProfile(studentId);
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const fetchDirectoryThunk = createAsyncThunk(
+  'student/fetchDirectory',
+  async (_, { rejectWithValue }) => {
+    try {
+      const data = await studentApi.getDirectory();
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const registerStudentThunk = createAsyncThunk(
+  'student/registerStudent',
+  async (studentData, { dispatch, rejectWithValue }) => {
+    try {
+      const data = await studentApi.register(studentData);
+      dispatch(fetchDirectoryThunk());
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+const initialState = {
+  profile: null,
+  directory: [],
+  loading: false,
+  error: null,
+  // Filters & Pagination for Directory
+  directorySearch: '',
+  directoryBlockFilter: 'all',
+  directoryStatusFilter: 'all',
+  directoryPage: 1,
+  directoryPageSize: 5,
+};
+
+const studentSlice = createSlice({
+  name: 'student',
+  initialState,
+  reducers: {
+    setDirectoryFilters: (state, action) => {
+      const { search, blockFilter, statusFilter, page } = action.payload;
+      if (search !== undefined) state.directorySearch = search;
+      if (blockFilter !== undefined) state.directoryBlockFilter = blockFilter;
+      if (statusFilter !== undefined) state.directoryStatusFilter = statusFilter;
+      if (page !== undefined) state.directoryPage = page;
+    },
+    resetDirectoryFilters: (state) => {
+      state.directorySearch = '';
+      state.directoryBlockFilter = 'all';
+      state.directoryStatusFilter = 'all';
+      state.directoryPage = 1;
+    },
+    clearStudentError: (state) => {
+      state.error = null;
+    }
+  },
+  extraReducers: (builder) => {
+    builder
+      // Fetch Profile
+      .addCase(fetchProfileThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchProfileThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        state.profile = action.payload;
+      })
+      .addCase(fetchProfileThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Fetch Directory
+      .addCase(fetchDirectoryThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchDirectoryThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        state.directory = action.payload;
+      })
+      .addCase(fetchDirectoryThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Register Student
+      .addCase(registerStudentThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(registerStudentThunk.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(registerStudentThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+  }
+});
+
+export const { setDirectoryFilters, resetDirectoryFilters, clearStudentError } = studentSlice.actions;
+export default studentSlice.reducer;
