@@ -93,7 +93,9 @@ const ParentDashboard = () => {
         </div>
         
         <div className="sidebar-profile">
-          <div className="profile-avatar">P</div>
+          <div className="profile-avatar" style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '20px', fontWeight: '800', flexShrink: 0, overflow: 'hidden', padding: 0 }}>
+            P
+          </div>
           <div className="profile-info">
             <span className="profile-name">Parent of {student?.name?.split(' ')[0]}</span>
             <span className="profile-role">Room {student?.room} • {student?.id}</span>

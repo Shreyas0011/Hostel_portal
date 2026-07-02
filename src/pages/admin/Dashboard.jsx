@@ -37,6 +37,7 @@ const AdminDashboard = () => {
   const [newRoom, setNewRoom] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
+  const [newPhoto, setNewPhoto] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -78,7 +79,8 @@ const AdminDashboard = () => {
       block: newBlock,
       room: newRoom,
       email: newEmail,
-      phone: newPhone
+      phone: newPhone,
+      photo: newPhoto.trim() || undefined
     })).then((res) => {
       setIsSubmitting(false);
       if (!res.error) {
@@ -90,6 +92,7 @@ const AdminDashboard = () => {
         setNewRoom('');
         setNewEmail('');
         setNewPhone('');
+        setNewPhoto('');
       } else {
         dispatch(addToast({ message: res.payload || 'Registration failed.', type: 'error' }));
       }
@@ -349,6 +352,18 @@ const AdminDashboard = () => {
                   placeholder="+91 98765 43210"
                   value={newPhone}
                   onChange={(e) => setNewPhone(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="new-student-photo">Photo URL (Optional)</label>
+                <input 
+                  type="url" 
+                  id="new-student-photo" 
+                  className="form-input" 
+                  placeholder="https://images.unsplash.com/..."
+                  value={newPhoto}
+                  onChange={(e) => setNewPhoto(e.target.value)}
                 />
               </div>
 

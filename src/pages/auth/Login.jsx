@@ -113,7 +113,7 @@ const Login = () => {
           <div style={{ marginTop: '32px', textAlign: 'center', lineHeight: '1.6', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
             <p style={{ margin: 0, fontWeight: 800, textTransform: 'uppercase', color: '#0f172a', fontSize: '11px', letterSpacing: '0.05em' }}>OWNED BY TRANSCEND GROUP OF INSTITUTIONS</p>
             <p style={{ margin: '4px 0 0 0', textTransform: 'uppercase', fontSize: '11px', fontWeight: 600, color: '#64748b', letterSpacing: '0.05em' }}>
-              DEVELOPED BY <span style={{ color: '#2563eb', fontWeight: 700 }}>START SMART BY SE</span>
+              DEVELOPED BY <span style={{ color: '#2563eb', fontWeight: 700 }}>START SMART,SE</span>
             </p>
           </div>
         </div>
@@ -212,7 +212,7 @@ const Login = () => {
         <div style={{ marginTop: '32px', textAlign: 'center', lineHeight: '1.6', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
           <p style={{ margin: 0, fontWeight: 800, textTransform: 'uppercase', color: '#0f172a', fontSize: '11px', letterSpacing: '0.05em' }}>OWNED BY TRANSCEND GROUP OF INSTITUTIONS</p>
           <p style={{ margin: '4px 0 0 0', textTransform: 'uppercase', fontSize: '11px', fontWeight: 600, color: '#64748b', letterSpacing: '0.05em' }}>
-            DEVELOPED BY <span style={{ color: '#2563eb', fontWeight: 700 }}>START SMART BY SE</span>
+            DEVELOPED BY <span style={{ color: '#2563eb', fontWeight: 700 }}>START SMART,SE</span>
           </p>
         </div>
       </div>

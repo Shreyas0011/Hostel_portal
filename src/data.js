@@ -24,17 +24,17 @@ const BED_LABELS_3 = ['Bed A', 'Bed B', 'Bed C'];
 function generateRandomStudent(index) {
   // Fixed demo student roster — ordered for reproducibility
   const ROSTER = [
-    { firstName: 'Aarav',     lastName: 'Sharma',   usn: 'TCG2021CS001', course: 'B.E. Computer Science',    dept: 'CSE', year: 3, phone: '+91 98765 10001', parentEmail: 'rajesh.sharma@transcendgroup.org',  parentName: 'Rajesh Sharma'  },
-    { firstName: 'Priya',     lastName: 'Nair',     usn: 'TCG2021EC002', course: 'B.E. Electronics',          dept: 'ECE', year: 3, phone: '+91 98765 10002', parentEmail: 'sunita.nair@transcendgroup.org',   parentName: 'Sunita Nair'    },
-    { firstName: 'Vihaan',    lastName: 'Verma',    usn: 'TCG2022ME003', course: 'B.E. Mechanical',           dept: 'ME',  year: 2, phone: '+91 98765 10003', parentEmail: 'parent.vihaan.verma@hostel.edu',   parentName: 'Parent of Vihaan' },
-    { firstName: 'Aditya',    lastName: 'Bhat',     usn: 'TCG2022CS004', course: 'B.E. Computer Science',    dept: 'CSE', year: 2, phone: '+91 98765 10004', parentEmail: 'parent.aditya.bhat@hostel.edu',    parentName: 'Parent of Aditya' },
-    { firstName: 'Siddharth', lastName: 'Pillai',   usn: 'TCG2023EE005', course: 'B.E. Electrical',           dept: 'EE',  year: 1, phone: '+91 98765 10005', parentEmail: 'parent.siddharth.pillai@hostel.edu', parentName: 'Parent of Siddharth' },
-    { firstName: 'Krishna',   lastName: 'Verma',    usn: 'TCG2022CS006', course: 'B.E. Computer Science',    dept: 'CSE', year: 2, phone: '+91 98765 10006', parentEmail: 'parent.krishna.verma@hostel.edu',  parentName: 'Parent of Krishna' },
-    { firstName: 'Kavya',     lastName: 'Reddy',    usn: 'TCG2023CE007', course: 'B.E. Civil Engineering',    dept: 'CE',  year: 1, phone: '+91 98765 10007', parentEmail: 'parent.kavya.reddy@hostel.edu',    parentName: 'Parent of Kavya' },
+    { firstName: 'Aarav',     lastName: 'Sharma',   usn: 'TCG2021CS001', course: 'B.E. Computer Science',    dept: 'CSE', year: 3, phone: '+91 98765 10001', parentEmail: 'rajesh.sharma@transcendgroup.org',  parentName: 'Rajesh Sharma', photo: '' },
+    { firstName: 'Priya',     lastName: 'Nair',     usn: 'TCG2021EC002', course: 'B.E. Electronics',          dept: 'ECE', year: 3, phone: '+91 98765 10002', parentEmail: 'sunita.nair@transcendgroup.org',   parentName: 'Sunita Nair', photo: '' },
+    { firstName: 'Vihaan',    lastName: 'Verma',    usn: 'TCG2022ME003', course: 'B.E. Mechanical',           dept: 'ME',  year: 2, phone: '+91 98765 10003', parentEmail: 'parent.vihaan.verma@hostel.edu',   parentName: 'Parent of Vihaan', photo: '' },
+    { firstName: 'Aditya',    lastName: 'Bhat',     usn: 'TCG2022CS004', course: 'B.E. Computer Science',    dept: 'CSE', year: 2, phone: '+91 98765 10004', parentEmail: 'parent.aditya.bhat@hostel.edu',    parentName: 'Parent of Aditya', photo: '' },
+    { firstName: 'Siddharth', lastName: 'Pillai',   usn: 'TCG2023EE005', course: 'B.E. Electrical',           dept: 'EE',  year: 1, phone: '+91 98765 10005', parentEmail: 'parent.siddharth.pillai@hostel.edu', parentName: 'Parent of Siddharth', photo: '' },
+    { firstName: 'Krishna',   lastName: 'Verma',    usn: 'TCG2022CS006', course: 'B.E. Computer Science',    dept: 'CSE', year: 2, phone: '+91 98765 10006', parentEmail: 'parent.krishna.verma@hostel.edu',  parentName: 'Parent of Krishna', photo: '' },
+    { firstName: 'Kavya',     lastName: 'Reddy',    usn: 'TCG2023CE007', course: 'B.E. Civil Engineering',    dept: 'CE',  year: 1, phone: '+91 98765 10007', parentEmail: 'parent.kavya.reddy@hostel.edu',    parentName: 'Parent of Kavya', photo: '' },
   ];
 
   const entry = ROSTER[(index - 1) % ROSTER.length];
-  const { firstName, lastName, usn, course, dept, year, phone, parentEmail, parentName } = entry;
+  const { firstName, lastName, usn, course, dept, year, phone, parentEmail, parentName, photo } = entry;
   const name = `${firstName} ${lastName}`;
 
   const id = `STU${String(index).padStart(3, '0')}`;
@@ -65,6 +65,7 @@ function generateRandomStudent(index) {
     phone,
     parentEmail,
     parentName,
+    photo,
     leaves: [],
     mealBookings: [],
     complaints: [],
@@ -167,7 +168,7 @@ export function getMealAcceptanceType(student, dateStr, mealKey) {
   return 'opted-out';
 }
 
-const DB_VERSION = 'v7'; // bump this whenever seed data changes
+const DB_VERSION = 'v9'; // bump this whenever seed data changes
 
 // Initialize the Database
 export function initDB() {

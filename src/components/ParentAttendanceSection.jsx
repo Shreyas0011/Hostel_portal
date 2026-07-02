@@ -122,7 +122,9 @@ const ParentAttendanceSection = ({ student, isReadOnly = true }) => {
         <div className="id-card-wrapper">
           <div className="id-card">
             <div className="id-card-top">
-              <div className="id-card-avatar">{getInitials(student.name)}</div>
+              <div className="id-card-avatar" style={{ width: '68px', height: '68px', borderRadius: '8px', background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '700', fontSize: '22px', flexShrink: 0 }}>
+                {getInitials(student.name)}
+              </div>
               <div>
                 <div className="id-card-name">{student.name}</div>
                 <div className="id-card-detail">{student.id} • Room {student.room}</div>

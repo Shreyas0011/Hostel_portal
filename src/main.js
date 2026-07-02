@@ -412,7 +412,7 @@ function renderLoginView() {
         <div class="login-footer" style="margin-top: 25px; text-align: center; line-height: 1.6; border-top: 1px solid rgba(226, 232, 240, 0.1); padding-top: 15px;">
           <p style="margin: 0; font-weight: 800; text-transform: uppercase; color: #0f172a; font-size: 10.5px; letter-spacing: 0.05em;">Owned by Transcend group of institutions</p>
           <p style="margin: 4px 0 0 0; text-transform: uppercase; font-size: 10.5px; font-weight: 600; color: #64748b; letter-spacing: 0.05em;">
-            Developed by <span style="color: #2563eb; font-weight: 700;">Start Smart, SE</span>
+            Developed by <span style="color: #2563eb; font-weight: 700;">Start Smart,SE</span>
           </p>
         </div>
       </div>

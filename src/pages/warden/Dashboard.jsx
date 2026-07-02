@@ -43,7 +43,7 @@ const WardenDashboard = () => {
       case 'dining':
         return <WardenDiningSection onViewStudentDetails={handleViewStudentDetails} />;
       case 'behaviour':
-        return <BehaviourLogsSection isReadOnly={false} showFullRegistry={true} />;
+        return <BehaviourLogsSection isReadOnly={true} showFullRegistry={true} />;
       case 'complaints':
         return <ComplaintsSection role="warden" />;
       default:

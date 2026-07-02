@@ -134,7 +134,14 @@ const StudentDirectorySection = ({ onViewHealth, onViewAttendance, onViewStudent
                 return (
                   <tr key={s.id}>
                     <td><strong>{s.id}</strong></td>
-                    <td>{s.name}</td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '16px', fontWeight: '800', flexShrink: 0, overflow: 'hidden' }}>
+                          {s.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        </div>
+                        <span style={{ fontWeight: 600 }}>{s.name}</span>
+                      </div>
+                    </td>
                     <td>{s.room}</td>
                     <td><span className="student-block-badge">Block {s.block}</span></td>
                     <td>

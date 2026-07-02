@@ -319,7 +319,7 @@ const ComplaintsSection = ({ student, role }) => {
                     ))}
                   </div>
                 )}
-                {c.status.toLowerCase() === 'pending' && role && (
+                {c.status.toLowerCase() === 'pending' && role && role !== 'warden' && (
                   <button
                     className="btn-primary"
                     style={{ padding: '6px 12px', fontSize: '12px', marginTop: '8px', alignSelf: 'flex-end', cursor: 'pointer', fontWeight: 600 }}

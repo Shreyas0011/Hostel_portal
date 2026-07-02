@@ -134,12 +134,22 @@ const StudentDetailModal = ({ isOpen, studentId, isReadOnly, onClose }) => {
     <>
       <div className="modal-overlay active" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 990 }}>
         <div className="modal-container" style={{ maxWidth: '600px', width: '90%', maxHeight: '90vh', overflowY: 'auto', padding: '24px' }}>
-          <div className="modal-header">
-            <h3 className="modal-title">Student Profile: {student.name}</h3>
+          <div className="modal-header" style={{ marginBottom: '15px' }}>
+            <h3 className="modal-title">Student Profile</h3>
             <button className="modal-close" onClick={onClose}>&times;</button>
           </div>
+
+          <div style={{ display: 'flex', gap: '20px', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', marginBottom: '15px' }}>
+            <div style={{ width: '110px', height: '110px', borderRadius: '50%', background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '36px', fontWeight: '800', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.15)', flexShrink: 0, overflow: 'hidden' }}>
+              {student.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: 'var(--text-primary)' }}>{student.name}</h3>
+              <span style={{ fontSize: '14px', color: 'var(--primary)', fontWeight: '600', display: 'block', marginTop: '4px' }}>{student.id} • Room {student.room} ({student.block})</span>
+            </div>
+          </div>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '15px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '15px', marginBottom: '15px' }}>
             <div>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Roll Number</span><br />
               <strong>{student.id}</strong>

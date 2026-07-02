@@ -170,7 +170,7 @@ const AttendanceSection = ({ student, isReadOnly, showScanner }) => {
         <div className="id-card-wrapper" style={{ marginTop: '20px' }}>
           <div className="id-card">
             <div className="id-card-top">
-              <div className="id-card-avatar" style={{ textTransform: 'uppercase' }}>
+              <div className="id-card-avatar" style={{ textTransform: 'uppercase', width: '68px', height: '68px', borderRadius: '8px', background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '700', fontSize: '22px', flexShrink: 0 }}>
                 {freshStudent.name.split(' ').map(n => n[0]).join('')}
               </div>
               <div>

@@ -127,7 +127,7 @@ axiosInstance.defaults.adapter = async function (config) {
     }
 
     if (url.includes('/students') && method === 'post') {
-      const { name, block, room, email, phone } = data;
+      const { name, block, room, email, phone, photo } = data;
       const nextIdNum = students.length + 1;
       const newStudent = {
         id: `STU${String(nextIdNum).padStart(3, '0')}`,
@@ -136,6 +136,7 @@ axiosInstance.defaults.adapter = async function (config) {
         block,
         email,
         phone,
+        photo: photo || '',
         leaves: [],
         mealBookings: [],
         complaints: [],

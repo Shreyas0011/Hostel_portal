@@ -96,7 +96,9 @@ const StudentDashboard = () => {
         </div>
         
         <div className="sidebar-profile">
-          <div className="profile-avatar">{getInitials(student?.name)}</div>
+          <div className="profile-avatar" style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '20px', fontWeight: '800', flexShrink: 0, overflow: 'hidden', padding: 0 }}>
+            {getInitials(student?.name)}
+          </div>
           <div className="profile-info">
             <span className="profile-name">{student?.name}</span>
             <span className="profile-role">Room {student?.room} • {student?.id}</span>

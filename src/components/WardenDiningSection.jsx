@@ -100,8 +100,10 @@ const WardenDiningSection = ({ onViewStudentDetails }) => {
       return <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '4px 6px', fontStyle: 'italic' }}>None</div>;
     }
     return list.map((s, idx) => (
-      <div key={idx} className="meal-count-student-row">
-        <span className="student-dot"></span>
+      <div key={idx} className="meal-count-student-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px' }}>
+        <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: '800', flexShrink: 0, overflow: 'hidden' }}>
+          {s.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+        </div>
         <span className="sname">{s.name}</span>
         <span className="smeta">{s.id} · Rm {s.room}</span>
         {badgeFn ? badgeFn(s) : null}
@@ -281,8 +283,15 @@ const WardenDiningSection = ({ onViewStudentDetails }) => {
                 return (
                   <tr key={student.id}>
                     <td>
-                      <strong>{student.name}</strong><br />
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{student.id} • Room {student.room}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '15px', fontWeight: '800', flexShrink: 0, overflow: 'hidden' }}>
+                          {student.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        </div>
+                        <div>
+                          <strong>{student.name}</strong><br />
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{student.id} • Room {student.room}</span>
+                        </div>
+                      </div>
                     </td>
                     <td>{renderCheckMark('breakfast', status.onLeave)}</td>
                     <td>{renderCheckMark('lunch',     status.onLeave)}</td>
