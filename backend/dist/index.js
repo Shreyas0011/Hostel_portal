@@ -25,7 +25,7 @@ const PORT = process.env.PORT || 5000;
 const ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://localhost:3000',
-    'https://facilities-portal-mu.vercel.app',
+    'https://hostel-portal-kappa.vercel.app',
     'https://www.tgi360.org',
     'https://tgi360.org',
     // Pull any extra origin set in Render environment variables
