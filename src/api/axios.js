@@ -283,24 +283,26 @@ axiosInstance.defaults.adapter = async function (config) {
       student.leaves.push(newLeave);
 
       let foodWasteCount = 0;
-      const start = new Date(startDate).getTime();
-      const end = new Date(endDate).getTime();
+      if (newLeave.status === 'approved') {
+        const start = new Date(startDate).getTime();
+        const end = new Date(endDate).getTime();
 
-      student.mealBookings = student.mealBookings.filter(booking => {
-        const bookingTime = new Date(booking.date).getTime();
-        const isWithinLeave = bookingTime >= start && bookingTime <= end;
-        if (isWithinLeave) {
-          if (booking.breakfast) foodWasteCount++;
-          if (booking.lunch) foodWasteCount++;
-          if (booking.snacks) foodWasteCount++;
-          if (booking.dinner) foodWasteCount++;
-        }
-        return !isWithinLeave;
-      });
+        student.mealBookings = student.mealBookings.filter(booking => {
+          const bookingTime = new Date(booking.date).getTime();
+          const isWithinLeave = bookingTime >= start && bookingTime <= end;
+          if (isWithinLeave) {
+            if (booking.breakfast) foodWasteCount++;
+            if (booking.lunch) foodWasteCount++;
+            if (booking.snacks) foodWasteCount++;
+            if (booking.dinner) foodWasteCount++;
+          }
+          return !isWithinLeave;
+        });
 
-      let avoidedMeals = parseInt(localStorage.getItem('hostel_avoided_meals') || '0', 10);
-      avoidedMeals += foodWasteCount;
-      localStorage.setItem('hostel_avoided_meals', avoidedMeals.toString());
+        let avoidedMeals = parseInt(localStorage.getItem('hostel_avoided_meals') || '0', 10);
+        avoidedMeals += foodWasteCount;
+        localStorage.setItem('hostel_avoided_meals', avoidedMeals.toString());
+      }
 
       db.saveDB(students);
       students = db.initDB();

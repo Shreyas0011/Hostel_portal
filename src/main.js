@@ -2273,7 +2273,7 @@ function renderWardenLeaves() {
     const list = [];
     state.db.forEach(student => {
       student.leaves.forEach(leave => {
-        if (leave.type === 'leave' && leave.status === 'approved') {
+        if (leave.status === 'approved') {
           if (dateStr >= leave.startDate && dateStr <= leave.endDate) {
             list.push({
               studentId: student.id,

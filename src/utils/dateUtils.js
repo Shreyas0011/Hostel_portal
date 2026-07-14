@@ -56,7 +56,7 @@ export function isStudentOnLeave(student, dateStr) {
   if (!student || !student.leaves) return false;
   const targetTime = new Date(dateStr).getTime();
   return student.leaves.some(leave => {
-    if (leave.status === 'rejected') return false;
+    if (leave.status !== 'approved') return false;
     const start = new Date(leave.startDate).getTime();
     const end = new Date(leave.endDate).getTime();
     return targetTime >= start && targetTime <= end;

@@ -104,7 +104,7 @@ export function isStudentOnLeave(student, dateStr) {
   if (!student || !student.leaves) return false;
   const targetTime = new Date(dateStr).getTime();
   return student.leaves.some(leave => {
-    if (leave.status === 'rejected') return false;
+    if (leave.status !== 'approved') return false;
     const start = new Date(leave.startDate).getTime();
     const end = new Date(leave.endDate).getTime();
     return targetTime >= start && targetTime <= end;
@@ -139,7 +139,7 @@ export function getMealAcceptanceType(student, dateStr, mealKey) {
   return 'opted-out';
 }
 
-const DB_VERSION = 'v9'; // bumped: new student roster with @transcendgroup.org
+const DB_VERSION = 'v10'; // bumped: new student roster with @transcendgroup.org
 
 export function initDB() {
   const cachedVersion = localStorage.getItem('hostel_portal_db_version');

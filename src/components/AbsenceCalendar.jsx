@@ -58,7 +58,7 @@ const AbsenceCalendar = () => {
     directory.forEach(student => {
       if (student.leaves) {
         student.leaves.forEach(leave => {
-          if (leave.type === 'leave' && leave.status === 'approved') {
+          if (leave.status === 'approved') {
             if (dateStr >= leave.startDate && dateStr <= leave.endDate) {
               list.push({
                 studentId: student.id,

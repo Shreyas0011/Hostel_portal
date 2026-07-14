@@ -126,7 +126,7 @@ export function formatMealBookingDeadline(dateStr) {
 export function isStudentOnLeave(student, dateStr) {
   const targetTime = new Date(dateStr).getTime();
   return student.leaves.some(leave => {
-    if (leave.status === 'rejected') return false;
+    if (leave.status !== 'approved') return false;
     const start = new Date(leave.startDate).getTime();
     const end = new Date(leave.endDate).getTime();
     return targetTime >= start && targetTime <= end;
@@ -168,7 +168,7 @@ export function getMealAcceptanceType(student, dateStr, mealKey) {
   return 'opted-out';
 }
 
-const DB_VERSION = 'v9'; // bump this whenever seed data changes
+const DB_VERSION = 'v10'; // bump this whenever seed data changes
 
 // Initialize the Database
 export function initDB() {
@@ -380,28 +380,28 @@ export function applyLeave(studentId, startDate, endDate, reason, type = 'leave'
 
   student.leaves.push(newLeave);
 
-  // If approved or pending, standard behavior is that they should not have meals.
-  // We can automatically cancel existing meals for these dates to prevent food waste.
   let foodWasteCount = 0;
-  const start = new Date(startDate).getTime();
-  const end = new Date(endDate).getTime();
+  if (newLeave.status === 'approved') {
+    const start = new Date(startDate).getTime();
+    const end = new Date(endDate).getTime();
 
-  student.mealBookings = student.mealBookings.filter(booking => {
-    const bookingTime = new Date(booking.date).getTime();
-    const isWithinLeave = bookingTime >= start && bookingTime <= end;
-    if (isWithinLeave) {
-      if (booking.breakfast) foodWasteCount++;
-      if (booking.lunch) foodWasteCount++;
-      if (booking.snacks) foodWasteCount++;
-      if (booking.dinner) foodWasteCount++;
-    }
-    return !isWithinLeave;
-  });
+    student.mealBookings = student.mealBookings.filter(booking => {
+      const bookingTime = new Date(booking.date).getTime();
+      const isWithinLeave = bookingTime >= start && bookingTime <= end;
+      if (isWithinLeave) {
+        if (booking.breakfast) foodWasteCount++;
+        if (booking.lunch) foodWasteCount++;
+        if (booking.snacks) foodWasteCount++;
+        if (booking.dinner) foodWasteCount++;
+      }
+      return !isWithinLeave;
+    });
 
-  // Track meal cancellations in statistics
-  let avoidedMeals = parseInt(localStorage.getItem('hostel_avoided_meals') || '0', 10);
-  avoidedMeals += foodWasteCount;
-  localStorage.setItem('hostel_avoided_meals', avoidedMeals.toString());
+    // Track meal cancellations in statistics
+    let avoidedMeals = parseInt(localStorage.getItem('hostel_avoided_meals') || '0', 10);
+    avoidedMeals += foodWasteCount;
+    localStorage.setItem('hostel_avoided_meals', avoidedMeals.toString());
+  }
 
   saveDB(students);
   return { students, leave: newLeave, avoidedCount: foodWasteCount };
