@@ -84,7 +84,9 @@ const LeaveSection = ({ student, role }) => {
   };
 
   const handleApprove = (stuId, leaveId) => {
+    console.log("handleApprove triggered:", { stuId, leaveId });
     dispatch(approveLeaveThunk({ studentId: stuId, leaveId })).then((res) => {
+      console.log("approveLeaveThunk finished, res:", res);
       if (!res.error) {
         dispatch(addToast({ message: "Child's request approved and meals locked.", type: 'success' }));
       } else {
@@ -94,7 +96,9 @@ const LeaveSection = ({ student, role }) => {
   };
 
   const handleReject = (stuId, leaveId) => {
+    console.log("handleReject triggered:", { stuId, leaveId });
     dispatch(rejectLeaveThunk({ studentId: stuId, leaveId })).then((res) => {
+      console.log("rejectLeaveThunk finished, res:", res);
       if (!res.error) {
         dispatch(addToast({ message: "Child's request rejected.", type: 'info' }));
       } else {

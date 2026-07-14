@@ -57,7 +57,9 @@ export const approveLeaveThunk = createAsyncThunk(
   'leave/approveLeave',
   async ({ studentId, leaveId }, { dispatch, getState, rejectWithValue }) => {
     try {
+      console.log("approveLeaveThunk executing:", { studentId, leaveId });
       const data = await leaveApi.approveLeave(studentId, leaveId);
+      console.log("approveLeaveThunk API call returned:", data);
       dispatch(fetchDirectoryThunk());
       dispatch(fetchWardenStatsThunk());
       // If we are currently looking at student details modal, re-trigger fetch
@@ -68,6 +70,7 @@ export const approveLeaveThunk = createAsyncThunk(
       }
       return data;
     } catch (err) {
+      console.error("approveLeaveThunk failed:", err);
       return rejectWithValue(err.response?.data?.message || err.message);
     }
   }
@@ -77,7 +80,9 @@ export const rejectLeaveThunk = createAsyncThunk(
   'leave/rejectLeave',
   async ({ studentId, leaveId }, { dispatch, getState, rejectWithValue }) => {
     try {
+      console.log("rejectLeaveThunk executing:", { studentId, leaveId });
       const data = await leaveApi.rejectLeave(studentId, leaveId);
+      console.log("rejectLeaveThunk API call returned:", data);
       dispatch(fetchDirectoryThunk());
       dispatch(fetchWardenStatsThunk());
       const state = getState();
@@ -87,6 +92,7 @@ export const rejectLeaveThunk = createAsyncThunk(
       }
       return data;
     } catch (err) {
+      console.error("rejectLeaveThunk failed:", err);
       return rejectWithValue(err.response?.data?.message || err.message);
     }
   }
