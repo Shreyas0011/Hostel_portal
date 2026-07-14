@@ -73,24 +73,36 @@ axiosInstance.defaults.adapter = async function (config) {
       }
 
       // ── Parent accounts ──
-      // Named parents for flagship demo students
-      const NAMED_PARENTS = {
-        'rajesh.sharma@transcendgroup.org': { studentEmail: 'aarav.sharma@transcendgroup.org', password: 'Parent@123', name: 'Rajesh Sharma' },
-        'sunita.nair@transcendgroup.org':   { studentEmail: 'priya.nair@transcendgroup.org',   password: 'Parent@123', name: 'Sunita Nair'   },
-      };
-      if (NAMED_PARENTS[normalizedEmail]) {
-        const p = NAMED_PARENTS[normalizedEmail];
-        if (password !== p.password) throw new Error('Incorrect password');
-        const student = students.find(s => s.email.toLowerCase() === p.studentEmail);
-        if (!student) throw new Error('Student profile not found');
-        return { data: { accessToken: 'parent-token', user: { id: 'parent-' + student.id, name: p.name, email: normalizedEmail, role: 'Parent', studentId: student.id } }, status: 200, statusText: 'OK', headers: {}, config };
+      // Dynamic lookup from student database:
+      const matchingStudent = students.find(s => s.parentEmail && s.parentEmail.toLowerCase() === normalizedEmail);
+      if (matchingStudent) {
+        if (password === 'Parent@123' || password === 'password') {
+          return {
+            data: {
+              accessToken: 'parent-token',
+              user: {
+                id: 'parent-' + matchingStudent.id,
+                name: matchingStudent.parentName || ('Parent of ' + matchingStudent.name),
+                email: normalizedEmail,
+                role: 'Parent',
+                studentId: matchingStudent.id
+              }
+            },
+            status: 200,
+            statusText: 'OK',
+            headers: {},
+            config
+          };
+        }
+        throw new Error('Incorrect password');
       }
-      // Legacy parent.* pattern (hostel.edu domain)
+
+      // Legacy parent.* pattern (fallback)
       if (normalizedEmail.startsWith('parent.')) {
         const studentEmailPart = normalizedEmail.replace('parent.', '');
         const student = students.find(s => s.email.toLowerCase() === studentEmailPart);
         if (student) {
-          if (password === 'password') {
+          if (password === 'password' || password === 'Parent@123') {
             return { data: { accessToken: 'parent-token', user: { id: 'parent-' + student.id, name: 'Parent of ' + student.name.split(' ')[0], email: normalizedEmail, role: 'Parent', studentId: student.id } }, status: 200, statusText: 'OK', headers: {}, config };
           }
           throw new Error('Incorrect password');
