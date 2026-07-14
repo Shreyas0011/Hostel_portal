@@ -5,13 +5,33 @@ export interface IUser extends Document {
   email: string;
   password?: string;
   googleId?: string;
-  role: 'superadmin' | 'admin' | 'faculty' | 'viewer';
+  role: 'superadmin' | 'admin' | 'faculty' | 'viewer' | 'student';
   department?: string;
   avatar?: string;
   isActive: boolean;
   firstLogin: boolean;
   createdAt: Date;
   updatedAt: Date;
+  // Student specific fields
+  usn?: string;
+  division?: string;
+  room?: string;
+  block?: string;
+  bed?: string;
+  sharing?: number;
+  course?: string;
+  dept?: string;
+  year?: number;
+  phone?: string;
+  parentPhone?: string;
+  parentEmail?: string;
+  parentName?: string;
+  parentRelation?: string;
+  gender?: string;
+  dob?: string;
+  address?: string;
+  allergies?: string;
+  isNew?: boolean;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -22,13 +42,33 @@ const UserSchema = new Schema<IUser>(
     googleId:   { type: String, sparse: true, unique: true },
     role: {
       type: String,
-      enum: ['superadmin', 'admin', 'faculty', 'viewer'],
+      enum: ['superadmin', 'admin', 'faculty', 'viewer', 'student'],
       default: 'faculty',
     },
     department: { type: String, trim: true },
     avatar:     { type: String },
     isActive:   { type: Boolean, default: true },
     firstLogin: { type: Boolean, default: true },
+    // Student specific fields
+    usn:            { type: String, sparse: true, unique: true },
+    division:       { type: String, trim: true },
+    room:           { type: String, trim: true },
+    block:          { type: String, trim: true },
+    bed:            { type: String, trim: true },
+    sharing:        { type: Number },
+    course:         { type: String, trim: true },
+    dept:           { type: String, trim: true },
+    year:           { type: Number },
+    phone:          { type: String, trim: true },
+    parentPhone:    { type: String, trim: true },
+    parentEmail:    { type: String, trim: true },
+    parentName:     { type: String, trim: true },
+    parentRelation: { type: String, trim: true },
+    gender:         { type: String, trim: true },
+    dob:            { type: String, trim: true },
+    address:        { type: String, trim: true },
+    allergies:      { type: String, trim: true },
+    isNew:          { type: Boolean, default: false },
   },
   {
     timestamps: true,
