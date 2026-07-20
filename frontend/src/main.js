@@ -377,8 +377,8 @@ function renderLoginView() {
         
         <div id="login-form-area" style="margin-top: 20px;">
           <div class="login-form-group">
-            <label class="login-label">Email Address</label>
-            <input type="text" id="login-identifier" class="login-input" placeholder="e.g., student@hostel.edu or warden@hostel.edu" value="aarav.sharma@hostel.edu">
+            <label class="login-label">Email or Enrollment ID</label>
+            <input type="text" id="login-identifier" class="login-input" placeholder="e.g., USN (251D1482) or student@hostel.edu" value="aarav.sharma@hostel.edu">
           </div>
           <div class="login-form-group" style="margin-top: 15px;">
             <label class="login-label">Password</label>
@@ -502,7 +502,10 @@ function attachLoginEvents() {
       }
 
       // Otherwise, check Student
-      const student = state.db.find(s => s.email.toLowerCase() === normalizedEmail);
+      const student = state.db.find(s => 
+        s.email.toLowerCase() === normalizedEmail || 
+        (s.usn && s.usn.toLowerCase() === normalizedEmail)
+      );
       if (student) {
         if (password === 'password') {
           state.currentStudentId = student.id;

@@ -75,6 +75,27 @@ function calculateAcademic(division: string) {
   return { year, course, dept };
 }
 
+const generateStudentEmail = (name: string, index: number): string => {
+  const clean = name.trim().toLowerCase().replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, ' ');
+  const parts = clean.split(' ');
+  const emailDomain = index <= 2 ? 'transcendgroup.org' : 'hostel.edu';
+  return `${parts.join('.')}@${emailDomain}`;
+};
+
+const generateParentPassword = (index: number, usn: string): string => {
+  const indexStr = String(index).padStart(4, '0');
+  const randomSuffix = Math.floor(10 + Math.random() * 90);
+  return `Parent@${indexStr}${randomSuffix}`;
+};
+
+interface ParentCredential {
+  sn: number;
+  studentName: string;
+  studentUsn: string;
+  parentEmail: string;
+  parentPassword: string;
+}
+
 const importStudents = async () => {
   try {
     const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/facility_portal';
@@ -95,14 +116,11 @@ const importStudents = async () => {
       process.exit(1);
     }
 
-    // Hash default password
-    const defaultPassword = 'password';
-    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
-
     const headers = parseCSVLine(lines[0]);
     console.log('Detected CSV Headers:', headers.slice(0, 14));
 
     const bulkOps: any[] = [];
+    const parentCredentialsList: ParentCredential[] = [];
     let skippedCount = 0;
     let validCount = 0;
 
@@ -153,7 +171,7 @@ const importStudents = async () => {
       validCount++;
 
       const cleanedName = studentName.trim();
-      const cleanedEmail = pRegEmail.trim().toLowerCase();
+      const parentEmailCleaned = pRegEmail.trim();
       const cleanedUsn = enrollmentNo.trim().toUpperCase();
 
       // Determine allocations based on serial number index or fallback to loop index
@@ -161,9 +179,32 @@ const importStudents = async () => {
       const { block, sharing, room, bed } = calculateAllocation(allocationIndex, gender, division);
       const { year, course, dept } = calculateAcademic(division);
 
+      const generatedStudentEmail = generateStudentEmail(cleanedName, allocationIndex);
+
+      // Determine Student Password
+      const defaultStudentPassword = 'Student@123';
+      const hashedStudentPassword = await bcrypt.hash(defaultStudentPassword, 10);
+
+      // Generate Parent Password
+      const existingParent = parentCredentialsList.find(pc => pc.parentEmail.toLowerCase() === parentEmailCleaned.toLowerCase());
+      let generatedParentPassword = '';
+      if (existingParent) {
+        generatedParentPassword = existingParent.parentPassword;
+      } else {
+        generatedParentPassword = generateParentPassword(allocationIndex, cleanedUsn);
+        parentCredentialsList.push({
+          sn: allocationIndex,
+          studentName: cleanedName,
+          studentUsn: cleanedUsn,
+          parentEmail: parentEmailCleaned,
+          parentPassword: generatedParentPassword
+        });
+      }
+      const hashedParentPassword = await bcrypt.hash(generatedParentPassword, 10);
+
       const studentDoc = {
         name: cleanedName,
-        email: cleanedEmail,
+        email: generatedStudentEmail,
         role: 'student',
         isActive: true,
         firstLogin: true,
@@ -179,7 +220,7 @@ const importStudents = async () => {
         year,
         phone: sMobileNo ? sMobileNo.trim() : '',
         parentPhone: pRegMob ? pRegMob.trim() : '',
-        parentEmail: cleanedEmail,
+        parentEmail: parentEmailCleaned,
         parentName: `Parent of ${cleanedName}`,
         parentRelation: relation.trim() || 'Parent',
         gender: gender.trim(),
@@ -189,14 +230,36 @@ const importStudents = async () => {
         isNew: newOrExisting.trim().toLowerCase() === 'new',
       };
 
-      // Upsert logic: Create if not exists, update fields if exists
-      // Using $setOnInsert for password so we don't reset password if user already exists
+      const parentDoc = {
+        name: `Parent of ${cleanedName}`,
+        email: parentEmailCleaned,
+        role: 'parent',
+        isActive: true,
+        firstLogin: true,
+        studentId: cleanedUsn, // Associate parent with student USN
+        phone: pRegMob ? pRegMob.trim() : '',
+        parentRelation: relation.trim() || 'Parent',
+        address: address ? address.trim() : '',
+      };
+
+      // Student bulk operation
       bulkOps.push({
         updateOne: {
           filter: { usn: cleanedUsn },
           update: {
-            $set: studentDoc,
-            $setOnInsert: { password: hashedPassword }
+            $set: { ...studentDoc, password: hashedStudentPassword }
+          },
+          upsert: true
+        }
+      });
+
+      // Parent bulk operation
+      bulkOps.push({
+        updateOne: {
+          filter: { email: parentEmailCleaned },
+          update: {
+            $set: parentDoc,
+            $setOnInsert: { password: hashedParentPassword }
           },
           upsert: true
         }
@@ -210,6 +273,18 @@ const importStudents = async () => {
       console.log(`- Matched count: ${result.matchedCount}`);
       console.log(`- Modified count: ${result.modifiedCount}`);
       console.log(`- Upserted count: ${result.upsertedCount}`);
+    }
+
+    // Write parent credentials to CSV file
+    if (parentCredentialsList.length > 0) {
+      const csvHeaders = 'SN,Student Name,Student USN,Parent Email,Generated Parent Password\n';
+      const csvRows = parentCredentialsList.map(pc => {
+        const escapedName = pc.studentName.includes(',') ? `"${pc.studentName}"` : pc.studentName;
+        return `${pc.sn},${escapedName},${pc.studentUsn},${pc.parentEmail},${pc.parentPassword}`;
+      }).join('\n');
+      const csvPath = path.resolve(__dirname, '../../Parent Credentials.csv');
+      fs.writeFileSync(csvPath, csvHeaders + csvRows, 'utf-8');
+      console.log(`🔑 Parent login credentials written successfully to: ${csvPath}`);
     }
 
     console.log(`Summary: Imported ${validCount} students successfully, Skipped ${skippedCount} rows.`);

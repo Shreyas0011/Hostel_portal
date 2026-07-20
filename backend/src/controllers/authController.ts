@@ -18,7 +18,7 @@ const signupSchema = z.object({
 });
 
 const loginSchema = z.object({
-  email:    z.string().email('Invalid email address').toLowerCase(),
+  email:    z.string().min(1, 'Email or Enrollment ID is required').trim(),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -78,7 +78,13 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     const validated = loginSchema.parse(req.body);
 
     // Explicitly select password (hidden by default)
-    const user = await User.findOne({ email: validated.email }).select('+password +firstLogin');
+    const identifier = validated.email.toLowerCase();
+    const user = await User.findOne({
+      $or: [
+        { email: identifier },
+        { usn: identifier.toUpperCase() }
+      ]
+    }).select('+password +firstLogin');
     if (!user || !user.password) throw new AppError('Invalid email or password', 401);
     if (!user.isActive)          throw new AppError('Account is deactivated. Contact administrator.', 401);
 
@@ -99,6 +105,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
         isActive:   user.isActive,
         firstLogin: user.firstLogin,
         first_login: user.firstLogin,
+        studentId:  user.studentId,
       },
       token,
     });
@@ -131,6 +138,7 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
         firstLogin:   user.firstLogin,
         first_login:  user.firstLogin,
         bookingCount,
+        studentId:    user.studentId,
       },
     });
   } catch (error) {
@@ -159,6 +167,7 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
         role:       user.role,
         department: user.department,
         avatar:     user.avatar,
+        studentId:  user.studentId,
       },
     });
   } catch (error) {
@@ -214,6 +223,7 @@ export const googleAuth = async (req: Request, res: Response, next: NextFunction
         role:     user.role,
         avatar:   user.avatar,
         isActive: user.isActive,
+        studentId: user.studentId,
       },
       token,
     });

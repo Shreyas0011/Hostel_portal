@@ -185,6 +185,8 @@ export function hasMealBookingDeadlinePassed(dateStr) {
   return Date.now() > getMealBookingDeadline(dateStr);
 }
 
+let cachedStudentsMemory = null;
+
 export function hasMealBeenRejected(student, dateStr, mealKey) {
   return !!(student.mealCancellations && student.mealCancellations.some(
     c => c.date === dateStr && c.meal === mealKey
@@ -204,42 +206,24 @@ export function formatMealBookingDeadline(dateStr) {
 }
 
 export function isStudentOnLeave(student, dateStr) {
-  if (!student || !student.leaves) return false;
-  const targetTime = new Date(dateStr).getTime();
-  return student.leaves.some(leave => {
-    if (leave.status !== 'approved') return false;
-    const start = new Date(leave.startDate).getTime();
-    const end = new Date(leave.endDate).getTime();
-    return targetTime >= start && targetTime <= end;
-  });
+  return false;
 }
 
 export function isMealBooked(student, dateStr, mealKey) {
   if (!student) return false;
-  if (isStudentOnLeave(student, dateStr)) {
-    return false;
-  }
   if (hasMealBeenRejected(student, dateStr, mealKey)) {
     return false;
   }
-  if (hasMealBookingDeadlinePassed(dateStr)) {
-    return true;
-  }
-  if (!student.mealBookings) return false;
-  const booking = student.mealBookings.find(b => b.date === dateStr);
-  return booking ? !!booking[mealKey] : false;
+  return true;
 }
 
 export function getMealAcceptanceType(student, dateStr, mealKey) {
   if (!student) return 'opted-out';
-  if (isStudentOnLeave(student, dateStr)) return 'leave';
   if (hasMealBeenRejected(student, dateStr, mealKey)) return 'rejected';
-  if (!student.mealBookings) return hasMealBookingDeadlinePassed(dateStr) ? 'auto' : 'opted-out';
-  const booking = student.mealBookings.find(b => b.date === dateStr);
+  const booking = student.mealBookings?.find(b => b.date === dateStr);
   const explicitlyBooked = booking && !!booking[mealKey];
   if (explicitlyBooked) return 'manual';
-  if (hasMealBookingDeadlinePassed(dateStr)) return 'auto';
-  return 'opted-out';
+  return 'auto';
 }
 
 const DB_VERSION = 'v15'; // 62 students (29 girls + 33 boys) — syntax-fixed re-seed
@@ -247,6 +231,10 @@ const DB_VERSION = 'v15'; // 62 students (29 girls + 33 boys) — syntax-fixed r
 export function initDB() {
   const cachedVersion = localStorage.getItem('hostel_portal_db_version');
   const cached = localStorage.getItem('hostel_portal_db');
+
+  if (cachedStudentsMemory && cachedVersion === DB_VERSION) {
+    return cachedStudentsMemory;
+  }
 
   if (cached && cachedVersion === DB_VERSION) {
     const parsed = JSON.parse(cached);
@@ -268,6 +256,7 @@ export function initDB() {
         if (!student.parentPhone)   student.parentPhone   = '';
         if (!student.parentRelation) student.parentRelation = 'Parent';
       });
+      cachedStudentsMemory = parsed;
       return parsed;
     }
   }
@@ -279,10 +268,6 @@ export function initDB() {
   for (let i = 1; i <= REAL_STUDENTS.length; i++) {
     students.push(generateRandomStudent(i));
   }
-
-  const today    = getDateString(0);
-  const tomorrow = getDateString(1);
-  const dayAfter = getDateString(2);
 
   // Seed meals for all students
   students.forEach(student => {
@@ -302,8 +287,7 @@ export function initDB() {
 
   // Behaviour logs — STU001 Amulya, STU002 Chinmayi, STU003 Humblee
   students[0].behaviourLogs = [
-    { id:'OB-STU001-1', date:getDateString(-5), category:'Academic',   severity:'positive', description:'Represented the hostel in the inter-college quiz and won first place.',    recordedBy:'Ramesh Kumar (Warden)' },
-    { id:'OB-STU001-2', date:getDateString(-2), category:'Discipline', severity:'warning',  description:'Arrived 15 minutes late after check-in hours without prior notification.', recordedBy:'Ramesh Kumar (Warden)' }
+    { id:'OB-STU001-1', date:getDateString(-5), category:'Academic',   severity:'positive', description:'Represented the hostel in the inter-college quiz and won first place.',    recordedBy:'Ramesh Kumar (Warden)' }
   ];
   students[1].behaviourLogs = [
     { id:'OB-STU002-1', date:getDateString(-6), category:'Academic',   severity:'positive', description:'Secured first rank in the department semester examinations.',             recordedBy:'Anita Joseph (Warden)' },
@@ -330,40 +314,12 @@ export function initDB() {
     { id:'CMP-STU002-1', category:'Mess', subject:'Food quality issue – dinner', details:'Dinner on Thursday was undercooked and tasted stale.', status:'Pending', dateReported:getDateString(-2), attachments:[] }
   ];
 
-  // Leaves
-  students[0].leaves.push({ id:'LV-STU001-1', startDate:today,    endDate:today,    startTime:'09:00 AM', endTime:'06:00 PM', reason:'Visiting local guardian',       type:'outing', submittedBy:'parent',  status:'approved' });
-  students[0].mealBookings = students[0].mealBookings.filter(b => b.date !== today);
-  students[1].leaves.push({ id:'LV-STU002-1', startDate:tomorrow, endDate:dayAfter, startTime:'09:00 AM', endTime:'06:00 PM', reason:'Going home for family function', type:'leave',  submittedBy:'student', status:'pending'  });
-  students[2].leaves.push({ id:'LV-STU003-1', startDate:today,    endDate:today,    startTime:'09:00 AM', endTime:'06:00 PM', reason:'Shopping with friends',          type:'outing', submittedBy:'student', status:'rejected' });
-
-  // Entry/Exit logs — 4 templates cycled across all students
-  const scheduleTemplates = [
-    [ {type:'exit',h:7, m:12,note:'Morning walk / library'},   {type:'entry',h:9, m:34,note:'Returned after breakfast outing'}, {type:'exit',h:14,m:5, note:'Afternoon pharmacy lab'}, {type:'entry',h:17,m:48,note:'Back from college'} ],
-    [ {type:'exit',h:8, m:45,note:'Left for morning lecture'}, {type:'entry',h:13,m:10,note:'Returned for lunch'},              {type:'exit',h:15,m:30,note:'Practical session'},       {type:'entry',h:18,m:20,note:'Back from lab'} ],
-    [ {type:'exit',h:10,m:20,note:'Went to market'},           {type:'entry',h:12,m:55,note:'Returned before lunch'},           {type:'exit',h:16,m:40,note:'Evening outing'},          {type:'entry',h:20,m:15,note:'Night return to hostel'} ],
-    [ {type:'exit',h:9, m:5, note:'Went to canteen'},          {type:'entry',h:9, m:45,note:'Returned to hostel'},              {type:'exit',h:17,m:0, note:'Evening walk'},            {type:'entry',h:19,m:20,note:'Back from hostel'} ],
-  ];
-  const pad = n => String(n).padStart(2, '0');
-  students.forEach((student, idx) => {
-    const sch = scheduleTemplates[idx % scheduleTemplates.length];
-    const logs = [];
-    for (let d = 2; d >= 0; d--) {
-      const date = getDateString(-d);
-      sch.forEach((evt, eIdx) => {
-        const mm = (evt.m + (d * 3 + eIdx * 2) % 9) % 60;
-        logs.push({ id:`LOG-${student.id}-${d}-${eIdx}`, type:evt.type, timestamp:`${date}T${pad(evt.h)}:${pad(mm)}:00`, note:evt.note });
-      });
-    }
-    student.entryExitLogs = logs;
-  });
-
   saveDB(students);
   return students;
 }
 
-
-
 export function saveDB(students) {
+  cachedStudentsMemory = students;
   localStorage.setItem('hostel_portal_db', JSON.stringify(students));
   localStorage.setItem('hostel_portal_db_version', DB_VERSION);
 }

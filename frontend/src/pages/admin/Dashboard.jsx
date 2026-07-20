@@ -4,15 +4,13 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { logoutThunk } from '../../redux/auth/authSlice';
 import { fetchDirectoryThunk, registerStudentThunk } from '../../redux/student/studentSlice';
-import { setViewAttendanceStudentId } from '../../redux/attendance/attendanceSlice';
 import { setViewHealthStudentId } from '../../redux/health/healthSlice';
 import { addToast } from '../../redux/notification/notificationSlice';
 import { ICONS } from '../../constants/icons';
 import MessMenuSection from '../../components/MessMenuSection';
 import WardenDiningSection from '../../components/WardenDiningSection';
 import StudentDirectorySection from '../../components/StudentDirectorySection';
-import AbsenceCalendar from '../../components/AbsenceCalendar';
-import AdminAttendanceSection from '../../components/AdminAttendanceSection';
+
 import AdminHealthSection from '../../components/AdminHealthSection';
 import BehaviourLogsSection from '../../components/BehaviourLogsSection';
 import ComplaintsSection from '../../components/ComplaintsSection';
@@ -60,10 +58,7 @@ const AdminDashboard = () => {
     setActiveTab('health');
   };
 
-  const handleViewAttendance = (studentId) => {
-    dispatch(setViewAttendanceStudentId(studentId));
-    setActiveTab('attendance');
-  };
+
 
   const handleRegisterSubmit = (e) => {
     e.preventDefault();
@@ -109,14 +104,10 @@ const AdminDashboard = () => {
         return (
           <StudentDirectorySection 
             onViewHealth={handleViewHealth} 
-            onViewAttendance={handleViewAttendance} 
             onViewStudent={handleViewStudentDetails} 
           />
         );
-      case 'leaves':
-        return <AbsenceCalendar />;
-      case 'attendance':
-        return <AdminAttendanceSection />;
+
       case 'health':
         return <AdminHealthSection />;
       case 'behaviour':
@@ -133,11 +124,10 @@ const AdminDashboard = () => {
       case 'menu': return 'Mess Menu Management';
       case 'dining': return 'Meal Data & Acceptance';
       case 'directory': return 'Student Directory';
-      case 'leaves': return 'Student Absence Registry';
-      case 'attendance': return 'Gate & Attendance';
+
       case 'health': return 'Health & Medical Logs';
       case 'behaviour': return 'Student Behaviour Register';
-      case 'complaints': return 'Student Complaints Desk';
+      case 'complaints': return 'Student Tickets Desk';
       default: return 'Campus Admin Console';
     }
   };
@@ -203,18 +193,7 @@ const AdminDashboard = () => {
           >
             {ICONS.users} Student Directory
           </button>
-          <button 
-            className={`nav-item ${activeTab === 'leaves' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('leaves'); setMobileMenuOpen(false); }}
-          >
-            {ICONS.calendar} Leave Database
-          </button>
-          <button 
-            className={`nav-item ${activeTab === 'attendance' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('attendance'); setMobileMenuOpen(false); }}
-          >
-            {ICONS.shield} Gate &amp; Attendance
-          </button>
+
           <button 
             className={`nav-item ${activeTab === 'health' ? 'active' : ''}`}
             onClick={() => { setActiveTab('health'); setMobileMenuOpen(false); }}
@@ -231,7 +210,7 @@ const AdminDashboard = () => {
             className={`nav-item ${activeTab === 'complaints' ? 'active' : ''}`}
             onClick={() => { setActiveTab('complaints'); setMobileMenuOpen(false); }}
           >
-            {ICONS.complaint} Student Complaints
+            {ICONS.complaint} Tickets
           </button>
         </nav>
         

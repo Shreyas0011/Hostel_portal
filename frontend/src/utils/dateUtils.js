@@ -53,38 +53,22 @@ export function formatMealBookingDeadline(dateStr) {
 }
 
 export function isStudentOnLeave(student, dateStr) {
-  if (!student || !student.leaves) return false;
-  const targetTime = new Date(dateStr).getTime();
-  return student.leaves.some(leave => {
-    if (leave.status !== 'approved') return false;
-    const start = new Date(leave.startDate).getTime();
-    const end = new Date(leave.endDate).getTime();
-    return targetTime >= start && targetTime <= end;
-  });
+  return false;
 }
 
 export function isMealBooked(student, dateStr, mealKey) {
-  if (isStudentOnLeave(student, dateStr)) {
-    return false;
-  }
   if (hasMealBeenRejected(student, dateStr, mealKey)) {
     return false;
   }
-  if (hasMealBookingDeadlinePassed(dateStr)) {
-    return true;
-  }
-  const booking = student.mealBookings?.find(b => b.date === dateStr);
-  return booking ? !!booking[mealKey] : false;
+  return true;
 }
 
 export function getMealAcceptanceType(student, dateStr, mealKey) {
-  if (isStudentOnLeave(student, dateStr)) return 'leave';
   if (hasMealBeenRejected(student, dateStr, mealKey)) return 'rejected';
   const booking = student.mealBookings?.find(b => b.date === dateStr);
   const explicitlyBooked = booking && !!booking[mealKey];
   if (explicitlyBooked) return 'manual';
-  if (hasMealBookingDeadlinePassed(dateStr)) return 'auto';
-  return 'opted-out';
+  return 'auto';
 }
 
 export function getMenuForDate(dateStr) {

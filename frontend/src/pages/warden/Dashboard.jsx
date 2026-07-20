@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { logoutThunk } from '../../redux/auth/authSlice';
 import { fetchDirectoryThunk } from '../../redux/student/studentSlice';
 import { ICONS } from '../../constants/icons';
-import AbsenceCalendar from '../../components/AbsenceCalendar';
+
 import WardenDiningSection from '../../components/WardenDiningSection';
 import BehaviourLogsSection from '../../components/BehaviourLogsSection';
 import ComplaintsSection from '../../components/ComplaintsSection';
@@ -16,7 +16,7 @@ const WardenDashboard = () => {
   const navigate = useNavigate();
   const currentUser = useSelector((state) => state.auth.user);
 
-  const [activeTab, setActiveTab] = useState('leaves');
+  const [activeTab, setActiveTab] = useState('dining');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState(null);
@@ -38,8 +38,6 @@ const WardenDashboard = () => {
 
   const renderActiveSection = () => {
     switch (activeTab) {
-      case 'leaves':
-        return <AbsenceCalendar />;
       case 'dining':
         return <WardenDiningSection onViewStudentDetails={handleViewStudentDetails} />;
       case 'behaviour':
@@ -47,15 +45,14 @@ const WardenDashboard = () => {
       case 'complaints':
         return <ComplaintsSection role="warden" />;
       default:
-        return <AbsenceCalendar />;
+        return <WardenDiningSection onViewStudentDetails={handleViewStudentDetails} />;
     }
   };
 
   const getHeaderTitle = () => {
     switch (activeTab) {
-      case 'leaves': return 'Student Leave Database';
       case 'dining': return 'Meal Data';
-      case 'complaints': return 'Student Complaints Desk';
+      case 'complaints': return 'Student Tickets Desk';
       case 'behaviour': return 'Student Behaviour Log';
       default: return 'Chief Warden Control Console';
     }
@@ -104,12 +101,7 @@ const WardenDashboard = () => {
         </div>
         
         <nav className="sidebar-nav">
-          <button 
-            className={`nav-item ${activeTab === 'leaves' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('leaves'); setMobileMenuOpen(false); }}
-          >
-            {ICONS.calendar} Student Leave Database
-          </button>
+
           <button 
             className={`nav-item ${activeTab === 'dining' ? 'active' : ''}`}
             onClick={() => { setActiveTab('dining'); setMobileMenuOpen(false); }}
@@ -126,7 +118,7 @@ const WardenDashboard = () => {
             className={`nav-item ${activeTab === 'complaints' ? 'active' : ''}`}
             onClick={() => { setActiveTab('complaints'); setMobileMenuOpen(false); }}
           >
-            {ICONS.complaint} Student Complaints
+            {ICONS.complaint} Tickets
           </button>
         </nav>
         

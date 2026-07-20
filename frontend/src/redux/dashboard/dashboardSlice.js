@@ -62,7 +62,7 @@ const initialState = {
   stats: null,
   beds: [],
   studentActiveTab: 'meals',
-  parentActiveTab: 'leave',
+  parentActiveTab: 'meals',
   wardenActiveTab: 'dining',
   adminActiveTab: 'menu',
   superActiveTab: 'dashboard',

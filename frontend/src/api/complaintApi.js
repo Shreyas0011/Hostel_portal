@@ -6,8 +6,8 @@ export const complaintApi = {
     const response = await axiosInstance.post('/complaints', { studentId, ...complaintData });
     return response.data;
   },
-  resolveComplaint: async (studentId, complaintId) => {
-    const response = await axiosInstance.post(`/complaints/${complaintId}/resolve`, { studentId });
+  resolveComplaint: async (studentId, complaintId, responseText) => {
+    const response = await axiosInstance.post(`/complaints/${complaintId}/resolve`, { studentId, responseText });
     return response.data;
   }
 };

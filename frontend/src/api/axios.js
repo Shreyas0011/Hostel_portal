@@ -13,7 +13,7 @@ const axiosInstance = axios.create({
 // Setup mock adapter to process requests locally via localStorage database
 axiosInstance.defaults.adapter = async function (config) {
   // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 20));
+  await new Promise((resolve) => setTimeout(resolve, 0));
 
   const url = config.url || '';
   const method = config.method ? config.method.toLowerCase() : 'get';
@@ -112,9 +112,12 @@ axiosInstance.defaults.adapter = async function (config) {
 
       // ── Student accounts ──
       // @transcendgroup.org students use password 'Student@123'; legacy @hostel.edu use 'password'
-      const student = students.find(s => s.email.toLowerCase() === normalizedEmail);
+      const student = students.find(s => 
+        s.email.toLowerCase() === normalizedEmail || 
+        (s.usn && s.usn.toLowerCase() === normalizedEmail)
+      );
       if (student) {
-        const expectedPassword = student.email.endsWith('@transcendgroup.org') ? 'Student@123' : 'password';
+        const expectedPassword = 'Student@123';
         if (password === expectedPassword) {
           return { data: { accessToken: 'student-token', user: { id: student.id, name: student.name, email: student.email, role: 'Student', room: student.room, block: student.block, usn: student.usn, course: student.course, dept: student.dept, year: student.year } }, status: 200, statusText: 'OK', headers: {}, config };
         }
@@ -272,134 +275,18 @@ axiosInstance.defaults.adapter = async function (config) {
       return { data: { success: true, students }, status: 200, statusText: 'OK', headers: {}, config };
     }
 
-    // 6. Leave Endpoints
-    if (url.match(/\/leaves\/[A-Za-z0-9-]+\/cancel$/) && method === 'post') {
-      const match = url.match(/\/leaves\/([A-Za-z0-9-]+)\/cancel$/);
-      const leaveId = match ? match[1] : '';
-      const { studentId } = data;
-      const student = students.find(s => s.id === studentId);
-      if (!student) throw new Error('Student not found');
-
-      student.leaves = student.leaves.filter(l => l.id !== leaveId);
-      db.saveDB(students);
-      students = db.initDB();
-      return { data: { success: true, students }, status: 200, statusText: 'OK', headers: {}, config };
-    }
-
-    if (url.match(/\/leaves\/[A-Za-z0-9-]+\/approve$/) && method === 'post') {
-      const match = url.match(/\/leaves\/([A-Za-z0-9-]+)\/approve$/);
-      const leaveId = match ? match[1] : '';
-      const { studentId } = data;
-      const student = students.find(s => s.id === studentId);
-      if (!student) throw new Error('Student not found');
-
-      const leave = student.leaves.find(l => l.id === leaveId);
-      console.log("mock axios approve endpoint matching details:", { leaveId, studentId, studentFound: !!student, leaveFound: !!leave, leave });
-      if (leave) {
-        leave.status = 'approved';
-        const start = new Date(leave.startDate).getTime();
-        const end = new Date(leave.endDate).getTime();
-        
-        let cancelledCount = 0;
-        student.mealBookings = student.mealBookings.filter(booking => {
-          const bookingTime = new Date(booking.date).getTime();
-          const isWithinLeave = bookingTime >= start && bookingTime <= end;
-          if (isWithinLeave) {
-            if (booking.breakfast) cancelledCount++;
-            if (booking.lunch) cancelledCount++;
-            if (booking.snacks) cancelledCount++;
-            if (booking.dinner) cancelledCount++;
-          }
-          return !isWithinLeave;
-        });
-
-        let avoidedMeals = parseInt(localStorage.getItem('hostel_avoided_meals') || '0', 10);
-        avoidedMeals += cancelledCount;
-        localStorage.setItem('hostel_avoided_meals', avoidedMeals.toString());
-      }
-
-      db.saveDB(students);
-      students = db.initDB();
-      return { data: { success: true, students }, status: 200, statusText: 'OK', headers: {}, config };
-    }
-
-    if (url.match(/\/leaves\/[A-Za-z0-9-]+\/reject$/) && method === 'post') {
-      const match = url.match(/\/leaves\/([A-Za-z0-9-]+)\/reject$/);
-      const leaveId = match ? match[1] : '';
-      const { studentId } = data;
-      const student = students.find(s => s.id === studentId);
-      if (!student) throw new Error('Student not found');
-
-      const leave = student.leaves.find(l => l.id === leaveId);
-      console.log("mock axios reject endpoint matching details:", { leaveId, studentId, studentFound: !!student, leaveFound: !!leave, leave });
-      if (leave) {
-        leave.status = 'rejected';
-      }
-
-      db.saveDB(students);
-      students = db.initDB();
-      return { data: { success: true, students }, status: 200, statusText: 'OK', headers: {}, config };
-    }
-
-    if (url.includes('/leaves') && method === 'post') {
-      const { studentId, startDate, endDate, reason, type, submittedBy, startTime, endTime, isOvernight } = data;
-      const student = students.find(s => s.id === studentId);
-      if (!student) throw new Error('Student not found');
-
-      const leaveId = `LV-${Date.now()}`;
-      const newLeave = {
-        id: leaveId,
-        startDate,
-        endDate,
-        reason,
-        type,
-        submittedBy,
-        status: submittedBy === 'parent' ? 'approved' : 'pending',
-        startTime,
-        endTime,
-        isOvernight: !!isOvernight
-      };
-
-      student.leaves.push(newLeave);
-
-      let foodWasteCount = 0;
-      if (newLeave.status === 'approved') {
-        const start = new Date(startDate).getTime();
-        const end = new Date(endDate).getTime();
-
-        student.mealBookings = student.mealBookings.filter(booking => {
-          const bookingTime = new Date(booking.date).getTime();
-          const isWithinLeave = bookingTime >= start && bookingTime <= end;
-          if (isWithinLeave) {
-            if (booking.breakfast) foodWasteCount++;
-            if (booking.lunch) foodWasteCount++;
-            if (booking.snacks) foodWasteCount++;
-            if (booking.dinner) foodWasteCount++;
-          }
-          return !isWithinLeave;
-        });
-
-        let avoidedMeals = parseInt(localStorage.getItem('hostel_avoided_meals') || '0', 10);
-        avoidedMeals += foodWasteCount;
-        localStorage.setItem('hostel_avoided_meals', avoidedMeals.toString());
-      }
-
-      db.saveDB(students);
-      students = db.initDB();
-      return { data: { success: true, students, leave: newLeave, avoidedCount: foodWasteCount }, status: 200, statusText: 'OK', headers: {}, config };
-    }
-
     // 7. Complaint Endpoints
     if (url.match(/\/complaints\/[A-Za-z0-9-]+\/resolve$/) && method === 'post') {
       const match = url.match(/\/complaints\/([A-Za-z0-9-]+)\/resolve$/);
       const complaintId = match ? match[1] : '';
-      const { studentId } = data;
+      const { studentId, responseText } = data;
       const student = students.find(s => s.id === studentId);
       if (!student) throw new Error('Student not found');
 
       const complaint = student.complaints.find(c => c.id === complaintId);
       if (complaint) {
         complaint.status = 'Closed';
+        complaint.response = responseText || 'Resolved by Administrator';
       }
 
       db.saveDB(students);
@@ -499,16 +386,7 @@ axiosInstance.defaults.adapter = async function (config) {
       return { data: { success: true, students: freshStudents }, status: 200, statusText: 'OK', headers: {}, config };
     }
 
-    // 11. Attendance Endpoints
-    if (url.includes('/attendance/scan') && method === 'post') {
-      const { studentId, type, note } = data;
-      const res = db.logEntryExit(studentId, type, note);
-      if (res) {
-        students = db.initDB();
-        return { data: { success: true, students, log: res.log }, status: 200, statusText: 'OK', headers: {}, config };
-      }
-      throw new Error('Failed to log scan');
-    }
+
 
     throw new Error('Route not matched: ' + url);
   } catch (error) {

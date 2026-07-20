@@ -7,7 +7,7 @@ import { addToast } from '../redux/notification/notificationSlice';
 import { ICONS } from '../constants/icons';
 import { formatDisplayDate, getDateString } from '../utils/dateUtils';
 import { formatTimeTo12Hr } from '../utils/timeUtils';
-import { isStudentOnLeave, isMealBooked } from '../utils/db';
+import { isMealBooked } from '../utils/db';
 import CustomConfirmModal from './common/CustomConfirmModal';
 
 const StudentDetailModal = ({ isOpen, studentId, isReadOnly, onClose }) => {
@@ -31,8 +31,7 @@ const StudentDetailModal = ({ isOpen, studentId, isReadOnly, onClose }) => {
   const student = directory.find(s => s.id === studentId);
   if (!student) return null;
 
-  const activeTodayOnLeave = isStudentOnLeave(student, getDateString(0));
-  const sortedLeaves = [...(student.leaves || [])].sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+
   const sortedLogs = [...(student.behaviourLogs || [])].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const getSeverityBadgeClass = (severity) => {
@@ -166,38 +165,10 @@ const StudentDetailModal = ({ isOpen, studentId, isReadOnly, onClose }) => {
               <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Phone Number</span><br />
               <span style={{ fontSize: '13px' }}>{student.phone}</span>
             </div>
-            <div style={{ gridColumn: 'span 2', marginTop: '4px' }}>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Mess Status Today</span><br />
-              {activeTodayOnLeave ? (
-                <span className="badge rejected" style={{ fontSize: '10px', padding: '3px 8px', marginTop: '2px', display: 'inline-block' }}>On Leave - Mess Closed</span>
-              ) : (
-                <span className="badge approved" style={{ fontSize: '10px', padding: '3px 8px', marginTop: '2px', display: 'inline-block' }}>Present - Mess Active</span>
-              )}
-            </div>
+
           </div>
           
-          {/* Leaves History */}
-          <div style={{ maxHeight: '140px', overflowY: 'auto', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>
-            <h4 style={{ fontSize: '13px', margin: '8px 0', textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.5px' }}>Leaves History</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {sortedLeaves.length === 0 ? (
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>No leave requests registered.</p>
-              ) : (
-                sortedLeaves.map((l, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-input)', padding: '8px 12px', borderRadius: '4px', fontSize: '13px', marginBottom: '4px' }}>
-                    <span>
-                      <strong>{formatDisplayDate(l.startDate)} {l.startTime ? `(${formatTimeTo12Hr(l.startTime)})` : ''} - {formatDisplayDate(l.endDate)} {l.endTime ? `(${formatTimeTo12Hr(l.endTime)})` : ''}</strong><br />
-                      <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', display: 'block', margin: '2px 0' }}>
-                        Type: {l.type === 'outing' ? 'Going Out' : 'On Leave'} • {l.isOvernight ? 'Overnight' : 'Same Day'}
-                      </span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>"{l.reason}"</span>
-                    </span>
-                    <span className={`badge ${l.status}`} style={{ fontSize: '10px', padding: '3px 8px' }}>{l.status}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+
 
           {/* Meal Bookings Log */}
           <div style={{ maxHeight: '140px', overflowY: 'auto', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>

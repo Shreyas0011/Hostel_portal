@@ -28,9 +28,9 @@ export const reportComplaintThunk = createAsyncThunk(
 
 export const resolveComplaintThunk = createAsyncThunk(
   'complaint/resolveComplaint',
-  async ({ studentId, complaintId }, { dispatch, getState, rejectWithValue }) => {
+  async ({ studentId, complaintId, responseText }, { dispatch, getState, rejectWithValue }) => {
     try {
-      const data = await complaintApi.resolveComplaint(studentId, complaintId);
+      const data = await complaintApi.resolveComplaint(studentId, complaintId, responseText);
       dispatch(fetchDirectoryThunk());
       dispatch(fetchWardenStatsThunk());
       const state = getState();

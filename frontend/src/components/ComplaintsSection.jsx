@@ -18,6 +18,7 @@ const ComplaintsSection = ({ student, role }) => {
   const [details, setDetails] = useState('');
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [responseTexts, setResponseTexts] = useState({});
 
   useEffect(() => {
     if (role && directory.length === 0) {
@@ -135,11 +136,16 @@ const ComplaintsSection = ({ student, role }) => {
   };
 
   const handleResolve = (studentId, complaintId) => {
-    dispatch(resolveComplaintThunk({ studentId, complaintId })).then((action) => {
+    const text = responseTexts[complaintId] || '';
+    dispatch(resolveComplaintThunk({ studentId, complaintId, responseText: text })).then((action) => {
       if (resolveComplaintThunk.fulfilled.match(action)) {
-        dispatch(addToast({ message: 'Complaint marked as resolved!', type: 'success' }));
+        dispatch(addToast({ message: 'Ticket resolved and response sent!', type: 'success' }));
+        setResponseTexts(prev => ({
+          ...prev,
+          [complaintId]: ''
+        }));
       } else {
-        dispatch(addToast({ message: action.payload || 'Failed to resolve complaint.', type: 'error' }));
+        dispatch(addToast({ message: action.payload || 'Failed to resolve ticket.', type: 'error' }));
       }
     });
   };
@@ -319,14 +325,31 @@ const ComplaintsSection = ({ student, role }) => {
                     ))}
                   </div>
                 )}
+                {c.response && (
+                  <div style={{ marginTop: '8px', padding: '10px', background: '#f8fafc', borderLeft: '3px solid #10b981', borderRadius: '4px', fontSize: '12.5px', color: '#334155' }}>
+                    <strong>Response:</strong> "{c.response}"
+                  </div>
+                )}
                 {c.status.toLowerCase() === 'pending' && role && role !== 'warden' && (
-                  <button
-                    className="btn-primary"
-                    style={{ padding: '6px 12px', fontSize: '12px', marginTop: '8px', alignSelf: 'flex-end', cursor: 'pointer', fontWeight: 600 }}
-                    onClick={() => handleResolve(c.studentId, c.id)}
-                  >
-                    Resolve Complaint
-                  </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', borderTop: '1px dashed var(--border-color)', paddingTop: '10px' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Respond &amp; Resolve Ticket</label>
+                      <textarea
+                        className="form-textarea"
+                        placeholder="Write your response to the student..."
+                        value={responseTexts[c.id] || ''}
+                        onChange={(e) => setResponseTexts(prev => ({ ...prev, [c.id]: e.target.value }))}
+                        style={{ height: '60px', padding: '8px', fontSize: '12.5px' }}
+                      />
+                    </div>
+                    <button
+                      className="btn-primary"
+                      style={{ padding: '6px 12px', fontSize: '12px', alignSelf: 'flex-end', cursor: 'pointer', fontWeight: 600, marginTop: '2px' }}
+                      onClick={() => handleResolve(c.studentId, c.id)}
+                    >
+                      Send Response &amp; Resolve
+                    </button>
+                  </div>
                 )}
               </div>
             ))

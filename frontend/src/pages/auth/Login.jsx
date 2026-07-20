@@ -136,7 +136,7 @@ const Login = () => {
         <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: '28px' }}>
           {/* Email Field */}
           <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-            <label className="modern-input-label" htmlFor="login-identifier">EMAIL ADDRESS</label>
+            <label className="modern-input-label" htmlFor="login-identifier">EMAIL OR ENROLLMENT ID</label>
             <div className="modern-input-wrapper">
               <svg className="modern-input-icon-left" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
@@ -146,8 +146,8 @@ const Login = () => {
                 type="text"
                 id="login-identifier"
                 className={`modern-input ${errors.email ? 'error' : ''}`}
-                placeholder="you@transcendgroup.org"
-                {...register('email', { required: 'Email is required' })}
+                placeholder="Email or Enrollment ID (e.g. 251D1482)"
+                {...register('email', { required: 'Email or Enrollment ID is required' })}
               />
             </div>
             {errors.email && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '6px', display: 'block', fontWeight: '500' }}>{errors.email.message}</span>}

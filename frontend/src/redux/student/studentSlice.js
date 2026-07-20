@@ -47,7 +47,6 @@ const initialState = {
   // Filters & Pagination for Directory
   directorySearch: '',
   directoryBlockFilter: 'all',
-  directoryStatusFilter: 'all',
   directoryPage: 1,
   directoryPageSize: 5,
 };
@@ -57,16 +56,14 @@ const studentSlice = createSlice({
   initialState,
   reducers: {
     setDirectoryFilters: (state, action) => {
-      const { search, blockFilter, statusFilter, page } = action.payload;
+      const { search, blockFilter, page } = action.payload;
       if (search !== undefined) state.directorySearch = search;
       if (blockFilter !== undefined) state.directoryBlockFilter = blockFilter;
-      if (statusFilter !== undefined) state.directoryStatusFilter = statusFilter;
       if (page !== undefined) state.directoryPage = page;
     },
     resetDirectoryFilters: (state) => {
       state.directorySearch = '';
       state.directoryBlockFilter = 'all';
-      state.directoryStatusFilter = 'all';
       state.directoryPage = 1;
     },
     clearStudentError: (state) => {

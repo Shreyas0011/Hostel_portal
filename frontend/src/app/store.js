@@ -19,7 +19,7 @@ const customStorage = {
 const persistConfig = {
   key: 'hostel_portal_root',
   storage: customStorage,
-  whitelist: ['auth'], // Only persist the auth slice (token, user role, etc.)
+  whitelist: [], // Disable auth persistence so it opens to the login page on startup/refresh
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

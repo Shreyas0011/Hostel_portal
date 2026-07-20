@@ -5,14 +5,13 @@ import { useNavigate } from 'react-router-dom';
 import { logoutThunk } from '../../redux/auth/authSlice';
 import { fetchDirectoryThunk } from '../../redux/student/studentSlice';
 import { resetDatabaseThunk, reseedMealsThunk } from '../../redux/dashboard/dashboardSlice';
-import { setViewAttendanceStudentId } from '../../redux/attendance/attendanceSlice';
 import { setViewHealthStudentId } from '../../redux/health/healthSlice';
 import { addToast } from '../../redux/notification/notificationSlice';
 import { ICONS } from '../../constants/icons';
 import MessMenuSection from '../../components/MessMenuSection';
 import WardenDiningSection from '../../components/WardenDiningSection';
 import StudentDirectorySection from '../../components/StudentDirectorySection';
-import AdminAttendanceSection from '../../components/AdminAttendanceSection';
+
 import AdminHealthSection from '../../components/AdminHealthSection';
 import BehaviourLogsSection from '../../components/BehaviourLogsSection';
 import ComplaintsSection from '../../components/ComplaintsSection';
@@ -34,6 +33,88 @@ const SuperAdminDashboard = () => {
   const [isResetting, setIsResetting] = useState(false);
   const [isReseedMeals, setIsReseedMeals] = useState(false);
 
+  // Analytics filtering/sorting state
+  const [sortOption, setSortOption] = useState('none');
+  const [mealsSortOption, setMealsSortOption] = useState('none');
+  const [complaintsSortOption, setComplaintsSortOption] = useState('none');
+
+  // Calculate analytics
+  const totalComplaints = db.reduce((acc, s) => acc + (s.complaints ? s.complaints.length : 0), 0);
+  const totalMeals = db.reduce((acc, s) => {
+    return acc + (s.mealBookings ? s.mealBookings.reduce((mAcc, b) => {
+      let count = 0;
+      if (b.breakfast) count++;
+      if (b.lunch) count++;
+      if (b.snacks) count++;
+      if (b.dinner) count++;
+      return mAcc + count;
+    }, 0) : 0);
+  }, 0);
+
+  // Sorting student list for birthday calendar
+  const sortedStudents = [...db].sort((a, b) => {
+    if (sortOption === 'grade') {
+      return (a.division || '').localeCompare(b.division || '');
+    }
+    if (sortOption === 'gender') {
+      return (a.gender || '').localeCompare(b.gender || '');
+    }
+    return 0;
+  });
+
+  // Calculate meal bookings list and sort it
+  const mealsList = db.map(s => {
+    const mealCount = s.mealBookings ? s.mealBookings.reduce((acc, b) => {
+      let count = 0;
+      if (b.breakfast) count++;
+      if (b.lunch) count++;
+      if (b.snacks) count++;
+      if (b.dinner) count++;
+      return acc + count;
+    }, 0) : 0;
+    return { id: s.id, name: s.name, division: s.division, gender: s.gender, mealCount };
+  });
+
+  const sortedMealsList = [...mealsList].sort((a, b) => {
+    if (mealsSortOption === 'grade') {
+      return (a.division || '').localeCompare(b.division || '');
+    }
+    if (mealsSortOption === 'gender') {
+      return (a.gender || '').localeCompare(b.gender || '');
+    }
+    return 0;
+  });
+
+  // Calculate complaints list and sort it
+  const complaintsList = [];
+  db.forEach(s => {
+    if (s.complaints) {
+      s.complaints.forEach(c => {
+        complaintsList.push({
+          studentId: s.id,
+          studentName: s.name,
+          division: s.division,
+          gender: s.gender,
+          complaintId: c.id,
+          category: c.category,
+          subject: c.subject,
+          status: c.status,
+          date: c.dateReported
+        });
+      });
+    }
+  });
+
+  const sortedComplaintsList = [...complaintsList].sort((a, b) => {
+    if (complaintsSortOption === 'grade') {
+      return (a.division || '').localeCompare(b.division || '');
+    }
+    if (complaintsSortOption === 'gender') {
+      return (a.gender || '').localeCompare(b.gender || '');
+    }
+    return 0;
+  });
+
   useEffect(() => {
     dispatch(fetchDirectoryThunk());
   }, [dispatch]);
@@ -54,10 +135,7 @@ const SuperAdminDashboard = () => {
     setActiveTab('health');
   };
 
-  const handleViewAttendance = (studentId) => {
-    dispatch(setViewAttendanceStudentId(studentId));
-    setActiveTab('attendance');
-  };
+
 
   const handleResetDatabase = () => {
     setIsResetting(true);
@@ -95,111 +173,242 @@ const SuperAdminDashboard = () => {
     switch (activeTab) {
       case 'dashboard':
         return (
-          <div className="dashboard-panel dashboard-full">
-            <div className="panel-header">
-              <h2 className="panel-title">{ICONS.users} Administrator &amp; Staff Directory</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Analytics Stats Grid */}
+            <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+              <div className="dashboard-panel" style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '20px' }}>
+                <div style={{ padding: '12px', borderRadius: '12px', background: 'rgba(37,99,235,0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {ICONS.users}
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)' }}>Total Students</h4>
+                  <span style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-primary)' }}>{db.length}</span>
+                </div>
+              </div>
+              <div className="dashboard-panel" style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '20px' }}>
+                <div style={{ padding: '12px', borderRadius: '12px', background: 'rgba(22,163,74,0.1)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {ICONS.coffee}
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)' }}>Total Meals Booked</h4>
+                  <span style={{ fontSize: '24px', fontWeight: '800', color: 'var(--success)' }}>{totalMeals}</span>
+                </div>
+              </div>
+              <div className="dashboard-panel" style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '20px' }}>
+                <div style={{ padding: '12px', borderRadius: '12px', background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {ICONS.complaint}
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)' }}>Total Tickets</h4>
+                  <span style={{ fontSize: '24px', fontWeight: '800', color: 'var(--danger)' }}>{totalComplaints}</span>
+                </div>
+              </div>
             </div>
-            
-            <div className="directory-table-wrapper" style={{ marginTop: '15px' }}>
-              <table className="directory-table">
-                <thead>
-                  <tr>
-                    <th>Account ID</th>
-                    <th>Name</th>
-                    <th>Role / Level</th>
-                    <th>Secret Login PIN</th>
-                    <th style={{ textAlign: 'right' }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {adminUsers.map(user => (
-                    <tr key={user.id}>
-                      <td><strong>{user.id}</strong></td>
-                      <td>{user.name}</td>
-                      <td>
-                        <span className="student-block-badge" style={{ background: '#f3f4f6', color: 'var(--text-primary)', fontWeight: 700 }}>
-                          {user.role}
-                        </span>
-                      </td>
-                      <td>
-                        <code style={{ background: '#f3f4f6', padding: '4px 8px', borderRadius: '4px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '1px' }}>
-                          {user.pin}
-                        </code>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <span className="badge approved" style={{ fontSize: '11px', padding: '4px 8px' }}>Active</span>
-                      </td>
+
+            {/* Student Birthday List with Sorting */}
+            <div className="dashboard-panel dashboard-full">
+              <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+                <h2 className="panel-title">{ICONS.calendar} Student Birthday &amp; Class Directory</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Sort By:</span>
+                  <select 
+                    className="filter-select"
+                    value={sortOption}
+                    onChange={(e) => setSortOption(e.target.value)}
+                    style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', outline: 'none' }}
+                  >
+                    <option value="none">Default (ID)</option>
+                    <option value="grade">Grade (Class)</option>
+                    <option value="gender">Gender</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="directory-table-wrapper" style={{ marginTop: '15px', maxHeight: '250px', overflowY: 'auto' }}>
+                <table className="directory-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Name</th>
+                      <th>Grade (Division)</th>
+                      <th>Gender</th>
+                      <th>Date of Birth</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {sortedStudents.map(student => (
+                      <tr key={student.id}>
+                        <td><strong>{student.id}</strong></td>
+                        <td>{student.name}</td>
+                        <td>
+                          <span className="student-block-badge">
+                            {student.division}
+                          </span>
+                        </td>
+                        <td>{student.gender}</td>
+                        <td>
+                          <span className="badge info" style={{ padding: '4px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                            🎂 {student.dob || 'N/A'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        );
 
-      case 'logs':
-        return (
-          <div className="dashboard-panel dashboard-full">
-            <div className="panel-header">
-              <h2 className="panel-title">{ICONS.shield} Live System Log Tracker</h2>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '20px', fontFamily: 'monospace', fontSize: '13px', color: 'var(--text-secondary)' }}>
-              <div style={{ background: '#f9fafb', borderLeft: '4px solid var(--primary)', padding: '12px', borderRadius: '0 8px 8px 0' }}>
-                <span style={{ color: 'var(--text-muted)' }}>[02:29 PM]</span> <strong style={{ color: 'var(--primary)' }}>SYSTEM:</strong> Superadmin console initialized. Uptime: 100%
-              </div>
-              <div style={{ background: '#f9fafb', borderLeft: '4px solid var(--success)', padding: '12px', borderRadius: '0 8px 8px 0' }}>
-                <span style={{ color: 'var(--text-muted)' }}>[01:42 PM]</span> <strong style={{ color: 'var(--success)' }}>PARENT_PORTAL:</strong> Parent approved leave request LV-STU001-1 for Aarav Sharma (STU001)
-              </div>
-              <div style={{ background: '#f9fafb', borderLeft: '4px solid var(--warning)', padding: '12px', borderRadius: '0 8px 8px 0' }}>
-                <span style={{ color: 'var(--text-muted)' }}>[11:05 AM]</span> <strong style={{ color: 'var(--warning)' }}>WARDEN_CONSOLE:</strong> Chief Warden viewed student log directory list
-              </div>
-              <div style={{ background: '#f9fafb', borderLeft: '4px solid var(--primary)', padding: '12px', borderRadius: '0 8px 8px 0' }}>
-                <span style={{ color: 'var(--text-muted)' }}>[09:12 AM]</span> <strong style={{ color: 'var(--primary)' }}>ADMIN_CONSOLE:</strong> Mess dishes updated to standard continental menu setup
-              </div>
-              <div style={{ background: '#f9fafb', borderLeft: '4px solid var(--danger)', padding: '12px', borderRadius: '0 8px 8px 0' }}>
-                <span style={{ color: 'var(--text-muted)' }}>[Yesterday]</span> <strong style={{ color: 'var(--danger)' }}>STUDENT_PORTAL:</strong> Vihaan Verma submitted new leave request for Going Home
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'database':
-        return (
-          <div className="dashboard-panel dashboard-full">
-            <div className="panel-header">
-              <h2 className="panel-title">{ICONS.waste} System Database Operations</h2>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '25px', marginTop: '20px', maxWidth: '600px' }}>
-              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', padding: '20px', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '15px' }}>
-                <div>
-                  <h4 style={{ color: '#b91c1c', marginBottom: '5px', marginTop: 0 }}>Clear Portal LocalStorage Cache</h4>
-                  <p style={{ fontSize: '13px', color: '#7f1d1d', margin: 0 }}>Wipes all active local database keys, resetting students to the original 5 seeded accounts.</p>
+            {/* Meal Bookings Breakdown with Sorting */}
+            <div className="dashboard-panel dashboard-full">
+              <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+                <h2 className="panel-title">{ICONS.coffee} Meal Bookings breakdown</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Sort By:</span>
+                  <select 
+                    className="filter-select"
+                    value={mealsSortOption}
+                    onChange={(e) => setMealsSortOption(e.target.value)}
+                    style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', outline: 'none' }}
+                  >
+                    <option value="none">Default (ID)</option>
+                    <option value="grade">Grade (Class)</option>
+                    <option value="gender">Gender</option>
+                  </select>
                 </div>
-                <button 
-                  className="btn-primary" 
-                  style={{ background: '#dc2626', padding: '12px 20px', flexShrink: 0, margin: 0 }}
-                  onClick={handleResetDatabase}
-                  disabled={isResetting}
-                >
-                  {isResetting ? 'Resetting...' : 'Reset Database'}
-                </button>
               </div>
 
-              <div style={{ background: '#eff6ff', border: '1px solid #93c5fd', padding: '20px', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '15px' }}>
-                <div>
-                  <h4 style={{ color: '#1d4ed8', marginBottom: '5px', marginTop: 0 }}>Simulate All Meal Bookings</h4>
-                  <p style={{ fontSize: '13px', color: '#1e3a8a', margin: 0 }}>Generates fresh random breakfast, lunch, snacks, and dinner selections for testing mess wastages.</p>
+              <div className="directory-table-wrapper" style={{ marginTop: '15px', maxHeight: '250px', overflowY: 'auto' }}>
+                <table className="directory-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Name</th>
+                      <th>Grade (Division)</th>
+                      <th>Gender</th>
+                      <th>Total Meals Booked</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedMealsList.map(item => (
+                      <tr key={item.id}>
+                        <td><strong>{item.id}</strong></td>
+                        <td>{item.name}</td>
+                        <td>
+                          <span className="student-block-badge">
+                            {item.division}
+                          </span>
+                        </td>
+                        <td>{item.gender}</td>
+                        <td>
+                          <span className="badge approved" style={{ padding: '4px 8px', borderRadius: '4px', fontWeight: 700 }}>
+                            {item.mealCount} Meals
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Complaints Register with Sorting */}
+            <div className="dashboard-panel dashboard-full">
+              <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+                <h2 className="panel-title">{ICONS.complaint} Student Tickets register</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Sort By:</span>
+                  <select 
+                    className="filter-select"
+                    value={complaintsSortOption}
+                    onChange={(e) => setComplaintsSortOption(e.target.value)}
+                    style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', outline: 'none' }}
+                  >
+                    <option value="none">Default (Date)</option>
+                    <option value="grade">Grade (Class)</option>
+                    <option value="gender">Gender</option>
+                  </select>
                 </div>
-                <button 
-                  className="btn-primary" 
-                  style={{ background: '#2563eb', padding: '12px 20px', flexShrink: 0, margin: 0 }}
-                  onClick={handleReseedMeals}
-                  disabled={isReseedMeals}
-                >
-                  {isReseedMeals ? 'Seeding...' : 'Re-Seed Meals'}
-                </button>
+              </div>
+
+              <div className="directory-table-wrapper" style={{ marginTop: '15px', maxHeight: '250px', overflowY: 'auto' }}>
+                <table className="directory-table">
+                  <thead>
+                    <tr>
+                      <th>Complaint ID</th>
+                      <th>Student Name</th>
+                      <th>Grade (Division)</th>
+                      <th>Gender</th>
+                      <th>Category</th>
+                      <th>Subject</th>
+                      <th>Status</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedComplaintsList.map(item => (
+                      <tr key={item.complaintId}>
+                        <td><strong>{item.complaintId}</strong></td>
+                        <td>{item.studentName}</td>
+                        <td>
+                          <span className="student-block-badge">
+                            {item.division}
+                          </span>
+                        </td>
+                        <td>{item.gender}</td>
+                        <td>{item.category}</td>
+                        <td>{item.subject}</td>
+                        <td>
+                          <span className={`badge ${item.status.toLowerCase()}`}>
+                            {item.status}
+                          </span>
+                        </td>
+                        <td>{item.date}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Administrator & Staff Directory */}
+            <div className="dashboard-panel dashboard-full">
+              <div className="panel-header">
+                <h2 className="panel-title">{ICONS.users} Administrator &amp; Staff Directory</h2>
+              </div>
+              
+              <div className="directory-table-wrapper" style={{ marginTop: '15px' }}>
+                <table className="directory-table">
+                  <thead>
+                    <tr>
+                      <th>Account ID</th>
+                      <th>Name</th>
+                      <th>Role / Level</th>
+                      <th>Secret Login PIN</th>
+                      <th style={{ textAlign: 'right' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminUsers.map(user => (
+                      <tr key={user.id}>
+                        <td><strong>{user.id}</strong></td>
+                        <td>{user.name}</td>
+                        <td>
+                          <span className="student-block-badge" style={{ background: '#f3f4f6', color: 'var(--text-primary)', fontWeight: 700 }}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td>
+                          <code style={{ background: '#f3f4f6', padding: '4px 8px', borderRadius: '4px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '1px' }}>
+                            {user.pin}
+                          </code>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <span className="badge approved" style={{ fontSize: '11px', padding: '4px 8px' }}>Active</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -213,12 +422,10 @@ const SuperAdminDashboard = () => {
         return (
           <StudentDirectorySection 
             onViewHealth={handleViewHealth} 
-            onViewAttendance={handleViewAttendance} 
             onViewStudent={handleViewStudentDetails} 
           />
         );
-      case 'attendance':
-        return <AdminAttendanceSection />;
+
       case 'health':
         return <AdminHealthSection />;
       case 'behaviour':
@@ -233,15 +440,14 @@ const SuperAdminDashboard = () => {
   const getHeaderTitle = () => {
     switch (activeTab) {
       case 'dashboard': return 'Master System Dashboard';
-      case 'logs': return 'System Activity Logs';
-      case 'database': return 'Database Maintenance';
+
       case 'menu': return 'Mess Menu Management';
       case 'dining': return 'Meal Data & Acceptance';
       case 'directory': return 'Student Directory';
-      case 'attendance': return 'Gate & Attendance';
+
       case 'health': return 'Health & Medical Logs';
       case 'behaviour': return 'Student Behaviour Register';
-      case 'complaints': return 'Student Complaints Desk';
+      case 'complaints': return 'Student Tickets Desk';
       default: return 'Super Admin Control Console';
     }
   };
@@ -295,18 +501,7 @@ const SuperAdminDashboard = () => {
           >
             {ICONS.home} Campus Analytics
           </button>
-          <button 
-            className={`nav-item ${activeTab === 'logs' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('logs'); setMobileMenuOpen(false); }}
-          >
-            {ICONS.clipboard} Activity Logs
-          </button>
-          <button 
-            className={`nav-item ${activeTab === 'database' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('database'); setMobileMenuOpen(false); }}
-          >
-            {ICONS.settings} Database Control
-          </button>
+
           <button 
             className={`nav-item ${activeTab === 'menu' ? 'active' : ''}`}
             onClick={() => { setActiveTab('menu'); setMobileMenuOpen(false); }}
@@ -325,12 +520,7 @@ const SuperAdminDashboard = () => {
           >
             {ICONS.users} Student Directory
           </button>
-          <button 
-            className={`nav-item ${activeTab === 'attendance' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('attendance'); setMobileMenuOpen(false); }}
-          >
-            {ICONS.shield} Gate &amp; Attendance
-          </button>
+
           <button 
             className={`nav-item ${activeTab === 'health' ? 'active' : ''}`}
             onClick={() => { setActiveTab('health'); setMobileMenuOpen(false); }}
@@ -347,7 +537,7 @@ const SuperAdminDashboard = () => {
             className={`nav-item ${activeTab === 'complaints' ? 'active' : ''}`}
             onClick={() => { setActiveTab('complaints'); setMobileMenuOpen(false); }}
           >
-            {ICONS.complaint} Student Complaints
+            {ICONS.complaint} Tickets
           </button>
         </nav>
         

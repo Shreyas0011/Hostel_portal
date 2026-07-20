@@ -9,8 +9,7 @@ import { ICONS } from '../../constants/icons';
 import { isStudentOnLeave } from '../../utils/db';
 import { getDateString } from '../../utils/dateUtils';
 import MealsPlanner from '../../components/MealsPlanner';
-import LeaveSection from '../../components/LeaveSection';
-import ParentAttendanceSection from '../../components/ParentAttendanceSection';
+
 import HealthStatusSection from '../../components/HealthStatusSection';
 import BehaviourLogsSection from '../../components/BehaviourLogsSection';
 
@@ -20,7 +19,7 @@ const ParentDashboard = () => {
   const user = useSelector((state) => state.auth.user);
   const directory = useSelector((state) => state.student.directory);
 
-  const [activeTab, setActiveTab] = useState('leave');
+  const [activeTab, setActiveTab] = useState('meals');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -38,23 +37,18 @@ const ParentDashboard = () => {
     });
   };
 
-  const todayStr = getDateString(0);
-  const onLeaveToday = isStudentOnLeave(student, todayStr);
+
 
   const renderActiveSection = () => {
     switch (activeTab) {
-      case 'leave':
-        return <LeaveSection student={student} role="parent" />;
       case 'meals':
         return <MealsPlanner student={student} isReadOnly={true} />;
-      case 'attendance':
-        return <ParentAttendanceSection student={student} />;
       case 'health':
         return <HealthStatusSection student={student} role="parent" />;
       case 'behaviour':
         return <BehaviourLogsSection student={student} isReadOnly={true} showFullRegistry={false} />;
       default:
-        return <LeaveSection student={student} role="parent" />;
+        return <MealsPlanner student={student} isReadOnly={true} />;
     }
   };
 
@@ -104,22 +98,10 @@ const ParentDashboard = () => {
         
         <nav className="sidebar-nav">
           <button 
-            className={`nav-item ${activeTab === 'leave' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('leave'); setMobileMenuOpen(false); }}
-          >
-            {ICONS.calendar} Request Leave
-          </button>
-          <button 
             className={`nav-item ${activeTab === 'meals' ? 'active' : ''}`}
             onClick={() => { setActiveTab('meals'); setMobileMenuOpen(false); }}
           >
             {ICONS.coffee} Meal Status
-          </button>
-          <button 
-            className={`nav-item ${activeTab === 'attendance' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('attendance'); setMobileMenuOpen(false); }}
-          >
-            {ICONS.users} Attendance & History
           </button>
           <button 
             className={`nav-item ${activeTab === 'health' ? 'active' : ''}`}
@@ -147,21 +129,11 @@ const ParentDashboard = () => {
         <header className="header-container">
           <div className="header-title-section">
             <h1>
-              {activeTab === 'leave' ? 'Student Leave Application' : 
-               activeTab === 'meals' ? "Ward's Meal Status" : 
+              {activeTab === 'meals' ? "Ward's Meal Status" : 
                activeTab === 'health' ? "Child's Health Records" : 
-               activeTab === 'behaviour' ? "Child's Behaviour Log" : 
-               "Attendance & History"}
+               "Child's Behaviour Log"}
             </h1>
             <p>Parent Control Portal • Student: {student?.name} ({student?.id})</p>
-          </div>
-          
-          <div>
-            {onLeaveToday ? (
-              <span className="badge rejected" style={{ fontSize: '13px', padding: '8px 16px' }}>🏢 Currently On Leave</span>
-            ) : (
-              <span className="badge approved" style={{ fontSize: '13px', padding: '8px 16px' }}>🏠 Present in Hostel</span>
-            )}
           </div>
         </header>
 
