@@ -1,6 +1,7 @@
 // src/redux/student/studentSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { studentApi } from '../../api/studentApi';
+import { wardenApi } from '../../api/wardenApi';
 
 export const fetchProfileThunk = createAsyncThunk(
   'student/fetchProfile',
@@ -31,6 +32,19 @@ export const registerStudentThunk = createAsyncThunk(
   async (studentData, { dispatch, rejectWithValue }) => {
     try {
       const data = await studentApi.register(studentData);
+      dispatch(fetchDirectoryThunk());
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
+export const updateMealAttendanceThunk = createAsyncThunk(
+  'student/updateMealAttendance',
+  async ({ studentId, date, mealKey, status }, { dispatch, rejectWithValue }) => {
+    try {
+      const data = await wardenApi.updateMealAttendance(studentId, date, mealKey, status);
       dispatch(fetchDirectoryThunk());
       return data;
     } catch (err) {

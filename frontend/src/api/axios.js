@@ -189,6 +189,33 @@ axiosInstance.defaults.adapter = async function (config) {
       return { data: beds, status: 200, statusText: 'OK', headers: {}, config };
     }
 
+    if (url.includes('/warden/meal-attendance') && method === 'post') {
+      const { studentId, date, mealKey, status } = data;
+      const student = students.find(s => s.id === studentId);
+      if (!student) throw new Error('Student not found');
+
+      if (!student.mealAttendance) {
+        student.mealAttendance = [];
+      }
+
+      const attendanceEntry = student.mealAttendance.find(a => a.date === date);
+      if (attendanceEntry) {
+        if (status === null || status === undefined || status === '') {
+          delete attendanceEntry[mealKey];
+        } else {
+          attendanceEntry[mealKey] = status;
+        }
+      } else if (status !== null && status !== undefined && status !== '') {
+        const newAttendance = { date };
+        newAttendance[mealKey] = status;
+        student.mealAttendance.push(newAttendance);
+      }
+
+      db.saveDB(students);
+      students = db.initDB();
+      return { data: { success: true, students }, status: 200, statusText: 'OK', headers: {}, config };
+    }
+
     // 5. Meals Endpoints
     if (url.includes('/meals/menu') && method === 'get') {
       const raw = localStorage.getItem('hostel_mess_menu');

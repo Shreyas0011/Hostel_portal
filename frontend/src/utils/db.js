@@ -153,7 +153,7 @@ function generateRandomStudent(index) {
     address: address || '',
     allergies: allergies || '',
     photo: '', isNew: !!isNew,
-    leaves: [], mealBookings: [], complaints: [],
+    leaves: [], mealBookings: [], complaints: [], mealAttendance: [],
     entryExitLogs: [], healthRecords: [], behaviourLogs: []
   };
 }
@@ -226,7 +226,13 @@ export function getMealAcceptanceType(student, dateStr, mealKey) {
   return 'auto';
 }
 
-const DB_VERSION = 'v15'; // 62 students (29 girls + 33 boys) — syntax-fixed re-seed
+export function getMealAttendance(student, dateStr, mealKey) {
+  if (!student || !student.mealAttendance) return null;
+  const attendance = student.mealAttendance.find(a => a.date === dateStr);
+  return attendance ? attendance[mealKey] || null : null;
+}
+
+const DB_VERSION = 'v16'; // 62 students (29 girls + 33 boys) — meal attendance seed
 
 export function initDB() {
   const cachedVersion = localStorage.getItem('hostel_portal_db_version');
@@ -242,6 +248,7 @@ export function initDB() {
       parsed.forEach(student => {
         if (!student.leaves)        student.leaves        = [];
         if (!student.mealBookings)  student.mealBookings  = [];
+        if (!student.mealAttendance) student.mealAttendance = [];
         if (!student.complaints)    student.complaints    = [];
         if (!student.entryExitLogs) student.entryExitLogs = [];
         if (!student.healthRecords) student.healthRecords = [];
@@ -271,6 +278,7 @@ export function initDB() {
 
   // Seed meals for all students
   students.forEach(student => {
+    student.mealAttendance = [];
     for (let offset = 0; offset < 7; offset++) {
       const date = getDateString(offset);
       if (Math.random() < 0.6) {
@@ -281,6 +289,29 @@ export function initDB() {
           snacks:    Math.random() < 0.5,
           dinner:    Math.random() < 0.8
         });
+      }
+    }
+  });
+
+  // Seed attendance for students' booked meals in the past/today
+  students.forEach(student => {
+    const todayStr = getDateString(0);
+    for (let offset = -5; offset <= 0; offset++) {
+      const date = getDateString(offset);
+      const attendance = { date };
+      let hasAttendance = false;
+      
+      ['breakfast', 'lunch', 'snacks', 'dinner'].forEach(mealKey => {
+        if (isMealBooked(student, date, mealKey)) {
+          if (Math.random() < 0.75) {
+            attendance[mealKey] = Math.random() < 0.85 ? 'yes' : 'no';
+            hasAttendance = true;
+          }
+        }
+      });
+      
+      if (hasAttendance) {
+        student.mealAttendance.push(attendance);
       }
     }
   });

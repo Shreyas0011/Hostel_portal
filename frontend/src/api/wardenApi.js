@@ -9,5 +9,9 @@ export const wardenApi = {
   getBeds: async () => {
     const response = await axiosInstance.get('/warden/beds');
     return response.data;
+  },
+  updateMealAttendance: async (studentId, date, mealKey, status) => {
+    const response = await axiosInstance.post('/warden/meal-attendance', { studentId, date, mealKey, status });
+    return response.data;
   }
 };

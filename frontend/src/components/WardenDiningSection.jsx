@@ -1,15 +1,24 @@
 // src/components/WardenDiningSection.jsx
 import React, { useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { ICONS } from '../constants/icons';
-import { getMealAcceptanceType, isStudentOnLeave, isMealBooked } from '../utils/db';
+import { getMealAcceptanceType, isStudentOnLeave, isMealBooked, getMealAttendance } from '../utils/db';
 import { getDateString } from '../utils/dateUtils';
+import { updateMealAttendanceThunk } from '../redux/student/studentSlice';
 
 const WardenDiningSection = ({ onViewStudentDetails }) => {
+  const dispatch = useDispatch();
   const directory = useSelector((state) => state.student.directory) || [];
+  const currentUser = useSelector((state) => state.auth.user);
+  const isWarden = currentUser?.role === 'Warden';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [targetDate, setTargetDate] = useState(getDateString(0));
+
+  const handleMarkAttendance = (studentId, mealKey, status, currentStatus) => {
+    const newStatus = currentStatus === status ? '' : status;
+    dispatch(updateMealAttendanceThunk({ studentId, date: targetDate, mealKey, status: newStatus }));
+  };
 
   // Filter students based on search term
   const filteredStudents = directory.filter(s => {
@@ -95,20 +104,33 @@ const WardenDiningSection = ({ onViewStudentDetails }) => {
     { key: 'dinner',    label: 'Dinner',    time: '07:30 PM – 09:00 PM' }
   ];
 
-  const makeStudentRowsList = (list, badgeFn = null) => {
+  const makeStudentRowsList = (list, mealKey, badgeFn = null) => {
     if (list.length === 0) {
       return <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '4px 6px', fontStyle: 'italic' }}>None</div>;
     }
-    return list.map((s, idx) => (
-      <div key={idx} className="meal-count-student-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px' }}>
-        <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: '800', flexShrink: 0, overflow: 'hidden' }}>
-          {s.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+    return list.map((s, idx) => {
+      const attendance = getMealAttendance(s, targetDate, mealKey);
+      return (
+        <div key={idx} className="meal-count-student-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: '800', flexShrink: 0, overflow: 'hidden' }}>
+            {s.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span className="sname" style={{ fontSize: '12px', fontWeight: 600 }}>{s.name}</span>
+            <span className="smeta" style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{s.id} · Rm {s.room}</span>
+          </div>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px', alignItems: 'center' }}>
+            {attendance === 'yes' && (
+              <span style={{ fontSize: '9px', fontWeight: 700, background: '#dcfce7', color: '#15803d', padding: '2px 5px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>PRESENT</span>
+            )}
+            {attendance === 'no' && (
+              <span style={{ fontSize: '9px', fontWeight: 700, background: '#fee2e2', color: '#b91c1c', padding: '2px 5px', borderRadius: '4px', border: '1px solid #fecaca' }}>ABSENT</span>
+            )}
+            {badgeFn ? badgeFn(s) : null}
+          </div>
         </div>
-        <span className="sname">{s.name}</span>
-        <span className="smeta">{s.id} · Rm {s.room}</span>
-        {badgeFn ? badgeFn(s) : null}
-      </div>
-    ));
+      );
+    });
   };
 
   return (
@@ -164,6 +186,17 @@ const WardenDiningSection = ({ onViewStudentDetails }) => {
           const totalOptedIn = manualOptedIn.length + autoOptedIn.length;
           const totalOptedOut = optedOut.length + rejectedList.length;
 
+          let attendedCount = 0;
+          let missedCount = 0;
+          directory.forEach(student => {
+            const type = getMealAcceptanceType(student, targetDate, key);
+            if (type === 'manual' || type === 'auto') {
+              const att = getMealAttendance(student, targetDate, key);
+              if (att === 'yes') attendedCount++;
+              else if (att === 'no') missedCount++;
+            }
+          });
+
           const manualBadge = () => <span style={{ fontSize: '9px', fontWeight: 700, background: '#dcfce7', color: '#15803d', padding: '2px 5px', borderRadius: '4px', marginLeft: 'auto', flexShrink: 0 }}>MANUAL</span>;
           const autoBadge = () => <span style={{ fontSize: '9px', fontWeight: 700, background: '#dbeafe', color: '#1d4ed8', padding: '2px 5px', borderRadius: '4px', marginLeft: 'auto', flexShrink: 0 }}>AUTO</span>;
           const rejBadge = () => <span style={{ fontSize: '9px', fontWeight: 700, background: '#fee2e2', color: '#b91c1c', padding: '2px 5px', borderRadius: '4px', marginLeft: 'auto', flexShrink: 0 }}>REJECTED</span>;
@@ -179,6 +212,9 @@ const WardenDiningSection = ({ onViewStudentDetails }) => {
                   <summary className="meal-count-summary">
                     <span className="meal-count-bubble">{totalOptedIn}</span>
                     <span className="meal-count-label">Opted In</span>
+                    {totalOptedIn > 0 && (attendedCount > 0 || missedCount > 0) && (
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '6px' }}>({attendedCount} Present · {missedCount} Absent)</span>
+                    )}
                     {manualOptedIn.length > 0 && autoOptedIn.length > 0 && (
                       <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '6px' }}>{manualOptedIn.length}M · {autoOptedIn.length}A</span>
                     )}
@@ -192,13 +228,13 @@ const WardenDiningSection = ({ onViewStudentDetails }) => {
                         {manualOptedIn.length > 0 && (
                           <>
                             {autoOptedIn.length > 0 && <div style={{ fontSize: '10px', fontWeight: 700, color: '#15803d', textTransform: 'uppercase', padding: '4px 6px 2px', letterSpacing: '0.5px' }}>Manually Accepted ({manualOptedIn.length})</div>}
-                            {makeStudentRowsList(manualOptedIn, manualBadge)}
+                            {makeStudentRowsList(manualOptedIn, key, manualBadge)}
                           </>
                         )}
                         {autoOptedIn.length > 0 && (
                           <>
                             {manualOptedIn.length > 0 && <div style={{ fontSize: '10px', fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', padding: '6px 6px 2px', letterSpacing: '0.5px' }}>Auto-Accepted ({autoOptedIn.length})</div>}
-                            {makeStudentRowsList(autoOptedIn, autoBadge)}
+                            {makeStudentRowsList(autoOptedIn, key, autoBadge)}
                           </>
                         )}
                       </>
@@ -217,11 +253,11 @@ const WardenDiningSection = ({ onViewStudentDetails }) => {
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '4px 6px', fontStyle: 'italic' }}>None</div>
                     ) : (
                       <>
-                        {optedOut.length > 0 && makeStudentRowsList(optedOut)}
+                        {optedOut.length > 0 && makeStudentRowsList(optedOut, key)}
                         {rejectedList.length > 0 && (
                           <>
                             {optedOut.length > 0 && <div style={{ fontSize: '10px', fontWeight: 700, color: '#b91c1c', textTransform: 'uppercase', padding: '6px 6px 2px', letterSpacing: '0.5px' }}>Explicitly Rejected ({rejectedList.length})</div>}
-                            {makeStudentRowsList(rejectedList, rejBadge)}
+                            {makeStudentRowsList(rejectedList, key, rejBadge)}
                           </>
                         )}
                       </>
@@ -236,7 +272,7 @@ const WardenDiningSection = ({ onViewStudentDetails }) => {
                       <span className="meal-count-label">On Leave</span>
                       <span className="meal-count-chevron">▼</span>
                     </summary>
-                    <div className="meal-count-list">{makeStudentRowsList(onLeaveList)}</div>
+                    <div className="meal-count-list">{makeStudentRowsList(onLeaveList, key)}</div>
                   </details>
                 )}
               </div>
@@ -273,11 +309,76 @@ const WardenDiningSection = ({ onViewStudentDetails }) => {
                   if (onLeave) {
                     return <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, opacity: 0.6, textTransform: 'uppercase' }}>Cancelled (Leave)</span>;
                   }
+                  
                   const type = getMealAcceptanceType(student, targetDate, mealKey);
-                  if (type === 'manual')   return <span style={{ color: '#16a34a', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '13px' }}>✔ <span style={{ fontSize: '9px', fontWeight: 700, background: '#dcfce7', color: '#15803d', padding: '2px 5px', borderRadius: '4px' }}>MANUAL</span></span>;
-                  if (type === 'auto')     return <span style={{ color: '#2563eb', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '13px' }}>✔ <span style={{ fontSize: '9px', fontWeight: 700, background: '#dbeafe', color: '#1d4ed8', padding: '2px 5px', borderRadius: '4px' }}>AUTO</span></span>;
-                  if (type === 'rejected') return <span style={{ color: '#ef4444', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '13px' }}>✖ <span style={{ fontSize: '9px', fontWeight: 700, background: '#fee2e2', color: '#b91c1c', padding: '2px 5px', borderRadius: '4px' }}>REJECTED</span></span>;
-                  return <span style={{ color: '#94a3b8', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px', opacity: 0.75, fontSize: '13px' }}>– Not Set</span>;
+                  const isBooked = type === 'manual' || type === 'auto';
+                  const attendance = getMealAttendance(student, targetDate, mealKey);
+
+                  const renderBookingBadge = () => {
+                    if (type === 'manual')   return <span style={{ color: '#16a34a', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '13px' }}>✔ <span style={{ fontSize: '9px', fontWeight: 700, background: '#dcfce7', color: '#15803d', padding: '2px 5px', borderRadius: '4px' }}>MANUAL</span></span>;
+                    if (type === 'auto')     return <span style={{ color: '#2563eb', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '13px' }}>✔ <span style={{ fontSize: '9px', fontWeight: 700, background: '#dbeafe', color: '#1d4ed8', padding: '2px 5px', borderRadius: '4px' }}>AUTO</span></span>;
+                    if (type === 'rejected') return <span style={{ color: '#ef4444', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '13px' }}>✖ <span style={{ fontSize: '9px', fontWeight: 700, background: '#fee2e2', color: '#b91c1c', padding: '2px 5px', borderRadius: '4px' }}>REJECTED</span></span>;
+                    return <span style={{ color: '#94a3b8', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px', opacity: 0.75, fontSize: '13px' }}>– Not Set</span>;
+                  };
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '4px 0' }}>
+                      <div>{renderBookingBadge()}</div>
+                      
+                      {isBooked && (
+                        isWarden ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)' }}>Attended:</span>
+                            <div style={{ display: 'inline-flex', background: '#e2e8f0', padding: '2px', borderRadius: '6px', border: '1px solid rgba(0, 0, 0, 0.05)' }}>
+                              <button 
+                                onClick={() => handleMarkAttendance(student.id, mealKey, 'yes', attendance)}
+                                style={{
+                                  padding: '2px 8px',
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  borderRadius: '4px',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  background: attendance === 'yes' ? '#16a34a' : 'transparent',
+                                  color: attendance === 'yes' ? 'white' : '#475569',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                Yes
+                              </button>
+                              <button 
+                                onClick={() => handleMarkAttendance(student.id, mealKey, 'no', attendance)}
+                                style={{
+                                  padding: '2px 8px',
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  borderRadius: '4px',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  background: attendance === 'no' ? '#dc2626' : 'transparent',
+                                  color: attendance === 'no' ? 'white' : '#475569',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                No
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)' }}>Attendance:</span>
+                            {attendance === 'yes' ? (
+                              <span style={{ fontSize: '10px', fontWeight: 700, background: '#dcfce7', color: '#15803d', padding: '2px 6px', borderRadius: '4px', border: '1px solid #bbf7d0' }}>Present</span>
+                            ) : attendance === 'no' ? (
+                              <span style={{ fontSize: '10px', fontWeight: 700, background: '#fee2e2', color: '#b91c1c', padding: '2px 6px', borderRadius: '4px', border: '1px solid #fecaca' }}>Absent</span>
+                            ) : (
+                              <span style={{ fontSize: '10px', fontWeight: 500, background: '#f1f5f9', color: '#64748b', padding: '2px 6px', borderRadius: '4px', border: '1px solid #e2e8f0', fontStyle: 'italic' }}>Not Marked</span>
+                            )}
+                          </div>
+                        )
+                      )}
+                    </div>
+                  );
                 };
 
                 return (
