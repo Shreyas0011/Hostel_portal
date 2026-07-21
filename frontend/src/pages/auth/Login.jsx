@@ -1,18 +1,178 @@
 // src/pages/auth/Login.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginThunk } from '../../redux/auth/authSlice';
 import { addToast } from '../../redux/notification/notificationSlice';
 
+// Warden PIN map — 4-digit PIN → backend credentials
+const WARDEN_PIN_MAP = {
+  '1111': { email: 'vijayamma@transcendgroup.org', password: 'Warden@Girls', name: 'Vijayamma',    hostel: 'Girls Hostel' },
+  '2222': { email: 'siddu@transcendgroup.org',     password: 'Warden@Boys',  name: 'Siddu',        hostel: 'Boys Hostel'  },
+  '9999': { email: 'warden@hostel.edu',             password: 'warden123',   name: 'Chief Warden', hostel: 'All Hostels'  },
+};
+
+// ── Warden PIN Keypad Component ──────────────────────────────────────────────
+const WardenPinScreen = ({ onBack, dispatch, loading }) => {
+  const [pin, setPin] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [shake, setShake] = useState(false);
+
+  const triggerError = (msg) => {
+    setPinError(msg);
+    setShake(true);
+    setTimeout(() => { setShake(false); setPin(''); }, 600);
+  };
+
+  const handleKey = (digit) => {
+    if (pin.length < 4) {
+      setPinError('');
+      setPin(prev => prev + digit);
+    }
+  };
+
+  // Auto-submit when 4 digits entered
+  useEffect(() => {
+    if (pin.length === 4) {
+      const creds = WARDEN_PIN_MAP[pin];
+      if (!creds) {
+        triggerError('Invalid PIN. Please try again.');
+        return;
+      }
+      dispatch(loginThunk({ email: creds.email, password: creds.password })).then((resultAction) => {
+        if (loginThunk.fulfilled.match(resultAction)) {
+          dispatch(addToast({ message: `Welcome, ${creds.name}! (${creds.hostel})`, type: 'success' }));
+        } else {
+          triggerError('Login failed. Please contact admin.');
+        }
+      });
+    }
+  }, [pin]);
+
+  const keys = ['1','2','3','4','5','6','7','8','9','C','0','⌫'];
+
+  return (
+    <div className="modern-login-container">
+      <div className="modern-login-card">
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+          <img src="/transcend-logo.png" alt="Transcend Group" style={{ height: '90px', objectFit: 'contain' }} />
+        </div>
+
+        <h1 className="modern-login-title" style={{ fontSize: '20px' }}>Warden PIN Login</h1>
+        <p className="modern-login-subtitle">Enter your 4-digit security PIN</p>
+
+        {/* 4-Dot PIN indicator */}
+        <div style={{
+          display: 'flex', justifyContent: 'center', gap: '18px',
+          margin: '28px 0 8px',
+          animation: shake ? 'pinShake 0.5s ease' : 'none',
+        }}>
+          {[0,1,2,3].map(i => (
+            <div key={i} style={{
+              width: '18px', height: '18px', borderRadius: '50%',
+              border: '2px solid',
+              borderColor: pin.length > i ? '#2563eb' : '#cbd5e1',
+              background: pin.length > i ? '#2563eb' : 'transparent',
+              transition: 'all 0.2s cubic-bezier(0.34,1.56,0.64,1)',
+              transform: pin.length > i ? 'scale(1.2)' : 'scale(1)',
+              boxShadow: pin.length > i ? '0 0 0 4px rgba(37,99,235,0.15)' : 'none',
+            }} />
+          ))}
+        </div>
+
+        {pinError && (
+          <p style={{ color: '#ef4444', fontSize: '12px', textAlign: 'center', margin: '8px 0 0', fontWeight: 600 }}>
+            {pinError}
+          </p>
+        )}
+        {!pinError && (
+          <p style={{ color: '#94a3b8', fontSize: '12px', textAlign: 'center', margin: '8px 0 0' }}>
+            {pin.length === 0 ? 'Tap your PIN on the keypad below' : `${pin.length} of 4 digits entered`}
+          </p>
+        )}
+
+        {/* Numpad grid */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '10px', margin: '20px auto', maxWidth: '248px',
+        }}>
+          {keys.map(key => {
+            const isClear  = key === 'C';
+            const isDelete = key === '⌫';
+            return (
+              <button
+                key={key}
+                type="button"
+                disabled={loading}
+                onClick={() => {
+                  if (isClear)       setPin(''), setPinError('');
+                  else if (isDelete) setPin(p => p.slice(0,-1)), setPinError('');
+                  else               handleKey(key);
+                }}
+                style={{
+                  height: '58px', borderRadius: '14px',
+                  border: '1.5px solid #e2e8f0',
+                  background: isClear ? '#fef2f2' : isDelete ? '#f8fafc' : '#ffffff',
+                  color: isClear ? '#ef4444' : isDelete ? '#475569' : '#0f172a',
+                  fontSize: isDelete ? '19px' : '21px',
+                  fontWeight: 700, cursor: 'pointer',
+                  transition: 'transform 0.1s ease, box-shadow 0.1s ease',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
+                  outline: 'none', fontFamily: 'inherit',
+                  opacity: loading ? 0.6 : 1,
+                }}
+                onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.92)'; e.currentTarget.style.boxShadow = 'none'; }}
+                onMouseUp={e   => { e.currentTarget.style.transform = 'scale(1)';    e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.07)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)';   e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.07)'; }}
+              >
+                {key}
+              </button>
+            );
+          })}
+        </div>
+
+        {loading && (
+          <p style={{ textAlign: 'center', fontSize: '13px', color: '#64748b', margin: '-4px 0 12px', fontWeight: 600 }}>
+            Verifying PIN…
+          </p>
+        )}
+
+        <button type="button" className="modern-btn-secondary" style={{ marginTop: '4px' }} onClick={onBack}>
+          <span>← Back to Login</span>
+        </button>
+
+        {/* Footer */}
+        <div style={{ marginTop: '24px', textAlign: 'center', lineHeight: 1.6, borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
+          <p style={{ margin: 0, fontWeight: 800, textTransform: 'uppercase', color: '#0f172a', fontSize: '10px', letterSpacing: '0.05em' }}>
+            OWNED BY TRANSCEND GROUP OF INSTITUTIONS
+          </p>
+          <p style={{ margin: '4px 0 0', textTransform: 'uppercase', fontSize: '10px', fontWeight: 600, color: '#64748b', letterSpacing: '0.05em' }}>
+            DEVELOPED BY <span style={{ color: '#2563eb', fontWeight: 700 }}>START SMART, SE</span>
+          </p>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes pinShake {
+          0%,100% { transform: translateX(0); }
+          20%      { transform: translateX(-8px); }
+          40%      { transform: translateX(8px); }
+          60%      { transform: translateX(-6px); }
+          80%      { transform: translateX(6px); }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+// ── Main Login Component ─────────────────────────────────────────────────────
 const Login = () => {
   const dispatch = useDispatch();
   const { loading, error } = useSelector((state) => state.auth);
 
   const [showWardenPinScreen, setShowWardenPinScreen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [pin, setPin] = useState('');
-  const [pinError, setPinError] = useState('');
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm({
     defaultValues: { email: '', password: '' }
@@ -30,94 +190,14 @@ const Login = () => {
     }
   };
 
-  const handlePinSubmit = async (e) => {
-    e.preventDefault();
-    if (!pin) { setPinError('PIN is required'); return; }
-
-    const PIN_MAP = {
-      '1234': { email: 'ramesh.kumar@transcendgroup.org', password: 'Warden@1234', name: 'Ramesh Kumar' },
-      '5678': { email: 'anita.joseph@transcendgroup.org', password: 'Warden@5678', name: 'Anita Joseph' },
-      '9999': { email: 'warden@hostel.edu',               password: 'warden123',   name: 'Chief Warden'  },
-    };
-
-    const creds = PIN_MAP[pin];
-    if (!creds) { setPinError('Invalid Security PIN. Please try again.'); return; }
-
-    const resultAction = await dispatch(loginThunk({ email: creds.email, password: creds.password }));
-    if (loginThunk.fulfilled.match(resultAction)) {
-      dispatch(addToast({ message: `Welcome, ${creds.name}!`, type: 'success' }));
-    } else {
-      setPinError(resultAction.payload || 'Login failed');
-    }
-  };
-
-  const handleDemoLogin = (email, password, label) => {
-    setValue('email', email);
-    setValue('password', password);
-    dispatch(loginThunk({ email, password })).then((resultAction) => {
-      if (loginThunk.fulfilled.match(resultAction)) {
-        dispatch(addToast({ message: `Welcome, ${label}!`, type: 'success' }));
-      } else {
-        dispatch(addToast({ message: resultAction.payload || 'Login failed', type: 'error' }));
-      }
-    });
-  };
-
   // ── Warden PIN Screen ────────────────────────────────────────
   if (showWardenPinScreen) {
     return (
-      <div className="modern-login-container">
-        <div className="modern-login-card">
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <img src="/transcend-logo.png" alt="Transcend Group of Institutions" style={{ height: '100px', objectFit: 'contain' }} />
-          </div>
-
-          <h1 className="modern-login-title">Warden Security Verification</h1>
-          <p className="modern-login-subtitle">Enter your 4-digit security PIN to access the console</p>
-
-          <form onSubmit={handlePinSubmit} style={{ marginTop: '24px' }}>
-            <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-              <label className="modern-input-label">ENTER SECURITY PIN</label>
-              <div className="modern-input-wrapper">
-                <svg className="modern-input-icon-left" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                </svg>
-                <input
-                  type="password"
-                  id="warden-pin"
-                  className={`modern-input ${pinError ? 'error' : ''}`}
-                  placeholder="••••"
-                  maxLength={4}
-                  value={pin}
-                  onChange={(e) => { setPin(e.target.value.replace(/\D/g, '')); setPinError(''); }}
-                  autoFocus
-                  style={{ textAlign: 'center', letterSpacing: '8px', fontSize: '20px', paddingLeft: '44px' }}
-                />
-              </div>
-              {pinError && <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '6px', display: 'block', textAlign: 'center', fontWeight: '500' }}>{pinError}</span>}
-            </div>
-
-            {error && <div style={{ color: '#ef4444', fontSize: '13px', marginBottom: '16px', textAlign: 'center', fontWeight: '500' }}>{error}</div>}
-
-            <button type="submit" className="modern-btn-primary" disabled={loading}>
-              <span>{loading ? 'Verifying PIN...' : 'Verify & Enter'}</span>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-            </button>
-
-            <button type="button" className="modern-btn-secondary" style={{ marginTop: '12px' }} onClick={() => { setShowWardenPinScreen(false); setPin(''); setPinError(''); }}>
-              <span>Back to Login</span>
-            </button>
-          </form>
-
-          <div style={{ marginTop: '32px', textAlign: 'center', lineHeight: '1.6', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
-            <p style={{ margin: 0, fontWeight: 800, textTransform: 'uppercase', color: '#0f172a', fontSize: '11px', letterSpacing: '0.05em' }}>OWNED BY TRANSCEND GROUP OF INSTITUTIONS</p>
-            <p style={{ margin: '4px 0 0 0', textTransform: 'uppercase', fontSize: '11px', fontWeight: 600, color: '#64748b', letterSpacing: '0.05em' }}>
-              DEVELOPED BY <span style={{ color: '#2563eb', fontWeight: 700 }}>START SMART,SE</span>
-            </p>
-          </div>
-        </div>
-      </div>
+      <WardenPinScreen
+        onBack={() => setShowWardenPinScreen(false)}
+        dispatch={dispatch}
+        loading={loading}
+      />
     );
   }
 
@@ -125,7 +205,7 @@ const Login = () => {
   return (
     <div className="modern-login-container">
       <div className="modern-login-card">
-        {/* Top Logo */}
+        {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <img src="/transcend-logo.png" alt="Transcend Group of Institutions" style={{ height: '110px', objectFit: 'contain' }} />
         </div>
@@ -162,7 +242,7 @@ const Login = () => {
                 <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
               </svg>
               <input
-                type={showPassword ? "text" : "password"}
+                type={showPassword ? 'text' : 'password'}
                 id="login-password"
                 className={`modern-input ${errors.password ? 'error' : ''}`}
                 placeholder="Enter your password"
@@ -195,24 +275,40 @@ const Login = () => {
           {/* Sign In Button */}
           <button type="submit" className="modern-btn-primary" disabled={loading}>
             <span>{loading ? 'Signing In...' : 'Sign In'}</span>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
           </button>
 
-          {/* Warden Login Button */}
-          <button type="button" className="modern-btn-secondary" style={{ marginTop: '12px' }} onClick={() => setShowWardenPinScreen(true)}>
+          {/* Warden PIN Login Button */}
+          <button
+            type="button"
+            className="modern-btn-secondary"
+            style={{ marginTop: '12px' }}
+            onClick={() => setShowWardenPinScreen(true)}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-              <span>Warden Only Login (PIN Access)</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <span>Warden Login (PIN Access)</span>
             </div>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
           </button>
         </form>
 
         {/* Footer */}
         <div style={{ marginTop: '32px', textAlign: 'center', lineHeight: '1.6', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
-          <p style={{ margin: 0, fontWeight: 800, textTransform: 'uppercase', color: '#0f172a', fontSize: '11px', letterSpacing: '0.05em' }}>OWNED BY TRANSCEND GROUP OF INSTITUTIONS</p>
+          <p style={{ margin: 0, fontWeight: 800, textTransform: 'uppercase', color: '#0f172a', fontSize: '11px', letterSpacing: '0.05em' }}>
+            OWNED BY TRANSCEND GROUP OF INSTITUTIONS
+          </p>
           <p style={{ margin: '4px 0 0 0', textTransform: 'uppercase', fontSize: '11px', fontWeight: 600, color: '#64748b', letterSpacing: '0.05em' }}>
-            DEVELOPED BY <span style={{ color: '#2563eb', fontWeight: 700 }}>START SMART,SE</span>
+            DEVELOPED BY <span style={{ color: '#2563eb', fontWeight: 700 }}>START SMART, SE</span>
           </p>
         </div>
       </div>

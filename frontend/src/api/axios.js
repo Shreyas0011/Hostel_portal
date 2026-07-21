@@ -30,9 +30,9 @@ axiosInstance.defaults.adapter = async function (config) {
 
       // ── Warden accounts (PIN-based, handled via loginThunk with mapped creds) ──
       const WARDENS = {
-        'warden@hostel.edu':            { password: 'warden123',    id: 'WDN-01', name: 'Chief Warden Console',    empId: 'EMP-WDN-001', block: 'All Blocks',   phone: '+91 98400 11001' },
-        'ramesh.kumar@transcendgroup.org': { password: 'Warden@1234', id: 'WDN-02', name: 'Ramesh Kumar',           empId: 'EMP-WDN-002', block: 'Block A & B',  phone: '+91 98400 11002' },
-        'anita.joseph@transcendgroup.org': { password: 'Warden@5678', id: 'WDN-03', name: 'Anita Joseph',           empId: 'EMP-WDN-003', block: 'Block C & D',  phone: '+91 98400 11003' },
+        'warden@hostel.edu':              { password: 'warden123',    id: 'WDN-01', name: 'Chief Warden Console', empId: 'EMP-WDN-001', block: 'All Blocks',    phone: '+91 98400 11001' },
+        'vijayamma@transcendgroup.org':   { password: 'Warden@Girls', id: 'WDN-02', name: 'Vijayamma',            empId: 'EMP-WDN-002', block: 'Girls Hostel',   phone: '+91 98400 11002' },
+        'siddu@transcendgroup.org':       { password: 'Warden@Boys',  id: 'WDN-03', name: 'Siddu',               empId: 'EMP-WDN-003', block: 'Boys Hostel',    phone: '+91 98400 11003' },
       };
       if (WARDENS[normalizedEmail]) {
         const w = WARDENS[normalizedEmail];

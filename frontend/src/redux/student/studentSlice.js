@@ -45,7 +45,8 @@ export const updateMealAttendanceThunk = createAsyncThunk(
   async ({ studentId, date, mealKey, status }, { dispatch, rejectWithValue }) => {
     try {
       const data = await wardenApi.updateMealAttendance(studentId, date, mealKey, status);
-      dispatch(fetchDirectoryThunk());
+      // Await the re-fetch sequentially so Redux always gets persisted data
+      await dispatch(fetchDirectoryThunk());
       return data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -82,7 +83,22 @@ const studentSlice = createSlice({
     },
     clearStudentError: (state) => {
       state.error = null;
-    }
+    },
+    // Optimistic local update — applied instantly on click before API responds
+    optimisticSetAttendance: (state, action) => {
+      const { studentId, date, mealKey, status } = action.payload;
+      const student = state.directory.find(s => s.id === studentId);
+      if (student) {
+        if (!student.mealAttendance) student.mealAttendance = [];
+        let entry = student.mealAttendance.find(a => a.date === date);
+        if (entry) {
+          if (!status) delete entry[mealKey];
+          else entry[mealKey] = status;
+        } else if (status) {
+          student.mealAttendance.push({ date, [mealKey]: status });
+        }
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -101,7 +117,7 @@ const studentSlice = createSlice({
       })
       // Fetch Directory
       .addCase(fetchDirectoryThunk.pending, (state) => {
-        state.loading = true;
+        // Do not set loading=true here to avoid UI flicker during background re-fetches
         state.error = null;
       })
       .addCase(fetchDirectoryThunk.fulfilled, (state, action) => {
@@ -124,8 +140,14 @@ const studentSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       });
-  }
+  },
 });
 
-export const { setDirectoryFilters, resetDirectoryFilters, clearStudentError } = studentSlice.actions;
+export const {
+  setDirectoryFilters,
+  resetDirectoryFilters,
+  clearStudentError,
+  optimisticSetAttendance,
+} = studentSlice.actions;
+
 export default studentSlice.reducer;

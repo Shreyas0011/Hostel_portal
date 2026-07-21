@@ -93,10 +93,10 @@ const WardenDashboard = () => {
         </div>
         
         <div className="sidebar-profile">
-          <div className="profile-avatar">W</div>
+          <div className="profile-avatar">{currentUser?.name ? currentUser.name[0].toUpperCase() : 'W'}</div>
           <div className="profile-info">
-            <span className="profile-name">Chief Warden Console</span>
-            <span className="profile-role">Transcend Campus</span>
+            <span className="profile-name">{currentUser?.name || 'Warden Console'}</span>
+            <span className="profile-role">{currentUser?.block || 'Transcend Campus'}</span>
           </div>
         </div>
         

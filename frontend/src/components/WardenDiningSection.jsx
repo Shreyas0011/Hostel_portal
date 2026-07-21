@@ -4,19 +4,22 @@ import { useSelector, useDispatch } from 'react-redux';
 import { ICONS } from '../constants/icons';
 import { getMealAcceptanceType, isStudentOnLeave, isMealBooked, getMealAttendance } from '../utils/db';
 import { getDateString } from '../utils/dateUtils';
-import { updateMealAttendanceThunk } from '../redux/student/studentSlice';
+import { updateMealAttendanceThunk, optimisticSetAttendance } from '../redux/student/studentSlice';
 
 const WardenDiningSection = ({ onViewStudentDetails }) => {
   const dispatch = useDispatch();
   const directory = useSelector((state) => state.student.directory) || [];
   const currentUser = useSelector((state) => state.auth.user);
-  const isWarden = currentUser?.role === 'Warden';
+  const canMarkAttendance = ['Warden', 'Admin', 'SuperAdmin'].includes(currentUser?.role);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [targetDate, setTargetDate] = useState(getDateString(0));
 
   const handleMarkAttendance = (studentId, mealKey, status, currentStatus) => {
     const newStatus = currentStatus === status ? '' : status;
+    // 1. Instant optimistic UI update
+    dispatch(optimisticSetAttendance({ studentId, date: targetDate, mealKey, status: newStatus }));
+    // 2. Persist to localStorage + re-fetch in background
     dispatch(updateMealAttendanceThunk({ studentId, date: targetDate, mealKey, status: newStatus }));
   };
 
@@ -326,7 +329,7 @@ const WardenDiningSection = ({ onViewStudentDetails }) => {
                       <div>{renderBookingBadge()}</div>
                       
                       {isBooked && (
-                        isWarden ? (
+                        canMarkAttendance ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)' }}>Attended:</span>
                             <div style={{ display: 'inline-flex', background: '#e2e8f0', padding: '2px', borderRadius: '6px', border: '1px solid rgba(0, 0, 0, 0.05)' }}>

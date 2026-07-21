@@ -8,7 +8,7 @@ import { User } from '../models/User';
 // Load environmental variables
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const CSV_PATH = path.resolve(__dirname, '../../Hostel Info.csv');
+const CSV_PATH = path.resolve(__dirname, '../../updated hostel details.csv');
 
 // Double-quote aware CSV parser
 function parseCSVLine(line: string): string[] {
@@ -126,8 +126,8 @@ const importStudents = async () => {
 
     for (let i = 1; i < lines.length; i++) {
       const row = parseCSVLine(lines[i]);
-      if (row.length < 12) {
-        console.warn(`Line ${i + 1}: Skipped due to insufficient columns (${row.length} found, expected at least 12).`);
+      if (row.length < 14) {
+        console.warn(`Line ${i + 1}: Skipped due to insufficient columns (${row.length} found, expected at least 14).`);
         skippedCount++;
         continue;
       }
@@ -139,13 +139,15 @@ const importStudents = async () => {
       const newOrExisting = row[4];
       const sec = row[5];
       const sMobileNo = row[6];
-      const pRegMob = row[7];
-      const relation = row[8];
-      const gender = row[9];
-      const dob = row[10];
-      const pRegEmail = row[11];
-      const address = row[12];
-      const allergies = row[13] || '';
+      const parentName = row[7];          // Parent Name
+      const pRegMob = row[8];             // P-Reg-MOB (parent mobile)
+      const relation = row[9];            // Relation
+      const gender = row[10];             // Gender
+      const dob = row[11];               // DOB
+      const studentEmail = row[12];       // Student Email ID
+      const pRegEmail = row[13];          // P-Reg-Email ID (parent email)
+      const address = row[14];
+      const allergies = row[15] || '';
 
       const sn = parseInt(snStr, 10);
 
@@ -221,7 +223,7 @@ const importStudents = async () => {
         phone: sMobileNo ? sMobileNo.trim() : '',
         parentPhone: pRegMob ? pRegMob.trim() : '',
         parentEmail: parentEmailCleaned,
-        parentName: `Parent of ${cleanedName}`,
+        parentName: parentName ? parentName.trim() : `Parent of ${cleanedName}`,
         parentRelation: relation.trim() || 'Parent',
         gender: gender.trim(),
         dob: dob.trim(),
@@ -231,7 +233,7 @@ const importStudents = async () => {
       };
 
       const parentDoc = {
-        name: `Parent of ${cleanedName}`,
+        name: parentName ? parentName.trim() : `Parent of ${cleanedName}`,
         email: parentEmailCleaned,
         role: 'parent',
         isActive: true,
