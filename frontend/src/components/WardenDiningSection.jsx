@@ -10,7 +10,7 @@ const WardenDiningSection = ({ onViewStudentDetails }) => {
   const dispatch = useDispatch();
   const directory = useSelector((state) => state.student.directory) || [];
   const currentUser = useSelector((state) => state.auth.user);
-  const canMarkAttendance = ['Warden', 'Admin', 'SuperAdmin', 'MessManager'].includes(currentUser?.role);
+  const canMarkAttendance = ['MessManager', 'Admin', 'SuperAdmin'].includes(currentUser?.role);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [targetDate, setTargetDate] = useState(getDateString(0));

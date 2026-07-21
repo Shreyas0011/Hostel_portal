@@ -7,7 +7,6 @@ import { fetchDirectoryThunk } from '../../redux/student/studentSlice';
 import { ICONS } from '../../constants/icons';
 
 import WardenDiningSection from '../../components/WardenDiningSection';
-import MessMenuSection from '../../components/MessMenuSection';
 import StudentDetailModal from '../../components/StudentDetailModal';
 
 const MessManagerDashboard = () => {
@@ -15,7 +14,6 @@ const MessManagerDashboard = () => {
   const navigate = useNavigate();
   const currentUser = useSelector((state) => state.auth.user);
 
-  const [activeTab, setActiveTab] = useState('dining');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState(null);
@@ -33,25 +31,6 @@ const MessManagerDashboard = () => {
   const handleViewStudentDetails = (studentId) => {
     setSelectedStudentId(studentId);
     setDetailModalOpen(true);
-  };
-
-  const renderActiveSection = () => {
-    switch (activeTab) {
-      case 'dining':
-        return <WardenDiningSection onViewStudentDetails={handleViewStudentDetails} />;
-      case 'menu':
-        return <MessMenuSection />;
-      default:
-        return <WardenDiningSection onViewStudentDetails={handleViewStudentDetails} />;
-    }
-  };
-
-  const getHeaderTitle = () => {
-    switch (activeTab) {
-      case 'dining': return 'Meal Data & Attendance Tracker';
-      case 'menu': return 'Mess Menu Setup';
-      default: return 'Mess Manager Control Console';
-    }
   };
 
   return (
@@ -99,17 +78,8 @@ const MessManagerDashboard = () => {
         </div>
         
         <nav className="sidebar-nav">
-          <button 
-            className={`nav-item ${activeTab === 'dining' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('dining'); setMobileMenuOpen(false); }}
-          >
+          <button className="nav-item active">
             {ICONS.coffee} Meal Data &amp; Attendance
-          </button>
-          <button 
-            className={`nav-item ${activeTab === 'menu' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('menu'); setMobileMenuOpen(false); }}
-          >
-            {ICONS.coffee} Mess Menu Setup
           </button>
         </nav>
         
@@ -124,12 +94,12 @@ const MessManagerDashboard = () => {
       <main className="main-content">
         <header className="header-container">
           <div className="header-title-section">
-            <h1>{getHeaderTitle()}</h1>
-            <p>Mess Manager Console • Daily Dining &amp; Menu Management</p>
+            <h1>Meal Data &amp; Attendance Tracker</h1>
+            <p>Mess Manager Console • Student Meal Attendance Marking</p>
           </div>
         </header>
 
-        {renderActiveSection()}
+        <WardenDiningSection onViewStudentDetails={handleViewStudentDetails} />
       </main>
 
       {/* Student Detail Modal shortcut */}
