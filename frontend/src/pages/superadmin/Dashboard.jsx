@@ -1,5 +1,5 @@
 // src/pages/superadmin/Dashboard.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { logoutThunk } from '../../redux/auth/authSlice';
@@ -17,6 +17,18 @@ import BehaviourLogsSection from '../../components/BehaviourLogsSection';
 import ComplaintsSection from '../../components/ComplaintsSection';
 import StudentDetailModal from '../../components/StudentDetailModal';
 
+// Helper to parse DD-MM-YYYY or DD.MM.YYYY into month/day for calendar sorting
+const parseDobSortValue = (dobStr) => {
+  if (!dobStr) return 999999;
+  const parts = dobStr.split(/[-.]/);
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10) || 0;
+    const month = parseInt(parts[1], 10) || 0;
+    return month * 31 + day;
+  }
+  return 999999;
+};
+
 const SuperAdminDashboard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -33,87 +45,154 @@ const SuperAdminDashboard = () => {
   const [isResetting, setIsResetting] = useState(false);
   const [isReseedMeals, setIsReseedMeals] = useState(false);
 
-  // Analytics filtering/sorting state
-  const [sortOption, setSortOption] = useState('none');
-  const [mealsSortOption, setMealsSortOption] = useState('none');
-  const [complaintsSortOption, setComplaintsSortOption] = useState('none');
+  // ── 1. Directory & Birthday Filters ───────────────────────────────────────
+  const [searchDir, setSearchDir] = useState('');
+  const [genderFilterDir, setGenderFilterDir] = useState('all');
+  const [classFilterDir, setClassFilterDir] = useState('all');
+  const [sortOptionDir, setSortOptionDir] = useState('id-asc');
 
-  // Calculate analytics
-  const totalComplaints = db.reduce((acc, s) => acc + (s.complaints ? s.complaints.length : 0), 0);
-  const totalMeals = db.reduce((acc, s) => {
-    return acc + (s.mealBookings ? s.mealBookings.reduce((mAcc, b) => {
-      let count = 0;
-      if (b.breakfast) count++;
-      if (b.lunch) count++;
-      if (b.snacks) count++;
-      if (b.dinner) count++;
-      return mAcc + count;
-    }, 0) : 0);
-  }, 0);
+  // ── 2. Meals Filters ───────────────────────────────────────────────────────
+  const [searchMeals, setSearchMeals] = useState('');
+  const [genderFilterMeals, setGenderFilterMeals] = useState('all');
+  const [classFilterMeals, setClassFilterMeals] = useState('all');
+  const [sortOptionMeals, setSortOptionMeals] = useState('meals-desc');
 
-  // Sorting student list for birthday calendar
-  const sortedStudents = [...db].sort((a, b) => {
-    if (sortOption === 'grade') {
-      return (a.division || '').localeCompare(b.division || '');
-    }
-    if (sortOption === 'gender') {
-      return (a.gender || '').localeCompare(b.gender || '');
-    }
-    return 0;
-  });
+  // ── 3. Tickets Filters ────────────────────────────────────────────────────
+  const [searchTickets, setSearchTickets] = useState('');
+  const [statusFilterTickets, setStatusFilterTickets] = useState('all');
+  const [categoryFilterTickets, setCategoryFilterTickets] = useState('all');
+  const [sortOptionTickets, setSortOptionTickets] = useState('date-desc');
 
-  // Calculate meal bookings list and sort it
-  const mealsList = db.map(s => {
-    const mealCount = s.mealBookings ? s.mealBookings.reduce((acc, b) => {
-      let count = 0;
-      if (b.breakfast) count++;
-      if (b.lunch) count++;
-      if (b.snacks) count++;
-      if (b.dinner) count++;
-      return acc + count;
-    }, 0) : 0;
-    return { id: s.id, name: s.name, division: s.division, gender: s.gender, mealCount };
-  });
+  // Compute unique classes/divisions dynamically
+  const uniqueDivisions = useMemo(() => {
+    return Array.from(new Set(db.map(s => s.division).filter(Boolean))).sort();
+  }, [db]);
 
-  const sortedMealsList = [...mealsList].sort((a, b) => {
-    if (mealsSortOption === 'grade') {
-      return (a.division || '').localeCompare(b.division || '');
-    }
-    if (mealsSortOption === 'gender') {
-      return (a.gender || '').localeCompare(b.gender || '');
-    }
-    return 0;
-  });
+  // Overall analytics metrics
+  const totalComplaints = useMemo(() => {
+    return db.reduce((acc, s) => acc + (s.complaints ? s.complaints.length : 0), 0);
+  }, [db]);
 
-  // Calculate complaints list and sort it
-  const complaintsList = [];
-  db.forEach(s => {
-    if (s.complaints) {
-      s.complaints.forEach(c => {
-        complaintsList.push({
-          studentId: s.id,
-          studentName: s.name,
-          division: s.division,
-          gender: s.gender,
-          complaintId: c.id,
-          category: c.category,
-          subject: c.subject,
-          status: c.status,
-          date: c.dateReported
+  const pendingComplaints = useMemo(() => {
+    return db.reduce((acc, s) => acc + (s.complaints ? s.complaints.filter(c => c.status?.toLowerCase() === 'pending').length : 0), 0);
+  }, [db]);
+
+  const totalMeals = useMemo(() => {
+    return db.reduce((acc, s) => {
+      return acc + (s.mealBookings ? s.mealBookings.reduce((mAcc, b) => {
+        let count = 0;
+        if (b.breakfast) count++;
+        if (b.lunch) count++;
+        if (b.snacks) count++;
+        if (b.dinner) count++;
+        return mAcc + count;
+      }, 0) : 0);
+    }, 0);
+  }, [db]);
+
+  const femaleCount = useMemo(() => db.filter(s => (s.gender || '').toLowerCase() === 'female').length, [db]);
+  const maleCount = useMemo(() => db.filter(s => (s.gender || '').toLowerCase() === 'male').length, [db]);
+
+  // ── Filtered & Sorted Directory Students ─────────────────────────────────
+  const filteredStudents = useMemo(() => {
+    return db.filter(student => {
+      const term = searchDir.toLowerCase().trim();
+      const matchesSearch = !term || student.name.toLowerCase().includes(term) || student.id.toLowerCase().includes(term);
+      const matchesGender = genderFilterDir === 'all' || (student.gender || '').toLowerCase() === genderFilterDir.toLowerCase();
+      const matchesClass = classFilterDir === 'all' || student.division === classFilterDir;
+      return matchesSearch && matchesGender && matchesClass;
+    }).sort((a, b) => {
+      if (sortOptionDir === 'id-asc') return a.id.localeCompare(b.id, undefined, { numeric: true });
+      if (sortOptionDir === 'id-desc') return b.id.localeCompare(a.id, undefined, { numeric: true });
+      if (sortOptionDir === 'name-asc') return (a.name || '').localeCompare(b.name || '');
+      if (sortOptionDir === 'dob-calendar') return parseDobSortValue(a.dob) - parseDobSortValue(b.dob);
+      if (sortOptionDir === 'grade') return (a.division || '').localeCompare(b.division || '');
+      if (sortOptionDir === 'gender') return (a.gender || '').localeCompare(b.gender || '');
+      return 0;
+    });
+  }, [db, searchDir, genderFilterDir, classFilterDir, sortOptionDir]);
+
+  // ── Filtered & Sorted Meal Bookings ───────────────────────────────────────
+  const mealsList = useMemo(() => {
+    return db.map(s => {
+      const mealCount = s.mealBookings ? s.mealBookings.reduce((acc, b) => {
+        let count = 0;
+        if (b.breakfast) count++;
+        if (b.lunch) count++;
+        if (b.snacks) count++;
+        if (b.dinner) count++;
+        return acc + count;
+      }, 0) : 0;
+      return { id: s.id, name: s.name, division: s.division, gender: s.gender, mealCount };
+    });
+  }, [db]);
+
+  const filteredMealsList = useMemo(() => {
+    return mealsList.filter(item => {
+      const term = searchMeals.toLowerCase().trim();
+      const matchesSearch = !term || item.name.toLowerCase().includes(term) || item.id.toLowerCase().includes(term);
+      const matchesGender = genderFilterMeals === 'all' || (item.gender || '').toLowerCase() === genderFilterMeals.toLowerCase();
+      const matchesClass = classFilterMeals === 'all' || item.division === classFilterMeals;
+      return matchesSearch && matchesGender && matchesClass;
+    }).sort((a, b) => {
+      if (sortOptionMeals === 'meals-desc') return b.mealCount - a.mealCount;
+      if (sortOptionMeals === 'meals-asc') return a.mealCount - b.mealCount;
+      if (sortOptionMeals === 'id-asc') return a.id.localeCompare(b.id, undefined, { numeric: true });
+      if (sortOptionMeals === 'name-asc') return (a.name || '').localeCompare(b.name || '');
+      if (sortOptionMeals === 'grade') return (a.division || '').localeCompare(b.division || '');
+      if (sortOptionMeals === 'gender') return (a.gender || '').localeCompare(b.gender || '');
+      return 0;
+    });
+  }, [mealsList, searchMeals, genderFilterMeals, classFilterMeals, sortOptionMeals]);
+
+  // ── Filtered & Sorted Tickets ─────────────────────────────────────────────
+  const complaintsList = useMemo(() => {
+    const list = [];
+    db.forEach(s => {
+      if (s.complaints) {
+        s.complaints.forEach(c => {
+          list.push({
+            studentId: s.id,
+            studentName: s.name,
+            division: s.division,
+            gender: s.gender,
+            complaintId: c.id,
+            category: c.category || 'General',
+            subject: c.subject,
+            status: c.status || 'Pending',
+            date: c.dateReported || 'N/A'
+          });
         });
-      });
-    }
-  });
+      }
+    });
+    return list;
+  }, [db]);
 
-  const sortedComplaintsList = [...complaintsList].sort((a, b) => {
-    if (complaintsSortOption === 'grade') {
-      return (a.division || '').localeCompare(b.division || '');
-    }
-    if (complaintsSortOption === 'gender') {
-      return (a.gender || '').localeCompare(b.gender || '');
-    }
-    return 0;
-  });
+  const ticketCategories = useMemo(() => {
+    return Array.from(new Set(complaintsList.map(c => c.category))).sort();
+  }, [complaintsList]);
+
+  const filteredComplaintsList = useMemo(() => {
+    return complaintsList.filter(item => {
+      const term = searchTickets.toLowerCase().trim();
+      const matchesSearch = !term || 
+        item.studentName.toLowerCase().includes(term) || 
+        item.studentId.toLowerCase().includes(term) ||
+        item.subject.toLowerCase().includes(term) ||
+        item.complaintId.toLowerCase().includes(term);
+      const matchesStatus = statusFilterTickets === 'all' || item.status.toLowerCase() === statusFilterTickets.toLowerCase();
+      const matchesCategory = categoryFilterTickets === 'all' || item.category === categoryFilterTickets;
+      return matchesSearch && matchesStatus && matchesCategory;
+    }).sort((a, b) => {
+      if (sortOptionTickets === 'date-desc') return (b.date || '').localeCompare(a.date || '');
+      if (sortOptionTickets === 'date-asc') return (a.date || '').localeCompare(b.date || '');
+      if (sortOptionTickets === 'status') return (a.status || '').localeCompare(b.status || '');
+      if (sortOptionTickets === 'category') return (a.category || '').localeCompare(b.category || '');
+      if (sortOptionTickets === 'name-asc') return (a.studentName || '').localeCompare(b.studentName || '');
+      if (sortOptionTickets === 'grade') return (a.division || '').localeCompare(b.division || '');
+      return 0;
+    });
+  }, [complaintsList, searchTickets, statusFilterTickets, categoryFilterTickets, sortOptionTickets]);
 
   useEffect(() => {
     dispatch(fetchDirectoryThunk());
@@ -135,32 +214,6 @@ const SuperAdminDashboard = () => {
     setActiveTab('health');
   };
 
-
-
-  const handleResetDatabase = () => {
-    setIsResetting(true);
-    dispatch(resetDatabaseThunk()).then((res) => {
-      setIsResetting(false);
-      if (!res.error) {
-        dispatch(addToast({ message: 'System database successfully reset to default seeds!', type: 'success' }));
-      } else {
-        dispatch(addToast({ message: res.payload || 'Database reset failed.', type: 'error' }));
-      }
-    });
-  };
-
-  const handleReseedMeals = () => {
-    setIsReseedMeals(true);
-    dispatch(reseedMealsThunk()).then((res) => {
-      setIsReseedMeals(false);
-      if (!res.error) {
-        dispatch(addToast({ message: 'All meal bookings simulated and reseeded successfully!', type: 'success' }));
-      } else {
-        dispatch(addToast({ message: res.payload || 'Meal reseeding failed.', type: 'error' }));
-      }
-    });
-  };
-
   const adminUsers = [
     { name: "Siddharth K T", role: "Superadmin", pin: "Hidden", id: "SAD-02" },
     { name: "Shwetha S", role: "Superadmin", pin: "Hidden", id: "SAD-03" },
@@ -171,176 +224,375 @@ const SuperAdminDashboard = () => {
     { name: "Super Admin Control", role: "Superadmin", pin: "super123", id: "SAD-01" }
   ];
 
-
   const renderActiveSection = () => {
     switch (activeTab) {
       case 'dashboard':
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Analytics Stats Grid */}
-            <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-              <div className="dashboard-panel" style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '20px' }}>
-                <div style={{ padding: '12px', borderRadius: '12px', background: 'rgba(37,99,235,0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+              <div className="dashboard-panel" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px' }}>
+                <div style={{ padding: '14px', borderRadius: '14px', background: 'rgba(37,99,235,0.1)', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {ICONS.users}
                 </div>
                 <div>
-                  <h4 style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)' }}>Total Students</h4>
-                  <span style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-primary)' }}>{db.length}</span>
+                  <h4 style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Students</h4>
+                  <span style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-primary)' }}>{db.length}</span>
+                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontWeight: 600 }}>
+                    <span style={{ color: '#ec4899' }}>👩 {femaleCount}</span> · <span style={{ color: '#2563eb' }}>👨 {maleCount}</span>
+                  </div>
                 </div>
               </div>
-              <div className="dashboard-panel" style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '20px' }}>
-                <div style={{ padding: '12px', borderRadius: '12px', background: 'rgba(22,163,74,0.1)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+
+              <div className="dashboard-panel" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px' }}>
+                <div style={{ padding: '14px', borderRadius: '14px', background: 'rgba(22,163,74,0.1)', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {ICONS.coffee}
                 </div>
                 <div>
-                  <h4 style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)' }}>Total Meals Booked</h4>
-                  <span style={{ fontSize: '24px', fontWeight: '800', color: 'var(--success)' }}>{totalMeals}</span>
+                  <h4 style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Meals Booked</h4>
+                  <span style={{ fontSize: '26px', fontWeight: '800', color: '#16a34a' }}>{totalMeals}</span>
+                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontWeight: 600 }}>
+                    ~{db.length > 0 ? (totalMeals / db.length).toFixed(1) : 0} avg / student
+                  </div>
                 </div>
               </div>
-              <div className="dashboard-panel" style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '20px' }}>
-                <div style={{ padding: '12px', borderRadius: '12px', background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+
+              <div className="dashboard-panel" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px' }}>
+                <div style={{ padding: '14px', borderRadius: '14px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {ICONS.complaint}
                 </div>
                 <div>
-                  <h4 style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)' }}>Total Tickets</h4>
-                  <span style={{ fontSize: '24px', fontWeight: '800', color: 'var(--danger)' }}>{totalComplaints}</span>
+                  <h4 style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Tickets</h4>
+                  <span style={{ fontSize: '26px', fontWeight: '800', color: '#ef4444' }}>{totalComplaints}</span>
+                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontWeight: 600 }}>
+                    <span style={{ color: '#ef4444' }}>{pendingComplaints} Pending</span> · <span style={{ color: '#16a34a' }}>{totalComplaints - pendingComplaints} Closed</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Student Birthday List with Sorting */}
+            {/* ── 1. Student Birthday & Class Directory Panel ───────────────────────── */}
             <div className="dashboard-panel dashboard-full">
-              <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
-                <h2 className="panel-title">{ICONS.calendar} Student Birthday &amp; Class Directory</h2>
+              <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Sort By:</span>
-                  <select 
+                  <h2 className="panel-title" style={{ margin: 0 }}>{ICONS.calendar} Student Birthday &amp; Class Directory</h2>
+                  <span style={{ fontSize: '11px', fontWeight: 700, background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '12px' }}>
+                    {filteredStudents.length} of {db.length}
+                  </span>
+                </div>
+              </div>
+
+              {/* Controls Bar: Search, Gender, Class, Sort */}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', margin: '14px 0', padding: '12px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                {/* Search */}
+                <div className="search-input-wrapper" style={{ flex: 1, minWidth: '180px' }}>
+                  {ICONS.search}
+                  <input
+                    type="text"
+                    className="search-input"
+                    placeholder="Search name or ID..."
+                    value={searchDir}
+                    onChange={(e) => setSearchDir(e.target.value)}
+                    style={{ fontSize: '13px' }}
+                  />
+                </div>
+
+                {/* Gender Filter */}
+                <select
+                  className="filter-select"
+                  value={genderFilterDir}
+                  onChange={(e) => setGenderFilterDir(e.target.value)}
+                  style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', outline: 'none', background: 'white' }}
+                >
+                  <option value="all">All Genders</option>
+                  <option value="female">Female Only</option>
+                  <option value="male">Male Only</option>
+                </select>
+
+                {/* Class Filter */}
+                <select
+                  className="filter-select"
+                  value={classFilterDir}
+                  onChange={(e) => setClassFilterDir(e.target.value)}
+                  style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', outline: 'none', background: 'white' }}
+                >
+                  <option value="all">All Classes</option>
+                  {uniqueDivisions.map(div => (
+                    <option key={div} value={div}>{div}</option>
+                  ))}
+                </select>
+
+                {/* Sort dropdown */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Sort:</span>
+                  <select
                     className="filter-select"
-                    value={sortOption}
-                    onChange={(e) => setSortOption(e.target.value)}
-                    style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', outline: 'none' }}
+                    value={sortOptionDir}
+                    onChange={(e) => setSortOptionDir(e.target.value)}
+                    style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', outline: 'none', background: 'white', fontWeight: 600 }}
                   >
-                    <option value="none">Default (ID)</option>
-                    <option value="grade">Grade (Class)</option>
+                    <option value="id-asc">ID (Low → High)</option>
+                    <option value="id-desc">ID (High → Low)</option>
+                    <option value="name-asc">Name (A → Z)</option>
+                    <option value="dob-calendar">Date of Birth (Jan → Dec)</option>
+                    <option value="grade">Grade / Class</option>
                     <option value="gender">Gender</option>
                   </select>
                 </div>
               </div>
 
-              <div className="directory-table-wrapper" style={{ marginTop: '15px', maxHeight: '250px', overflowY: 'auto' }}>
+              {/* Table */}
+              <div className="directory-table-wrapper" style={{ maxHeight: '280px', overflowY: 'auto' }}>
                 <table className="directory-table">
                   <thead>
                     <tr>
                       <th>ID</th>
-                      <th>Name</th>
+                      <th>Student Name</th>
                       <th>Grade (Division)</th>
                       <th>Gender</th>
                       <th>Date of Birth</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedStudents.map(student => (
-                      <tr key={student.id}>
-                        <td><strong>{student.id}</strong></td>
-                        <td>{student.name}</td>
-                        <td>
-                          <span className="student-block-badge">
-                            {student.division}
-                          </span>
-                        </td>
-                        <td>{student.gender}</td>
-                        <td>
-                          <span className="badge info" style={{ padding: '4px 8px', borderRadius: '4px', fontWeight: 600 }}>
-                            🎂 {student.dob || 'N/A'}
-                          </span>
+                    {filteredStudents.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                          No students match the active search and filter criteria.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredStudents.map(student => (
+                        <tr 
+                          key={student.id}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => handleViewStudentDetails(student.id)}
+                        >
+                          <td><strong style={{ color: 'var(--primary)' }}>{student.id}</strong></td>
+                          <td>
+                            <strong style={{ fontSize: '13px' }}>{student.name}</strong>
+                          </td>
+                          <td>
+                            <span className="student-block-badge">
+                              {student.division}
+                            </span>
+                          </td>
+                          <td>
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: student.gender?.toLowerCase() === 'female' ? '#ec4899' : '#2563eb' }}>
+                              {student.gender === 'Female' ? '👧 Female' : '👦 Male'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="badge info" style={{ padding: '4px 10px', borderRadius: '6px', fontWeight: 600, fontSize: '11px' }}>
+                              🎂 {student.dob || 'N/A'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* Meal Bookings Breakdown with Sorting */}
+            {/* ── 2. Meal Bookings Breakdown Panel ─────────────────────────────────── */}
             <div className="dashboard-panel dashboard-full">
-              <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
-                <h2 className="panel-title">{ICONS.coffee} Meal Bookings breakdown</h2>
+              <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Sort By:</span>
-                  <select 
+                  <h2 className="panel-title" style={{ margin: 0 }}>{ICONS.coffee} Meal Bookings Breakdown</h2>
+                  <span style={{ fontSize: '11px', fontWeight: 700, background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '12px' }}>
+                    {filteredMealsList.length} of {db.length}
+                  </span>
+                </div>
+              </div>
+
+              {/* Controls Bar: Search, Gender, Class, Sort */}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', margin: '14px 0', padding: '12px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                {/* Search */}
+                <div className="search-input-wrapper" style={{ flex: 1, minWidth: '180px' }}>
+                  {ICONS.search}
+                  <input
+                    type="text"
+                    className="search-input"
+                    placeholder="Search name or ID..."
+                    value={searchMeals}
+                    onChange={(e) => setSearchMeals(e.target.value)}
+                    style={{ fontSize: '13px' }}
+                  />
+                </div>
+
+                {/* Gender Filter */}
+                <select
+                  className="filter-select"
+                  value={genderFilterMeals}
+                  onChange={(e) => setGenderFilterMeals(e.target.value)}
+                  style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', outline: 'none', background: 'white' }}
+                >
+                  <option value="all">All Genders</option>
+                  <option value="female">Female Only</option>
+                  <option value="male">Male Only</option>
+                </select>
+
+                {/* Class Filter */}
+                <select
+                  className="filter-select"
+                  value={classFilterMeals}
+                  onChange={(e) => setClassFilterMeals(e.target.value)}
+                  style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', outline: 'none', background: 'white' }}
+                >
+                  <option value="all">All Classes</option>
+                  {uniqueDivisions.map(div => (
+                    <option key={div} value={div}>{div}</option>
+                  ))}
+                </select>
+
+                {/* Sort dropdown */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Sort:</span>
+                  <select
                     className="filter-select"
-                    value={mealsSortOption}
-                    onChange={(e) => setMealsSortOption(e.target.value)}
-                    style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', outline: 'none' }}
+                    value={sortOptionMeals}
+                    onChange={(e) => setSortOptionMeals(e.target.value)}
+                    style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', outline: 'none', background: 'white', fontWeight: 600 }}
                   >
-                    <option value="none">Default (ID)</option>
-                    <option value="grade">Grade (Class)</option>
+                    <option value="meals-desc">Most Meals Booked (High → Low)</option>
+                    <option value="meals-asc">Least Meals Booked (Low → High)</option>
+                    <option value="id-asc">ID (Low → High)</option>
+                    <option value="name-asc">Name (A → Z)</option>
+                    <option value="grade">Grade / Class</option>
                     <option value="gender">Gender</option>
                   </select>
                 </div>
               </div>
 
-              <div className="directory-table-wrapper" style={{ marginTop: '15px', maxHeight: '250px', overflowY: 'auto' }}>
+              {/* Table */}
+              <div className="directory-table-wrapper" style={{ maxHeight: '280px', overflowY: 'auto' }}>
                 <table className="directory-table">
                   <thead>
                     <tr>
                       <th>ID</th>
-                      <th>Name</th>
+                      <th>Student Name</th>
                       <th>Grade (Division)</th>
                       <th>Gender</th>
                       <th>Total Meals Booked</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedMealsList.map(item => (
-                      <tr key={item.id}>
-                        <td><strong>{item.id}</strong></td>
-                        <td>{item.name}</td>
-                        <td>
-                          <span className="student-block-badge">
-                            {item.division}
-                          </span>
-                        </td>
-                        <td>{item.gender}</td>
-                        <td>
-                          <span className="badge approved" style={{ padding: '4px 8px', borderRadius: '4px', fontWeight: 700 }}>
-                            {item.mealCount} Meals
-                          </span>
+                    {filteredMealsList.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                          No meal records match the active search and filter criteria.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredMealsList.map(item => (
+                        <tr 
+                          key={item.id}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => handleViewStudentDetails(item.id)}
+                        >
+                          <td><strong style={{ color: 'var(--primary)' }}>{item.id}</strong></td>
+                          <td><strong style={{ fontSize: '13px' }}>{item.name}</strong></td>
+                          <td>
+                            <span className="student-block-badge">
+                              {item.division}
+                            </span>
+                          </td>
+                          <td>
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: item.gender?.toLowerCase() === 'female' ? '#ec4899' : '#2563eb' }}>
+                              {item.gender === 'Female' ? '👧 Female' : '👦 Male'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="badge approved" style={{ padding: '4px 12px', borderRadius: '6px', fontWeight: 800, fontSize: '12px' }}>
+                              🍽️ {item.mealCount} Meals
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* Complaints Register with Sorting */}
+            {/* ── 3. Student Tickets Register Panel ─────────────────────────────────── */}
             <div className="dashboard-panel dashboard-full">
-              <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
-                <h2 className="panel-title">{ICONS.complaint} Student Tickets register</h2>
+              <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Sort By:</span>
-                  <select 
+                  <h2 className="panel-title" style={{ margin: 0 }}>{ICONS.complaint} Student Tickets Register</h2>
+                  <span style={{ fontSize: '11px', fontWeight: 700, background: '#fee2e2', color: '#b91c1c', padding: '2px 8px', borderRadius: '12px' }}>
+                    {filteredComplaintsList.length} Tickets
+                  </span>
+                </div>
+              </div>
+
+              {/* Controls Bar: Search, Status, Category, Sort */}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', margin: '14px 0', padding: '12px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                {/* Search */}
+                <div className="search-input-wrapper" style={{ flex: 1, minWidth: '180px' }}>
+                  {ICONS.search}
+                  <input
+                    type="text"
+                    className="search-input"
+                    placeholder="Search subject, name, ticket ID..."
+                    value={searchTickets}
+                    onChange={(e) => setSearchTickets(e.target.value)}
+                    style={{ fontSize: '13px' }}
+                  />
+                </div>
+
+                {/* Status Filter */}
+                <select
+                  className="filter-select"
+                  value={statusFilterTickets}
+                  onChange={(e) => setStatusFilterTickets(e.target.value)}
+                  style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', outline: 'none', background: 'white' }}
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="pending">Pending Only</option>
+                  <option value="closed">Closed Only</option>
+                </select>
+
+                {/* Category Filter */}
+                <select
+                  className="filter-select"
+                  value={categoryFilterTickets}
+                  onChange={(e) => setCategoryFilterTickets(e.target.value)}
+                  style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', outline: 'none', background: 'white' }}
+                >
+                  <option value="all">All Categories</option>
+                  {ticketCategories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+
+                {/* Sort dropdown */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Sort:</span>
+                  <select
                     className="filter-select"
-                    value={complaintsSortOption}
-                    onChange={(e) => setComplaintsSortOption(e.target.value)}
-                    style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', outline: 'none' }}
+                    value={sortOptionTickets}
+                    onChange={(e) => setSortOptionTickets(e.target.value)}
+                    style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', outline: 'none', background: 'white', fontWeight: 600 }}
                   >
-                    <option value="none">Default (Date)</option>
-                    <option value="grade">Grade (Class)</option>
-                    <option value="gender">Gender</option>
+                    <option value="date-desc">Latest Date First</option>
+                    <option value="date-asc">Oldest Date First</option>
+                    <option value="status">Status (Pending First)</option>
+                    <option value="category">Category</option>
+                    <option value="name-asc">Student Name (A → Z)</option>
+                    <option value="grade">Grade / Class</option>
                   </select>
                 </div>
               </div>
 
-              <div className="directory-table-wrapper" style={{ marginTop: '15px', maxHeight: '250px', overflowY: 'auto' }}>
+              {/* Table */}
+              <div className="directory-table-wrapper" style={{ maxHeight: '280px', overflowY: 'auto' }}>
                 <table className="directory-table">
                   <thead>
                     <tr>
-                      <th>Complaint ID</th>
+                      <th>Ticket ID</th>
                       <th>Student Name</th>
                       <th>Grade (Division)</th>
-                      <th>Gender</th>
                       <th>Category</th>
                       <th>Subject</th>
                       <th>Status</th>
@@ -348,32 +600,45 @@ const SuperAdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedComplaintsList.map(item => (
-                      <tr key={item.complaintId}>
-                        <td><strong>{item.complaintId}</strong></td>
-                        <td>{item.studentName}</td>
-                        <td>
-                          <span className="student-block-badge">
-                            {item.division}
-                          </span>
+                    {filteredComplaintsList.length === 0 ? (
+                      <tr>
+                        <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                          No tickets match the active search and filter criteria.
                         </td>
-                        <td>{item.gender}</td>
-                        <td>{item.category}</td>
-                        <td>{item.subject}</td>
-                        <td>
-                          <span className={`badge ${item.status.toLowerCase()}`}>
-                            {item.status}
-                          </span>
-                        </td>
-                        <td>{item.date}</td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredComplaintsList.map(item => (
+                        <tr key={item.complaintId}>
+                          <td><strong style={{ color: 'var(--primary)' }}>{item.complaintId}</strong></td>
+                          <td><strong style={{ fontSize: '13px' }}>{item.studentName}</strong></td>
+                          <td>
+                            <span className="student-block-badge">
+                              {item.division}
+                            </span>
+                          </td>
+                          <td>
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 6px', background: '#f1f5f9', color: '#475569', borderRadius: '4px' }}>
+                              {item.category}
+                            </span>
+                          </td>
+                          <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {item.subject}
+                          </td>
+                          <td>
+                            <span className={`badge ${item.status.toLowerCase()}`}>
+                              {item.status}
+                            </span>
+                          </td>
+                          <td><span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>{item.date}</span></td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* Administrator & Staff Directory */}
+            {/* ── 4. Administrator & Staff Directory Panel ─────────────────────────── */}
             <div className="dashboard-panel dashboard-full">
               <div className="panel-header">
                 <h2 className="panel-title">{ICONS.users} Administrator &amp; Staff Directory</h2>
@@ -394,7 +659,7 @@ const SuperAdminDashboard = () => {
                     {adminUsers.map(user => (
                       <tr key={user.id}>
                         <td><strong>{user.id}</strong></td>
-                        <td>{user.name}</td>
+                        <td><strong>{user.name}</strong></td>
                         <td>
                           <span className="student-block-badge" style={{ background: '#f3f4f6', color: 'var(--text-primary)', fontWeight: 700 }}>
                             {user.role}
