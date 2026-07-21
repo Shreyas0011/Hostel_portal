@@ -166,6 +166,7 @@ const SuperAdminDashboard = () => {
     { name: "Shwetha S", role: "Superadmin", pin: "Hidden", id: "SAD-03" },
     { name: "Vijayamma", role: "Warden (Girls)", pin: "1111", id: "WDN-02" },
     { name: "Siddu", role: "Warden (Boys)", pin: "2222", id: "WDN-03" },
+    { name: "Mess Manager", role: "Mess Manager", pin: "3333", id: "MM-01" },
     { name: "Campus Admin Console", role: "Admin", pin: "admin123", id: "ADM-01" },
     { name: "Super Admin Control", role: "Superadmin", pin: "super123", id: "SAD-01" }
   ];

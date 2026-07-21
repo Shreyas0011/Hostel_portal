@@ -5,11 +5,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import { loginThunk } from '../../redux/auth/authSlice';
 import { addToast } from '../../redux/notification/notificationSlice';
 
-// Warden PIN map — 4-digit PIN → backend credentials
+// Staff & Warden PIN map — 4-digit PIN → backend credentials
 const WARDEN_PIN_MAP = {
-  '1111': { email: 'vijayamma@transcendgroup.org', password: 'Warden@Girls', name: 'Vijayamma',    hostel: 'Girls Hostel' },
-  '2222': { email: 'siddu@transcendgroup.org',     password: 'Warden@Boys',  name: 'Siddu',        hostel: 'Boys Hostel'  },
-  '9999': { email: 'warden@hostel.edu',             password: 'warden123',   name: 'Chief Warden', hostel: 'All Hostels'  },
+  '1111': { email: 'vijayamma@transcendgroup.org',   password: 'Warden@Girls',       name: 'Vijayamma',    hostel: 'Girls Hostel' },
+  '2222': { email: 'siddu@transcendgroup.org',       password: 'Warden@Boys',        name: 'Siddu',        hostel: 'Boys Hostel'  },
+  '3333': { email: 'messmanager@transcendgroup.org', password: 'MessManager@3333',   name: 'Mess Manager', hostel: 'Campus Mess'   },
+  '9999': { email: 'warden@hostel.edu',             password: 'warden123',           name: 'Chief Warden', hostel: 'All Hostels'  },
 };
 
 // ── Warden PIN Keypad Component ──────────────────────────────────────────────
@@ -59,8 +60,8 @@ const WardenPinScreen = ({ onBack, dispatch, loading }) => {
           <img src="/transcend-logo.png" alt="Transcend Group" style={{ height: '90px', objectFit: 'contain' }} />
         </div>
 
-        <h1 className="modern-login-title" style={{ fontSize: '20px' }}>Warden PIN Login</h1>
-        <p className="modern-login-subtitle">Enter your 4-digit security PIN</p>
+        <h1 className="modern-login-title" style={{ fontSize: '20px' }}>Staff &amp; Mess PIN Login</h1>
+        <p className="modern-login-subtitle">Enter your 4-digit PIN (Warden or Mess Manager)</p>
 
         {/* 4-Dot PIN indicator */}
         <div style={{
@@ -293,7 +294,7 @@ const Login = () => {
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                 <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
               </svg>
-              <span>Warden Login (PIN Access)</span>
+              <span>Warden &amp; Mess Login (PIN Access)</span>
             </div>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="5" y1="12" x2="19" y2="12"></line>

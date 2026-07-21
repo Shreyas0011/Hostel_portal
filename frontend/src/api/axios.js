@@ -28,16 +28,17 @@ axiosInstance.defaults.adapter = async function (config) {
       const { email, password } = data;
       const normalizedEmail = email.toLowerCase();
 
-      // ── Warden accounts (PIN-based, handled via loginThunk with mapped creds) ──
+      // ── Warden & Staff accounts (PIN-based, handled via loginThunk with mapped creds) ──
       const WARDENS = {
-        'warden@hostel.edu':              { password: 'warden123',    id: 'WDN-01', name: 'Chief Warden Console', empId: 'EMP-WDN-001', block: 'All Blocks',    phone: '+91 98400 11001' },
-        'vijayamma@transcendgroup.org':   { password: 'Warden@Girls', id: 'WDN-02', name: 'Vijayamma',            empId: 'EMP-WDN-002', block: 'Girls Hostel',   phone: '+91 98400 11002' },
-        'siddu@transcendgroup.org':       { password: 'Warden@Boys',  id: 'WDN-03', name: 'Siddu',               empId: 'EMP-WDN-003', block: 'Boys Hostel',    phone: '+91 98400 11003' },
+        'warden@hostel.edu':              { password: 'warden123',          id: 'WDN-01', name: 'Chief Warden Console', empId: 'EMP-WDN-001', block: 'All Blocks',    phone: '+91 98400 11001', role: 'Warden' },
+        'vijayamma@transcendgroup.org':   { password: 'Warden@Girls',       id: 'WDN-02', name: 'Vijayamma',            empId: 'EMP-WDN-002', block: 'Girls Hostel',   phone: '+91 98400 11002', role: 'Warden' },
+        'siddu@transcendgroup.org':       { password: 'Warden@Boys',        id: 'WDN-03', name: 'Siddu',                empId: 'EMP-WDN-003', block: 'Boys Hostel',    phone: '+91 98400 11003', role: 'Warden' },
+        'messmanager@transcendgroup.org': { password: 'MessManager@3333',   id: 'MM-01',  name: 'Mess Manager',         empId: 'EMP-MM-001',  block: 'Campus Mess',   phone: '+91 98400 11004', role: 'MessManager' },
       };
       if (WARDENS[normalizedEmail]) {
         const w = WARDENS[normalizedEmail];
         if (password === w.password) {
-          return { data: { accessToken: 'warden-token', user: { id: w.id, name: w.name, email: normalizedEmail, role: 'Warden', empId: w.empId, block: w.block, phone: w.phone } }, status: 200, statusText: 'OK', headers: {}, config };
+          return { data: { accessToken: 'warden-token', user: { id: w.id, name: w.name, email: normalizedEmail, role: w.role || 'Warden', empId: w.empId, block: w.block, phone: w.phone } }, status: 200, statusText: 'OK', headers: {}, config };
         }
         throw new Error('Incorrect password');
       }

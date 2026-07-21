@@ -11,6 +11,7 @@ export const getDashboardRedirect = (role) => {
     case 'Warden': return ROUTES.WARDEN;
     case 'Admin': return ROUTES.ADMIN;
     case 'SuperAdmin': return ROUTES.SUPERADMIN;
+    case 'MessManager': return ROUTES.MESS_MANAGER;
     default: return ROUTES.LOGIN;
   }
 };

@@ -14,6 +14,7 @@ import ParentDashboard from './pages/parent/Dashboard';
 import WardenDashboard from './pages/warden/Dashboard';
 import AdminDashboard from './pages/admin/Dashboard';
 import SuperAdminDashboard from './pages/superadmin/Dashboard';
+import MessManagerDashboard from './pages/messManager/Dashboard';
 
 function App() {
   const dispatch = useDispatch();
@@ -108,6 +109,17 @@ function App() {
             <ProtectedRoute>
               <RoleRoute allowedRoles={['SuperAdmin']}>
                 <SuperAdminDashboard />
+              </RoleRoute>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path={ROUTES.MESS_MANAGER}
+          element={
+            <ProtectedRoute>
+              <RoleRoute allowedRoles={['MessManager']}>
+                <MessManagerDashboard />
               </RoleRoute>
             </ProtectedRoute>
           }

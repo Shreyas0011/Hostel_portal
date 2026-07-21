@@ -6,4 +6,5 @@ export const ROUTES = {
   WARDEN: '/warden',
   ADMIN: '/admin',
   SUPERADMIN: '/superadmin',
+  MESS_MANAGER: '/mess-manager',
 };
