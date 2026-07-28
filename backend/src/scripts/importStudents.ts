@@ -229,7 +229,7 @@ const importStudents = async () => {
         dob: dob.trim(),
         address: address ? address.trim() : '',
         allergies: allergies ? allergies.trim() : '',
-        isNew: newOrExisting.trim().toLowerCase() === 'new',
+        isNewStudent: newOrExisting.trim().toLowerCase() === 'new',
       };
 
       const parentDoc = {

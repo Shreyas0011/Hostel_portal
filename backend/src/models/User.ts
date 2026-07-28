@@ -31,7 +31,7 @@ export interface IUser extends Document {
   dob?: string;
   address?: string;
   allergies?: string;
-  isNew?: boolean;
+  isNewStudent?: boolean;
   studentId?: string;
 }
 
@@ -69,7 +69,7 @@ const UserSchema = new Schema<IUser>(
     dob:            { type: String, trim: true },
     address:        { type: String, trim: true },
     allergies:      { type: String, trim: true },
-    isNew:          { type: Boolean, default: false },
+    isNewStudent:   { type: Boolean, default: false },
     studentId:      { type: String, trim: true },
   },
   {
