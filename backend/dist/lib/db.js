@@ -132,8 +132,8 @@ const connectDB = async () => {
     const isProduction = process.env.NODE_ENV === 'production';
     try {
         const conn = await mongoose_1.default.connect(MONGODB_URI, {
-            dbName: 'facility_portal',
-            serverSelectionTimeoutMS: isProduction ? 10000 : 2000,
+            dbName: process.env.DB_NAME || 'facility_portal',
+            serverSelectionTimeoutMS: 10000,
         });
         console.log(`✅ MongoDB connected: ${conn.connection.host}`);
     }

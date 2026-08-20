@@ -206,11 +206,21 @@ export function formatMealBookingDeadline(dateStr) {
 }
 
 export function isStudentOnLeave(student, dateStr) {
-  return false;
+  if (!student || !student.leaves) return false;
+  const targetTime = new Date(dateStr).getTime();
+  return student.leaves.some(leave => {
+    if (leave.status !== 'approved') return false;
+    const start = new Date(leave.startDate).getTime();
+    const end = new Date(leave.endDate).getTime();
+    return targetTime >= start && targetTime <= end;
+  });
 }
 
 export function isMealBooked(student, dateStr, mealKey) {
   if (!student) return false;
+  if (isStudentOnLeave(student, dateStr)) {
+    return false;
+  }
   if (hasMealBeenRejected(student, dateStr, mealKey)) {
     return false;
   }
@@ -219,6 +229,7 @@ export function isMealBooked(student, dateStr, mealKey) {
 
 export function getMealAcceptanceType(student, dateStr, mealKey) {
   if (!student) return 'opted-out';
+  if (isStudentOnLeave(student, dateStr)) return 'leave';
   if (hasMealBeenRejected(student, dateStr, mealKey)) return 'rejected';
   const booking = student.mealBookings?.find(b => b.date === dateStr);
   const explicitlyBooked = booking && !!booking[mealKey];
@@ -336,14 +347,36 @@ export function initDB() {
     { id:'HR-STU002-1', date:'Wed, Jun 18', time:'11:00 AM', symptoms:'Cold, sore throat',   temperature:'98.6°F', status:'Recovered', note:'Prescribed antihistamine. Fully recovered.' }
   ];
 
-  // Complaints
-  students[0].complaints = [
-    { id:'CMP-STU001-1', category:'Internet',    subject:'Wi-Fi not working in Room B-103',  details:'The Wi-Fi router on floor 1 Block B has been down since Monday morning.', status:'Pending', dateReported:getDateString(-3), attachments:[] },
-    { id:'CMP-STU001-2', category:'Maintenance', subject:'Leaking tap in bathroom',           details:'The bathroom tap in the cabin has been leaking for 3 days.',              status:'Closed',  dateReported:getDateString(-8), attachments:[] }
+  // Leaves
+  const today = getDateString(0);
+  const tomorrow = getDateString(1);
+  const dayAfter = getDateString(2);
+
+  students[0].leaves.push({ id:'LV-STU001-1', startDate:today, endDate:today, startTime:'09:00 AM', endTime:'06:00 PM', reason:'Visiting local guardian', type:'outing', submittedBy:'parent', status:'approved' });
+  students[0].mealBookings = students[0].mealBookings.filter(b => b.date !== today);
+  students[1].leaves.push({ id:'LV-STU002-1', startDate:tomorrow, endDate:dayAfter, startTime:'09:00 AM', endTime:'06:00 PM', reason:'Going home for family function', type:'leave', submittedBy:'student', status:'pending' });
+  students[2].leaves.push({ id:'LV-STU003-1', startDate:today, endDate:today, startTime:'09:00 AM', endTime:'06:00 PM', reason:'Shopping with friends', type:'outing', submittedBy:'student', status:'rejected' });
+
+  // Entry/Exit logs — 4 templates cycled across all students
+  const scheduleTemplates = [
+    [ {type:'exit',h:7, m:12,note:'Morning walk / library'},   {type:'entry',h:9, m:34,note:'Returned after breakfast outing'}, {type:'exit',h:14,m:5, note:'Afternoon pharmacy lab'}, {type:'entry',h:17,m:48,note:'Back from college'} ],
+    [ {type:'exit',h:8, m:45,note:'Left for morning lecture'}, {type:'entry',h:13,m:10,note:'Returned for lunch'},              {type:'exit',h:15,m:30,note:'Practical session'},       {type:'entry',h:18,m:20,note:'Back from lab'} ],
+    [ {type:'exit',h:10,m:20,note:'Went to market'},           {type:'entry',h:12,m:55,note:'Returned before lunch'},           {type:'exit',h:16,m:40,note:'Evening outing'},          {type:'entry',h:20,m:15,note:'Night return to hostel'} ],
+    [ {type:'exit',h:9, m:5, note:'Went to canteen'},          {type:'entry',h:9, m:45,note:'Returned to hostel'},              {type:'exit',h:17,m:0, note:'Evening walk'},            {type:'entry',h:19,m:20,note:'Back from hostel'} ],
   ];
-  students[1].complaints = [
-    { id:'CMP-STU002-1', category:'Mess', subject:'Food quality issue – dinner', details:'Dinner on Thursday was undercooked and tasted stale.', status:'Pending', dateReported:getDateString(-2), attachments:[] }
-  ];
+  const pad = n => String(n).padStart(2, '0');
+  students.forEach((student, idx) => {
+    const sch = scheduleTemplates[idx % scheduleTemplates.length];
+    const logs = [];
+    for (let d = 2; d >= 0; d--) {
+      const date = getDateString(-d);
+      sch.forEach((evt, eIdx) => {
+        const mm = (evt.m + (d * 3 + eIdx * 2) % 9) % 60;
+        logs.push({ id:`LOG-${student.id}-${d}-${eIdx}`, type:evt.type, timestamp:`${date}T${pad(evt.h)}:${pad(mm)}:00`, note:evt.note });
+      });
+    }
+    student.entryExitLogs = logs;
+  });
 
   saveDB(students);
   return students;

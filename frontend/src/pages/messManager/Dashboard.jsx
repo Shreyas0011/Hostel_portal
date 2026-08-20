@@ -107,6 +107,7 @@ const MessManagerDashboard = () => {
         isOpen={detailModalOpen}
         studentId={selectedStudentId}
         isReadOnly={true}
+        hideBehaviour={true}
         onClose={() => {
           setDetailModalOpen(false);
           setSelectedStudentId(null);

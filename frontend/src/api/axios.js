@@ -401,18 +401,133 @@ axiosInstance.defaults.adapter = async function (config) {
       throw new Error('Failed to update behaviour log');
     }
 
-    // 10. Database Operations
-    if (url.includes('/database/reset') && method === 'post') {
-      localStorage.removeItem('hostel_portal_db');
-      const freshStudents = db.initDB();
-      return { data: { success: true, students: freshStudents }, status: 200, statusText: 'OK', headers: {}, config };
+    // 6. Leave Endpoints
+    if (url.match(/\/leaves\/[A-Za-z0-9-]+\/cancel$/) && method === 'post') {
+      const match = url.match(/\/leaves\/([A-Za-z0-9-]+)\/cancel$/);
+      const leaveId = match ? match[1] : '';
+      const { studentId } = data;
+      const student = students.find(s => s.id === studentId);
+      if (!student) throw new Error('Student not found');
+
+      student.leaves = student.leaves.filter(l => l.id !== leaveId);
+      db.saveDB(students);
+      students = db.initDB();
+      return { data: { success: true, students }, status: 200, statusText: 'OK', headers: {}, config };
     }
 
-    if (url.includes('/database/reseed-meals') && method === 'post') {
-      localStorage.removeItem('hostel_portal_db');
-      const freshStudents = db.initDB();
-      return { data: { success: true, students: freshStudents }, status: 200, statusText: 'OK', headers: {}, config };
+    if (url.match(/\/leaves\/[A-Za-z0-9-]+\/approve$/) && method === 'post') {
+      const match = url.match(/\/leaves\/([A-Za-z0-9-]+)\/approve$/);
+      const leaveId = match ? match[1] : '';
+      const { studentId } = data;
+      const student = students.find(s => s.id === studentId);
+      if (!student) throw new Error('Student not found');
+
+      const leave = student.leaves.find(l => l.id === leaveId);
+      if (leave) {
+        leave.status = 'approved';
+        const start = new Date(leave.startDate).getTime();
+        const end = new Date(leave.endDate).getTime();
+        
+        let cancelledCount = 0;
+        student.mealBookings = student.mealBookings.filter(booking => {
+          const bookingTime = new Date(booking.date).getTime();
+          const isWithinLeave = bookingTime >= start && bookingTime <= end;
+          if (isWithinLeave) {
+            if (booking.breakfast) cancelledCount++;
+            if (booking.lunch) cancelledCount++;
+            if (booking.snacks) cancelledCount++;
+            if (booking.dinner) cancelledCount++;
+          }
+          return !isWithinLeave;
+        });
+
+        let avoidedMeals = parseInt(localStorage.getItem('hostel_avoided_meals') || '0', 10);
+        avoidedMeals += cancelledCount;
+        localStorage.setItem('hostel_avoided_meals', avoidedMeals.toString());
+      }
+
+      db.saveDB(students);
+      students = db.initDB();
+      return { data: { success: true, students }, status: 200, statusText: 'OK', headers: {}, config };
     }
+
+    if (url.match(/\/leaves\/[A-Za-z0-9-]+\/reject$/) && method === 'post') {
+      const match = url.match(/\/leaves\/([A-Za-z0-9-]+)\/reject$/);
+      const leaveId = match ? match[1] : '';
+      const { studentId } = data;
+      const student = students.find(s => s.id === studentId);
+      if (!student) throw new Error('Student not found');
+
+      const leave = student.leaves.find(l => l.id === leaveId);
+      if (leave) {
+        leave.status = 'rejected';
+      }
+
+      db.saveDB(students);
+      students = db.initDB();
+      return { data: { success: true, students }, status: 200, statusText: 'OK', headers: {}, config };
+    }
+
+    if (url.includes('/leaves') && method === 'post') {
+      const { studentId, startDate, endDate, reason, type, submittedBy, startTime, endTime, isOvernight } = data;
+      const student = students.find(s => s.id === studentId);
+      if (!student) throw new Error('Student not found');
+
+      const leaveId = `LV-${Date.now()}`;
+      const newLeave = {
+        id: leaveId,
+        startDate,
+        endDate,
+        reason,
+        type,
+        submittedBy,
+        status: submittedBy === 'parent' ? 'approved' : 'pending',
+        startTime,
+        endTime,
+        isOvernight: !!isOvernight
+      };
+
+      if (!student.leaves) student.leaves = [];
+      student.leaves.push(newLeave);
+
+      let foodWasteCount = 0;
+      if (newLeave.status === 'approved') {
+        const start = new Date(startDate).getTime();
+        const end = new Date(endDate).getTime();
+
+        student.mealBookings = student.mealBookings.filter(booking => {
+          const bookingTime = new Date(booking.date).getTime();
+          const isWithinLeave = bookingTime >= start && bookingTime <= end;
+          if (isWithinLeave) {
+            if (booking.breakfast) foodWasteCount++;
+            if (booking.lunch) foodWasteCount++;
+            if (booking.snacks) foodWasteCount++;
+            if (booking.dinner) foodWasteCount++;
+          }
+          return !isWithinLeave;
+        });
+
+        let avoidedMeals = parseInt(localStorage.getItem('hostel_avoided_meals') || '0', 10);
+        avoidedMeals += foodWasteCount;
+        localStorage.setItem('hostel_avoided_meals', avoidedMeals.toString());
+      }
+
+      db.saveDB(students);
+      students = db.initDB();
+      return { data: { success: true, students, leave: newLeave, avoidedCount: foodWasteCount }, status: 200, statusText: 'OK', headers: {}, config };
+    }
+
+    // 11. Attendance Endpoints
+    if (url.includes('/attendance/scan') && method === 'post') {
+      const { studentId, type, note } = data;
+      const res = db.logEntryExit(studentId, type, note);
+      if (res) {
+        students = db.initDB();
+        return { data: { success: true, students, log: res.log }, status: 200, statusText: 'OK', headers: {}, config };
+      }
+      throw new Error('Failed to log scan');
+    }
+
 
 
 

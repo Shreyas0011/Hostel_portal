@@ -10,6 +10,8 @@ import { isStudentOnLeave } from '../../utils/db';
 import { getDateString } from '../../utils/dateUtils';
 import MealsPlanner from '../../components/MealsPlanner';
 
+import LeaveSection from '../../components/LeaveSection';
+import ParentAttendanceSection from '../../components/ParentAttendanceSection';
 import HealthStatusSection from '../../components/HealthStatusSection';
 import BehaviourLogsSection from '../../components/BehaviourLogsSection';
 
@@ -37,12 +39,16 @@ const ParentDashboard = () => {
     });
   };
 
-
+  const pendingLeavesCount = (student?.leaves || []).filter(l => l.status === 'pending').length;
 
   const renderActiveSection = () => {
     switch (activeTab) {
       case 'meals':
         return <MealsPlanner student={student} isReadOnly={true} />;
+      case 'leave':
+        return <LeaveSection student={student} role="parent" />;
+      case 'attendance':
+        return <ParentAttendanceSection student={student} />;
       case 'health':
         return <HealthStatusSection student={student} role="parent" />;
       case 'behaviour':
@@ -104,6 +110,18 @@ const ParentDashboard = () => {
             {ICONS.coffee} Meal Status
           </button>
           <button 
+            className={`nav-item ${activeTab === 'leave' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('leave'); setMobileMenuOpen(false); }}
+          >
+            {ICONS.calendar} Leave Requests {pendingLeavesCount > 0 && <span className="badge badge-warning" style={{ marginLeft: 'auto', fontSize: '10px' }}>{pendingLeavesCount}</span>}
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'attendance' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('attendance'); setMobileMenuOpen(false); }}
+          >
+            {ICONS.clock || ICONS.users} Attendance &amp; Gate Logs
+          </button>
+          <button 
             className={`nav-item ${activeTab === 'health' ? 'active' : ''}`}
             onClick={() => { setActiveTab('health'); setMobileMenuOpen(false); }}
           >
@@ -130,6 +148,8 @@ const ParentDashboard = () => {
           <div className="header-title-section">
             <h1>
               {activeTab === 'meals' ? "Ward's Meal Status" : 
+               activeTab === 'leave' ? "Ward's Leaving Bookings & Outing Requests" :
+               activeTab === 'attendance' ? "Ward's Attendance & Gate Passage Logs" :
                activeTab === 'health' ? "Child's Health Records" : 
                "Child's Behaviour Log"}
             </h1>

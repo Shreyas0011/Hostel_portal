@@ -9,6 +9,12 @@ dotenv.config();
 
 import { connectDB } from './lib/db';
 import authRoutes from './routes/auth';
+import studentRoutes from './routes/students';
+import leaveRoutes from './routes/leaves';
+import mealRoutes from './routes/meals';
+import complaintRoutes from './routes/complaints';
+import attendanceRoutes from './routes/attendance';
+import behaviourRoutes from './routes/behaviour';
 import facilityRoutes from './routes/facilities';
 import bookingRoutes from './routes/bookings';
 import adminRoutes from './routes/admin';
@@ -75,6 +81,12 @@ app.get('/health', (_req, res) => {
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
+app.use('/api/students', studentRoutes);
+app.use('/api/leaves', leaveRoutes);
+app.use('/api/meals', mealRoutes);
+app.use('/api/complaints', complaintRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/behaviour', behaviourRoutes);
 app.use('/api/facilities', facilityRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/admin', adminRoutes);

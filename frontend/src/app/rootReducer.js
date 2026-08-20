@@ -8,6 +8,8 @@ import healthReducer from '../redux/health/healthSlice';
 import behaviourReducer from '../redux/behaviour/behaviourSlice';
 import notificationReducer from '../redux/notification/notificationSlice';
 import dashboardReducer from '../redux/dashboard/dashboardSlice';
+import leaveReducer from '../redux/leave/leaveSlice';
+import attendanceReducer from '../redux/attendance/attendanceSlice';
 
 const rootReducer = combineReducers({
   auth: authReducer,
@@ -19,6 +21,8 @@ const rootReducer = combineReducers({
   behaviour: behaviourReducer,
   notification: notificationReducer,
   dashboard: dashboardReducer,
+  leave: leaveReducer,
+  attendance: attendanceReducer,
 });
 
 export default rootReducer;

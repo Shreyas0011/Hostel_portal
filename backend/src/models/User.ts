@@ -5,7 +5,7 @@ export interface IUser extends Document {
   email: string;
   password?: string;
   googleId?: string;
-  role: 'superadmin' | 'admin' | 'faculty' | 'viewer' | 'student' | 'parent';
+  role: 'superadmin' | 'admin' | 'faculty' | 'viewer' | 'student' | 'parent' | 'warden' | 'messmanager';
   department?: string;
   avatar?: string;
   isActive: boolean;
@@ -43,7 +43,7 @@ const UserSchema = new Schema<IUser>(
     googleId:   { type: String, sparse: true, unique: true },
     role: {
       type: String,
-      enum: ['superadmin', 'admin', 'faculty', 'viewer', 'student', 'parent'],
+      enum: ['superadmin', 'admin', 'faculty', 'viewer', 'student', 'parent', 'warden', 'messmanager'],
       default: 'faculty',
     },
     department: { type: String, trim: true },

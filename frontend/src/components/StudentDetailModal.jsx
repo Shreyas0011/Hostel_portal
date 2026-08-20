@@ -10,7 +10,7 @@ import { formatTimeTo12Hr } from '../utils/timeUtils';
 import { isMealBooked } from '../utils/db';
 import CustomConfirmModal from './common/CustomConfirmModal';
 
-const StudentDetailModal = ({ isOpen, studentId, isReadOnly, onClose }) => {
+const StudentDetailModal = ({ isOpen, studentId, isReadOnly, hideBehaviour = false, onClose }) => {
   const dispatch = useDispatch();
   const directory = useSelector((state) => state.student.directory) || [];
   const currentUser = useSelector((state) => state.auth.user);
@@ -197,46 +197,72 @@ const StudentDetailModal = ({ isOpen, studentId, isReadOnly, onClose }) => {
             </div>
           </div>
 
-          {/* Behaviour & Observation Log */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '8px 0' }}>
-              <h4 style={{ fontSize: '13px', margin: 0, textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.5px' }}>Behaviour &amp; Observation Log</h4>
-              {!isReadOnly && (
-                <button 
-                  className="btn-primary" 
-                  style={{ padding: '4px 8px', fontSize: '11px', fontWeight: 600 }}
-                  onClick={handleOpenAdd}
-                >
-                  + Add Entry
-                </button>
-              )}
-            </div>
-            <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {sortedLogs.length === 0 ? (
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '20px', border: '1px dashed var(--border-color)', borderRadius: '6px' }}>No behaviour records found.</p>
+          {/* Leaving Bookings & Outings Log */}
+          <div style={{ maxHeight: '140px', overflowY: 'auto', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>
+            <h4 style={{ fontSize: '13px', margin: '8px 0', textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.5px' }}>Leaving Bookings &amp; Outings Log</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {(!student.leaves || student.leaves.length === 0) ? (
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>No leave or outing requests submitted.</p>
               ) : (
-                sortedLogs.map((log) => (
-                  <div key={log.id} style={{ background: 'var(--bg-input)', borderLeft: `4px solid ${log.severity === 'positive' ? 'var(--success)' : log.severity === 'warning' ? 'var(--warning)' : log.severity === 'critical' ? 'var(--danger)' : 'var(--text-muted)'}`, padding: '10px 14px', borderRadius: '4px', fontSize: '13px', marginBottom: '8px', display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span>
-                        <strong>{formatDisplayDate(log.date)}</strong>
-                        <span className={getSeverityBadgeClass(log.severity)} style={{ fontSize: '9px', padding: '2px 5px', marginLeft: '6px', textTransform: 'uppercase' }}>{getSeverityLabel(log.severity)}</span>
-                      </span>
-                      {!isReadOnly && (
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button className="btn-edit-log" style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '11px', fontWeight: 600, padding: 0 }} onClick={() => handleOpenEdit(log)}>Edit</button>
-                          <button className="btn-delete-log" style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '11px', fontWeight: 600, padding: 0 }} onClick={() => handleDeleteRequest(log.id)}>Delete</button>
-                        </div>
-                      )}
+                [...student.leaves].reverse().map((l, idx) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-input)', padding: '8px 12px', borderRadius: '4px', fontSize: '13px', marginBottom: '6px' }}>
+                    <div>
+                      <strong>{formatDisplayDate(l.startDate)}</strong> to <strong>{formatDisplayDate(l.endDate)}</strong>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', fontStyle: 'italic' }}>"{l.reason}"</span>
                     </div>
-                    <div style={{ fontSize: '11px', fontParagraph: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Category: {log.category}</div>
-                    <p style={{ margin: '2px 0', color: 'var(--text-primary)', lineHeight: 1.35 }}>{log.description}</p>
-                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textAlign: 'right', fontStyle: 'italic' }}>By: {log.recordedBy || 'System'}</div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span className={`badge ${l.status}`} style={{ fontSize: '10px' }}>
+                        {l.status === 'pending' ? 'Pending Parent' : l.status}
+                      </span>
+                    </div>
                   </div>
                 ))
               )}
             </div>
           </div>
+
+          {/* Behaviour & Observation Log */}
+          {!hideBehaviour && currentUser?.role !== 'MessManager' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '8px 0' }}>
+                <h4 style={{ fontSize: '13px', margin: 0, textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.5px' }}>Behaviour &amp; Observation Log</h4>
+                {!isReadOnly && (
+                  <button 
+                    className="btn-primary" 
+                    style={{ padding: '4px 8px', fontSize: '11px', fontWeight: 600 }}
+                    onClick={handleOpenAdd}
+                  >
+                    + Add Entry
+                  </button>
+                )}
+              </div>
+              <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {sortedLogs.length === 0 ? (
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '20px', border: '1px dashed var(--border-color)', borderRadius: '6px' }}>No behaviour records found.</p>
+                ) : (
+                  sortedLogs.map((log) => (
+                    <div key={log.id} style={{ background: 'var(--bg-input)', borderLeft: `4px solid ${log.severity === 'positive' ? 'var(--success)' : log.severity === 'warning' ? 'var(--warning)' : log.severity === 'critical' ? 'var(--danger)' : 'var(--text-muted)'}`, padding: '10px 14px', borderRadius: '4px', fontSize: '13px', marginBottom: '8px', display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>
+                          <strong>{formatDisplayDate(log.date)}</strong>
+                          <span className={getSeverityBadgeClass(log.severity)} style={{ fontSize: '9px', padding: '2px 5px', marginLeft: '6px', textTransform: 'uppercase' }}>{getSeverityLabel(log.severity)}</span>
+                        </span>
+                        {!isReadOnly && (
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button className="btn-edit-log" style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '11px', fontWeight: 600, padding: 0 }} onClick={() => handleOpenEdit(log)}>Edit</button>
+                            <button className="btn-delete-log" style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '11px', fontWeight: 600, padding: 0 }} onClick={() => handleDeleteRequest(log.id)}>Delete</button>
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '11px', fontParagraph: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Category: {log.category}</div>
+                      <p style={{ margin: '2px 0', color: 'var(--text-primary)', lineHeight: 1.35 }}>{log.description}</p>
+                      <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textAlign: 'right', fontStyle: 'italic' }}>By: {log.recordedBy || 'System'}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

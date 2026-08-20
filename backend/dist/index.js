@@ -12,6 +12,12 @@ const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
 const db_1 = require("./lib/db");
 const auth_1 = __importDefault(require("./routes/auth"));
+const students_1 = __importDefault(require("./routes/students"));
+const leaves_1 = __importDefault(require("./routes/leaves"));
+const meals_1 = __importDefault(require("./routes/meals"));
+const complaints_1 = __importDefault(require("./routes/complaints"));
+const attendance_1 = __importDefault(require("./routes/attendance"));
+const behaviour_1 = __importDefault(require("./routes/behaviour"));
 const facilities_1 = __importDefault(require("./routes/facilities"));
 const bookings_1 = __importDefault(require("./routes/bookings"));
 const admin_1 = __importDefault(require("./routes/admin"));
@@ -69,6 +75,12 @@ app.get('/health', (_req, res) => {
 });
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', auth_1.default);
+app.use('/api/students', students_1.default);
+app.use('/api/leaves', leaves_1.default);
+app.use('/api/meals', meals_1.default);
+app.use('/api/complaints', complaints_1.default);
+app.use('/api/attendance', attendance_1.default);
+app.use('/api/behaviour', behaviour_1.default);
 app.use('/api/facilities', facilities_1.default);
 app.use('/api/bookings', bookings_1.default);
 app.use('/api/admin', admin_1.default);

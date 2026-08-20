@@ -9,6 +9,8 @@ import { ICONS } from '../../constants/icons';
 import WardenDiningSection from '../../components/WardenDiningSection';
 import BehaviourLogsSection from '../../components/BehaviourLogsSection';
 import ComplaintsSection from '../../components/ComplaintsSection';
+import AbsenceCalendar from '../../components/AbsenceCalendar';
+import AdminAttendanceSection from '../../components/AdminAttendanceSection';
 import StudentDetailModal from '../../components/StudentDetailModal';
 
 const WardenDashboard = () => {
@@ -40,6 +42,10 @@ const WardenDashboard = () => {
     switch (activeTab) {
       case 'dining':
         return <WardenDiningSection onViewStudentDetails={handleViewStudentDetails} />;
+      case 'leave':
+        return <AbsenceCalendar />;
+      case 'attendance':
+        return <AdminAttendanceSection />;
       case 'behaviour':
         return <BehaviourLogsSection isReadOnly={true} showFullRegistry={true} />;
       case 'complaints':
@@ -52,6 +58,8 @@ const WardenDashboard = () => {
   const getHeaderTitle = () => {
     switch (activeTab) {
       case 'dining': return 'Meal Data';
+      case 'leave': return 'Hostel Leave & Absences Calendar';
+      case 'attendance': return 'Gate Pass Security & Attendance Logs';
       case 'complaints': return 'Student Tickets Desk';
       case 'behaviour': return 'Student Behaviour Log';
       default: return 'Chief Warden Control Console';
@@ -107,6 +115,18 @@ const WardenDashboard = () => {
             onClick={() => { setActiveTab('dining'); setMobileMenuOpen(false); }}
           >
             {ICONS.coffee} Meal Data
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'leave' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('leave'); setMobileMenuOpen(false); }}
+          >
+            {ICONS.calendar} Leave &amp; Absences
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'attendance' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('attendance'); setMobileMenuOpen(false); }}
+          >
+            {ICONS.clock || ICONS.users} Gate Attendance
           </button>
           <button 
             className={`nav-item ${activeTab === 'behaviour' ? 'active' : ''}`}

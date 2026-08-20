@@ -10,7 +10,8 @@ import { ICONS } from '../../constants/icons';
 import MessMenuSection from '../../components/MessMenuSection';
 import WardenDiningSection from '../../components/WardenDiningSection';
 import StudentDirectorySection from '../../components/StudentDirectorySection';
-
+import AbsenceCalendar from '../../components/AbsenceCalendar';
+import AdminAttendanceSection from '../../components/AdminAttendanceSection';
 import AdminHealthSection from '../../components/AdminHealthSection';
 import BehaviourLogsSection from '../../components/BehaviourLogsSection';
 import ComplaintsSection from '../../components/ComplaintsSection';
@@ -57,8 +58,6 @@ const AdminDashboard = () => {
     dispatch(setViewHealthStudentId(studentId));
     setActiveTab('health');
   };
-
-
 
   const handleRegisterSubmit = (e) => {
     e.preventDefault();
@@ -107,7 +106,10 @@ const AdminDashboard = () => {
             onViewStudent={handleViewStudentDetails} 
           />
         );
-
+      case 'leave':
+        return <AbsenceCalendar />;
+      case 'attendance':
+        return <AdminAttendanceSection />;
       case 'health':
         return <AdminHealthSection />;
       case 'behaviour':
@@ -124,7 +126,8 @@ const AdminDashboard = () => {
       case 'menu': return 'Mess Menu Management';
       case 'dining': return 'Meal Data & Acceptance';
       case 'directory': return 'Student Directory';
-
+      case 'leave': return 'Hostel Leave & Absences Calendar';
+      case 'attendance': return 'Gate Security & Attendance Control';
       case 'health': return 'Health & Medical Logs';
       case 'behaviour': return 'Student Behaviour Register';
       case 'complaints': return 'Student Tickets Desk';
@@ -193,7 +196,18 @@ const AdminDashboard = () => {
           >
             {ICONS.users} Student Directory
           </button>
-
+          <button 
+            className={`nav-item ${activeTab === 'leave' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('leave'); setMobileMenuOpen(false); }}
+          >
+            {ICONS.calendar} Leave &amp; Absences
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'attendance' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('attendance'); setMobileMenuOpen(false); }}
+          >
+            {ICONS.clock || ICONS.users} Gate Attendance
+          </button>
           <button 
             className={`nav-item ${activeTab === 'health' ? 'active' : ''}`}
             onClick={() => { setActiveTab('health'); setMobileMenuOpen(false); }}

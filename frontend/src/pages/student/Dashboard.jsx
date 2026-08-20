@@ -9,6 +9,8 @@ import { isStudentOnLeave } from '../../utils/db';
 import { getDateString } from '../../utils/dateUtils';
 import MealsPlanner from '../../components/MealsPlanner';
 
+import LeaveSection from '../../components/LeaveSection';
+import AttendanceSection from '../../components/AttendanceSection';
 import ComplaintsSection from '../../components/ComplaintsSection';
 import HealthStatusSection from '../../components/HealthStatusSection';
 import BehaviourLogsSection from '../../components/BehaviourLogsSection';
@@ -37,8 +39,6 @@ const StudentDashboard = () => {
     });
   };
 
-
-
   const getInitials = (name = '') => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
@@ -47,7 +47,10 @@ const StudentDashboard = () => {
     switch (activeTab) {
       case 'meals':
         return <MealsPlanner student={student} isReadOnly={false} />;
-
+      case 'leave':
+        return <LeaveSection student={student} role="student" />;
+      case 'attendance':
+        return <AttendanceSection student={student} />;
       case 'complaints':
         return <ComplaintsSection student={student} />;
       case 'health':
@@ -110,7 +113,18 @@ const StudentDashboard = () => {
           >
             {ICONS.coffee} Meal Booking
           </button>
-
+          <button 
+            className={`nav-item ${activeTab === 'leave' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('leave'); setMobileMenuOpen(false); }}
+          >
+            {ICONS.calendar} Leaving Booking
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'attendance' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('attendance'); setMobileMenuOpen(false); }}
+          >
+            {ICONS.clock || ICONS.users} Attendance &amp; Logs
+          </button>
           <button 
             className={`nav-item ${activeTab === 'complaints' ? 'active' : ''}`}
             onClick={() => { setActiveTab('complaints'); setMobileMenuOpen(false); }}
@@ -144,6 +158,8 @@ const StudentDashboard = () => {
           <div className="header-title-section">
             <h1>
               {activeTab === 'meals' ? 'Dining & Meal Booking' : 
+               activeTab === 'leave' ? 'Leaving Booking & Outings' :
+               activeTab === 'attendance' ? 'My Attendance & Gate Logs' :
                activeTab === 'health' ? 'My Health Status' : 
                activeTab === 'behaviour' ? 'My Behaviour Log' : 
                'Talk to Us'}

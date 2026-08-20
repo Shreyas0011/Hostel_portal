@@ -19,7 +19,7 @@ const signupSchema = zod_1.z.object({
     department: zod_1.z.string().optional(),
 });
 const loginSchema = zod_1.z.object({
-    email: zod_1.z.string().email('Invalid email address').toLowerCase(),
+    email: zod_1.z.string().min(1, 'Email or Enrollment ID is required').trim(),
     password: zod_1.z.string().min(1, 'Password is required'),
 });
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -66,7 +66,13 @@ const login = async (req, res, next) => {
     try {
         const validated = loginSchema.parse(req.body);
         // Explicitly select password (hidden by default)
-        const user = await User_1.User.findOne({ email: validated.email }).select('+password +firstLogin');
+        const identifier = validated.email.toLowerCase();
+        const user = await User_1.User.findOne({
+            $or: [
+                { email: identifier },
+                { usn: identifier.toUpperCase() }
+            ]
+        }).select('+password +firstLogin');
         if (!user || !user.password)
             throw new errorHandler_1.AppError('Invalid email or password', 401);
         if (!user.isActive)
@@ -87,6 +93,7 @@ const login = async (req, res, next) => {
                 isActive: user.isActive,
                 firstLogin: user.firstLogin,
                 first_login: user.firstLogin,
+                studentId: user.studentId,
             },
             token,
         });
@@ -119,6 +126,7 @@ const getProfile = async (req, res, next) => {
                 firstLogin: user.firstLogin,
                 first_login: user.firstLogin,
                 bookingCount,
+                studentId: user.studentId,
             },
         });
     }
@@ -142,6 +150,7 @@ const updateProfile = async (req, res, next) => {
                 role: user.role,
                 department: user.department,
                 avatar: user.avatar,
+                studentId: user.studentId,
             },
         });
     }
@@ -196,6 +205,7 @@ const googleAuth = async (req, res, next) => {
                 role: user.role,
                 avatar: user.avatar,
                 isActive: user.isActive,
+                studentId: user.studentId,
             },
             token,
         });
