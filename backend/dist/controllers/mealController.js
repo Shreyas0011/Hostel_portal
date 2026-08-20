@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.markMealAttendance = exports.saveMealBooking = void 0;
+exports.resetMessMenu = exports.updateMessMenu = exports.getMessMenu = exports.markMealAttendance = exports.saveMealBooking = void 0;
 const MealBooking_1 = require("../models/MealBooking");
 const MealAttendance_1 = require("../models/MealAttendance");
+const MessMenu_1 = require("../models/MessMenu");
 const errorHandler_1 = require("../middleware/errorHandler");
 const saveMealBooking = async (req, res, next) => {
     try {
@@ -56,7 +57,12 @@ const markMealAttendance = async (req, res, next) => {
         if (!attendance) {
             attendance = new MealAttendance_1.MealAttendance({ studentId, date });
         }
-        attendance[mealKey] = status;
+        if (status === null || status === undefined || status === '') {
+            attendance[mealKey] = null;
+        }
+        else {
+            attendance[mealKey] = status;
+        }
         await attendance.save();
         res.json({ success: true, attendance });
     }
@@ -65,3 +71,71 @@ const markMealAttendance = async (req, res, next) => {
     }
 };
 exports.markMealAttendance = markMealAttendance;
+const getMessMenu = async (_req, res, next) => {
+    try {
+        const menus = await MessMenu_1.MessMenu.find().lean();
+        if (menus.length === 0) {
+            const defaultMenu = {
+                key: 'default',
+                breakfast: 'Masala Dosa, Chutney, Sambhar & Coffee',
+                lunch: 'Jeera Rice, Dal Fry, Roti, Aloo Gobi & Buttermilk',
+                snacks: 'Veg Samosa, Green Chutney & Tea',
+                dinner: 'Veg Biryani, Raita, Paneer Butter Masala & Gulab Jamun',
+            };
+            res.json({ default: defaultMenu });
+            return;
+        }
+        const menuMap = {};
+        menus.forEach((m) => {
+            menuMap[m.key] = {
+                breakfast: m.breakfast,
+                lunch: m.lunch,
+                snacks: m.snacks,
+                dinner: m.dinner,
+            };
+        });
+        res.json(menuMap);
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.getMessMenu = getMessMenu;
+const updateMessMenu = async (req, res, next) => {
+    try {
+        const { key, menu } = req.body;
+        const menuKey = key || 'default';
+        if (!menu)
+            throw new errorHandler_1.AppError('Menu object is required', 400);
+        let record = await MessMenu_1.MessMenu.findOne({ key: menuKey });
+        if (!record) {
+            record = new MessMenu_1.MessMenu({ key: menuKey, ...menu });
+        }
+        else {
+            if (menu.breakfast)
+                record.breakfast = menu.breakfast;
+            if (menu.lunch)
+                record.lunch = menu.lunch;
+            if (menu.snacks)
+                record.snacks = menu.snacks;
+            if (menu.dinner)
+                record.dinner = menu.dinner;
+        }
+        await record.save();
+        res.json({ success: true, key: menuKey, menu: record });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.updateMessMenu = updateMessMenu;
+const resetMessMenu = async (_req, res, next) => {
+    try {
+        await MessMenu_1.MessMenu.deleteMany({});
+        res.json({ success: true, message: 'Mess menu reset to default' });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.resetMessMenu = resetMessMenu;

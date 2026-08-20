@@ -33,15 +33,14 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MealAttendance = void 0;
+exports.MessMenu = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
-const MealAttendanceSchema = new mongoose_1.Schema({
-    studentId: { type: String, required: true, index: true },
-    date: { type: String, required: true, index: true },
-    breakfast: { type: String, default: null },
-    lunch: { type: String, default: null },
-    snacks: { type: String, default: null },
-    dinner: { type: String, default: null },
+const MessMenuSchema = new mongoose_1.Schema({
+    key: { type: String, required: true, unique: true, default: 'default' },
+    breakfast: { type: String, required: true },
+    lunch: { type: String, required: true },
+    snacks: { type: String, required: true },
+    dinner: { type: String, required: true },
 }, {
     timestamps: true,
     toJSON: {
@@ -55,5 +54,4 @@ const MealAttendanceSchema = new mongoose_1.Schema({
     },
     toObject: { virtuals: true },
 });
-MealAttendanceSchema.index({ studentId: 1, date: 1 }, { unique: true });
-exports.MealAttendance = mongoose_1.default.model('MealAttendance', MealAttendanceSchema, 'mealattendances');
+exports.MessMenu = mongoose_1.default.model('MessMenu', MessMenuSchema, 'messmenus');

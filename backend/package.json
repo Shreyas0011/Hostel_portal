@@ -8,7 +8,8 @@
     "build": "tsc",
     "compile": "tsc --noEmit",
     "start": "node dist/index.js",
-    "import-students": "ts-node src/scripts/importStudents.ts"
+    "seed-hostel:dry-run": "ts-node src/scripts/seedHostelDB.ts",
+    "seed-hostel": "ts-node src/scripts/seedHostelDB.ts --execute"
   },
   "keywords": [],
   "author": "",

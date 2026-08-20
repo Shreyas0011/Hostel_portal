@@ -3,7 +3,6 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { User } from '../models/User';
-import { Booking } from '../models/Booking';
 import { AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 
@@ -91,6 +90,17 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     const isValid = await bcrypt.compare(validated.password, user.password);
     if (!isValid) throw new AppError('Invalid email or password', 401);
 
+    const formatRole = (r: string) => {
+      const lower = r.toLowerCase();
+      if (lower === 'student') return 'Student';
+      if (lower === 'parent') return 'Parent';
+      if (lower === 'warden') return 'Warden';
+      if (lower === 'messmanager') return 'MessManager';
+      if (lower === 'admin') return 'Admin';
+      if (lower === 'superadmin') return 'SuperAdmin';
+      return r;
+    };
+
     const token = generateToken({ id: user._id.toString(), email: user.email, role: user.role, name: user.name });
 
     res.json({
@@ -99,15 +109,19 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
         id:         user._id.toString(),
         name:       user.name,
         email:      user.email,
-        role:       user.role,
+        role:       formatRole(user.role),
         department: user.department,
         avatar:     user.avatar,
         isActive:   user.isActive,
         firstLogin: user.firstLogin,
         first_login: user.firstLogin,
         studentId:  user.studentId,
+        usn:        user.usn,
+        room:       user.room,
+        block:      user.block,
       },
       token,
+      accessToken: token,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -123,9 +137,6 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
     const user = await User.findById(req.user!.id);
     if (!user) throw new AppError('User not found', 404);
 
-    // Count bookings separately
-    const bookingCount = await Booking.countDocuments({ userId: req.user!.id });
-
     res.json({
       user: {
         id:           user._id.toString(),
@@ -137,7 +148,7 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
         createdAt:    user.createdAt,
         firstLogin:   user.firstLogin,
         first_login:  user.firstLogin,
-        bookingCount,
+        bookingCount: 0,
         studentId:    user.studentId,
       },
     });

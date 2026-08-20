@@ -8,7 +8,6 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const zod_1 = require("zod");
 const User_1 = require("../models/User");
-const Booking_1 = require("../models/Booking");
 const errorHandler_1 = require("../middleware/errorHandler");
 // ─── Validation schemas ────────────────────────────────────────────────────────
 const signupSchema = zod_1.z.object({
@@ -80,6 +79,22 @@ const login = async (req, res, next) => {
         const isValid = await bcryptjs_1.default.compare(validated.password, user.password);
         if (!isValid)
             throw new errorHandler_1.AppError('Invalid email or password', 401);
+        const formatRole = (r) => {
+            const lower = r.toLowerCase();
+            if (lower === 'student')
+                return 'Student';
+            if (lower === 'parent')
+                return 'Parent';
+            if (lower === 'warden')
+                return 'Warden';
+            if (lower === 'messmanager')
+                return 'MessManager';
+            if (lower === 'admin')
+                return 'Admin';
+            if (lower === 'superadmin')
+                return 'SuperAdmin';
+            return r;
+        };
         const token = generateToken({ id: user._id.toString(), email: user.email, role: user.role, name: user.name });
         res.json({
             message: 'Login successful',
@@ -87,15 +102,19 @@ const login = async (req, res, next) => {
                 id: user._id.toString(),
                 name: user.name,
                 email: user.email,
-                role: user.role,
+                role: formatRole(user.role),
                 department: user.department,
                 avatar: user.avatar,
                 isActive: user.isActive,
                 firstLogin: user.firstLogin,
                 first_login: user.firstLogin,
                 studentId: user.studentId,
+                usn: user.usn,
+                room: user.room,
+                block: user.block,
             },
             token,
+            accessToken: token,
         });
     }
     catch (error) {
@@ -112,8 +131,6 @@ const getProfile = async (req, res, next) => {
         const user = await User_1.User.findById(req.user.id);
         if (!user)
             throw new errorHandler_1.AppError('User not found', 404);
-        // Count bookings separately
-        const bookingCount = await Booking_1.Booking.countDocuments({ userId: req.user.id });
         res.json({
             user: {
                 id: user._id.toString(),
@@ -125,7 +142,7 @@ const getProfile = async (req, res, next) => {
                 createdAt: user.createdAt,
                 firstLogin: user.firstLogin,
                 first_login: user.firstLogin,
-                bookingCount,
+                bookingCount: 0,
                 studentId: user.studentId,
             },
         });

@@ -33,21 +33,23 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MealAttendance = void 0;
+exports.HealthRecord = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
-const MealAttendanceSchema = new mongoose_1.Schema({
+const HealthRecordSchema = new mongoose_1.Schema({
+    recordId: { type: String, required: true, unique: true, index: true },
     studentId: { type: String, required: true, index: true },
-    date: { type: String, required: true, index: true },
-    breakfast: { type: String, default: null },
-    lunch: { type: String, default: null },
-    snacks: { type: String, default: null },
-    dinner: { type: String, default: null },
+    date: { type: String, required: true },
+    time: { type: String, required: true },
+    symptoms: { type: String, required: true, trim: true },
+    temperature: { type: String, trim: true },
+    status: { type: String, default: 'Under Observation' },
+    note: { type: String, trim: true },
 }, {
     timestamps: true,
     toJSON: {
         virtuals: true,
         transform: (_doc, ret) => {
-            ret.id = ret._id.toString();
+            ret.id = ret.recordId || ret._id.toString();
             delete ret._id;
             delete ret.__v;
             return ret;
@@ -55,5 +57,5 @@ const MealAttendanceSchema = new mongoose_1.Schema({
     },
     toObject: { virtuals: true },
 });
-MealAttendanceSchema.index({ studentId: 1, date: 1 }, { unique: true });
-exports.MealAttendance = mongoose_1.default.model('MealAttendance', MealAttendanceSchema, 'mealattendances');
+HealthRecordSchema.index({ studentId: 1, createdAt: -1 });
+exports.HealthRecord = mongoose_1.default.model('HealthRecord', HealthRecordSchema, 'healthrecords');

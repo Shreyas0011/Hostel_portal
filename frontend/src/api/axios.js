@@ -10,14 +10,17 @@ const axiosInstance = axios.create({
   },
 });
 
-// Setup mock adapter to process requests locally via localStorage database
-axiosInstance.defaults.adapter = async function (config) {
+const useMock = import.meta.env.VITE_USE_MOCK === 'true' || (!import.meta.env.VITE_API_URL && import.meta.env.VITE_USE_MOCK !== 'false');
+
+// Setup mock adapter to process requests locally via localStorage database only when mock is explicitly enabled/defaulted
+if (useMock) {
+  axiosInstance.defaults.adapter = async function (config) {
   // Simulate network delay
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   const url = config.url || '';
   const method = config.method ? config.method.toLowerCase() : 'get';
-  const data = config.data ? JSON.parse(config.data) : null;
+  const data = config.data && typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
   const params = config.params || {};
 
   let students = db.initDB();
@@ -544,6 +547,7 @@ axiosInstance.defaults.adapter = async function (config) {
     });
   }
 };
+}
 
 // Request interceptor for Bearer token
 axiosInstance.interceptors.request.use(

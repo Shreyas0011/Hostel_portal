@@ -28,10 +28,10 @@ const HostelLeaveSchema = new Schema<IHostelLeave>(
     endDate: { type: String, required: true },
     startTime: { type: String },
     endTime: { type: String },
-    type: { type: String, enum: ['leave', 'outing'], required: true },
+    type: { type: String, required: true },
     reason: { type: String, required: true, trim: true },
-    submittedBy: { type: String, enum: ['student', 'parent'], required: true },
-    status: { type: String, enum: ['pending', 'approved', 'rejected', 'cancelled'], default: 'pending', index: true },
+    submittedBy: { type: String, required: true },
+    status: { type: String, default: 'pending', index: true },
     isOvernight: { type: Boolean, default: false },
   },
   {

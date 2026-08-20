@@ -16,7 +16,7 @@ const GateLogSchema = new Schema<IGateLog>(
   {
     logId: { type: String, required: true, unique: true, index: true },
     studentId: { type: String, required: true, index: true },
-    type: { type: String, enum: ['entry', 'exit'], required: true },
+    type: { type: String, required: true },
     timestamp: { type: Date, default: Date.now, index: true },
     note: { type: String, trim: true },
   },

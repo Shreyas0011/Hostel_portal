@@ -15,10 +15,9 @@ import mealRoutes from './routes/meals';
 import complaintRoutes from './routes/complaints';
 import attendanceRoutes from './routes/attendance';
 import behaviourRoutes from './routes/behaviour';
-import facilityRoutes from './routes/facilities';
-import bookingRoutes from './routes/bookings';
-import adminRoutes from './routes/admin';
+import healthRoutes from './routes/health';
 import notificationRoutes from './routes/notifications';
+import { markMealAttendance } from './controllers/mealController';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -84,12 +83,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/meals', mealRoutes);
+app.post('/api/warden/meal-attendance', markMealAttendance);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/behaviour', behaviourRoutes);
-app.use('/api/facilities', facilityRoutes);
-app.use('/api/bookings', bookingRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api/health', healthRoutes);
 app.use('/api/notifications', notificationRoutes);
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────

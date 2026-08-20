@@ -7,8 +7,9 @@ export const loginThunk = createAsyncThunk(
   async ({ email, password }, { rejectWithValue }) => {
     try {
       const data = await authApi.login(email, password);
-      localStorage.setItem('hostel_portal_token', data.accessToken);
-      return data;
+      const token = data.accessToken || data.token;
+      localStorage.setItem('hostel_portal_token', token);
+      return { ...data, accessToken: token };
     } catch (err) {
       const errMsg = err.response?.data?.message || err.message || 'Login failed';
       return rejectWithValue(errMsg);

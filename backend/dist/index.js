@@ -18,10 +18,9 @@ const meals_1 = __importDefault(require("./routes/meals"));
 const complaints_1 = __importDefault(require("./routes/complaints"));
 const attendance_1 = __importDefault(require("./routes/attendance"));
 const behaviour_1 = __importDefault(require("./routes/behaviour"));
-const facilities_1 = __importDefault(require("./routes/facilities"));
-const bookings_1 = __importDefault(require("./routes/bookings"));
-const admin_1 = __importDefault(require("./routes/admin"));
+const health_1 = __importDefault(require("./routes/health"));
 const notifications_1 = __importDefault(require("./routes/notifications"));
+const mealController_1 = require("./controllers/mealController");
 const errorHandler_1 = require("./middleware/errorHandler");
 const app = (0, express_1.default)();
 app.set('trust proxy', 1);
@@ -78,12 +77,11 @@ app.use('/api/auth', auth_1.default);
 app.use('/api/students', students_1.default);
 app.use('/api/leaves', leaves_1.default);
 app.use('/api/meals', meals_1.default);
+app.post('/api/warden/meal-attendance', mealController_1.markMealAttendance);
 app.use('/api/complaints', complaints_1.default);
 app.use('/api/attendance', attendance_1.default);
 app.use('/api/behaviour', behaviour_1.default);
-app.use('/api/facilities', facilities_1.default);
-app.use('/api/bookings', bookings_1.default);
-app.use('/api/admin', admin_1.default);
+app.use('/api/health', health_1.default);
 app.use('/api/notifications', notifications_1.default);
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {

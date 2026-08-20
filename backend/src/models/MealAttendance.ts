@@ -17,10 +17,10 @@ const MealAttendanceSchema = new Schema<IMealAttendance>(
   {
     studentId: { type: String, required: true, index: true },
     date: { type: String, required: true, index: true },
-    breakfast: { type: String, enum: ['yes', 'no', null], default: null },
-    lunch: { type: String, enum: ['yes', 'no', null], default: null },
-    snacks: { type: String, enum: ['yes', 'no', null], default: null },
-    dinner: { type: String, enum: ['yes', 'no', null], default: null },
+    breakfast: { type: String, default: null },
+    lunch: { type: String, default: null },
+    snacks: { type: String, default: null },
+    dinner: { type: String, default: null },
   },
   {
     timestamps: true,
