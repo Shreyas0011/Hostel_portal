@@ -1,4 +1,14 @@
 import mongoose from 'mongoose';
+import dns from 'dns';
+
+// Force IPv4 DNS resolution first for Node 17+ on Render/Linux
+if (dns.setDefaultResultOrder) {
+  try {
+    dns.setDefaultResultOrder('ipv4first');
+  } catch (e) {
+    // Ignore if not supported
+  }
+}
 
 export const connectDB = async (): Promise<void> => {
   const mongoURI = process.env.MONGODB_URI;
@@ -8,16 +18,30 @@ export const connectDB = async (): Promise<void> => {
     throw new Error('MONGODB_URI environment variable is required to start the Hostel Portal backend.');
   }
 
-  try {
-    const conn = await mongoose.connect(mongoURI, {
-      dbName: process.env.DB_NAME || 'hostel_portal',
-      serverSelectionTimeoutMS: 10000,
-    });
-    console.log(`✅ MongoDB connected: ${conn.connection.host}`);
-  } catch (error: any) {
-    console.error('❌ MongoDB connection failed:', error.message);
-    throw new Error(`MongoDB connection failed: ${error.message}`);
+  const targetDbName = process.env.DB_NAME || 'hostel_portal';
+  console.log(`Connecting to MongoDB Atlas (DB: ${targetDbName})...`);
+
+  let lastError: any = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const conn = await mongoose.connect(mongoURI, {
+        dbName: targetDbName,
+        serverSelectionTimeoutMS: 30000,
+        family: 4, // Force IPv4 socket connection
+      });
+      console.log(`✅ MongoDB connected successfully: ${conn.connection.host}`);
+      return;
+    } catch (error: any) {
+      lastError = error;
+      console.warn(`⚠️ Connection attempt ${attempt}/3 failed: ${error.message}`);
+      if (attempt < 3) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+    }
   }
+
+  console.error('❌ MongoDB connection failed after 3 attempts:', lastError?.message);
+  throw new Error(`MongoDB connection failed: ${lastError?.message}`);
 };
 
 process.on('SIGINT', async () => {
