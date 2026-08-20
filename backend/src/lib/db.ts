@@ -1,12 +1,11 @@
 import mongoose from 'mongoose';
 import dns from 'dns';
 
-// Force IPv4 DNS resolution first for Node 17+ on Render/Linux
 if (dns.setDefaultResultOrder) {
   try {
     dns.setDefaultResultOrder('ipv4first');
   } catch (e) {
-    // Ignore if not supported
+    // Ignore
   }
 }
 
@@ -27,7 +26,7 @@ export const connectDB = async (): Promise<void> => {
       const conn = await mongoose.connect(mongoURI, {
         dbName: targetDbName,
         serverSelectionTimeoutMS: 30000,
-        family: 4, // Force IPv4 socket connection
+        connectTimeoutMS: 30000,
       });
       console.log(`✅ MongoDB connected successfully: ${conn.connection.host}`);
       return;
