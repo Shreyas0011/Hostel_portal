@@ -2,9 +2,14 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import path from 'path';
+import dns from 'dns';
 
-// Adjust path as needed based on execution location
-// Load the .env from the backend root
+if (dns.setDefaultResultOrder) {
+  try {
+    dns.setDefaultResultOrder('ipv4first');
+  } catch (e) {}
+}
+
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import { User } from '../models/User';

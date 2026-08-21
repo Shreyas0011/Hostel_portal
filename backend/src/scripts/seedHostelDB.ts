@@ -3,6 +3,14 @@ import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import dns from 'dns';
+
+if (dns.setDefaultResultOrder) {
+  try {
+    dns.setDefaultResultOrder('ipv4first');
+  } catch (e) {}
+}
+
 import { User } from '../models/User';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });

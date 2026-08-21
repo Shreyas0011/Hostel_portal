@@ -30,6 +30,7 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:3000',
   'https://hostel-portal-kappa.vercel.app',
+  'https://transcend-360.vercel.app',
   'https://www.tgi360.org',
   'https://tgi360.org',
   // Pull any extra origin set in Render environment variables
