@@ -13,6 +13,6 @@ services:
   - type: web
     name: hostel-portal-backend
     env: node
-    buildCommand: npm install
-    startCommand: node index.js
+    buildCommand: npm install && npm run build
+    startCommand: npm start
     rootDir: backend
