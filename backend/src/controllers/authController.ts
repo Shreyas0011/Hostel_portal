@@ -97,6 +97,8 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
       $or: [
         { email: identifierLower },
         { email: new RegExp(`^${identifierLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+        { contactEmail: identifierLower },
+        { contactEmail: new RegExp(`^${identifierLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
         { usn: identifierUpper },
         { studentId: identifierUpper }
       ]
