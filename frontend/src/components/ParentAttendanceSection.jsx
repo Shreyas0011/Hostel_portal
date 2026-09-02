@@ -28,7 +28,6 @@ const ParentAttendanceSection = ({ student }) => {
       <div className="dashboard-panel">
         <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 className="panel-title">{ICONS.clock || ICONS.users} {student?.name}'s Attendance &amp; Gate Logs</h2>
-          <span className="badge badge-info">Live Gate Updates</span>
         </div>
 
         <div className="table-responsive" style={{ marginTop: '15px' }}>
@@ -38,7 +37,7 @@ const ParentAttendanceSection = ({ student }) => {
                 <th>Event Type</th>
                 <th>Timestamp</th>
                 <th>Remarks / Purpose</th>
-                <th>Gate Security Verification</th>
+                <th>Gate Log Status</th>
               </tr>
             </thead>
             <tbody>
@@ -65,7 +64,9 @@ const ParentAttendanceSection = ({ student }) => {
                     <td style={{ fontWeight: 600 }}>{formatTimestamp(log.timestamp)}</td>
                     <td style={{ color: '#4b5563' }}>{log.note || (log.type === 'entry' ? 'Hostel Entry' : 'Hostel Exit')}</td>
                     <td>
-                      <span className="badge badge-info" style={{ fontSize: '10px' }}>Verified</span>
+                      <span className="badge badge-info" style={{ fontSize: '10px' }}>
+                        {log.type === 'entry' ? 'Returned' : 'Exited'}
+                      </span>
                     </td>
                   </tr>
                 ))

@@ -31,7 +31,14 @@ const ParentDashboard = () => {
     }
   }, [dispatch, user]);
 
-  const student = directory.find((s) => s.id === user?.studentId) || user;
+  // user.studentId is the USN of the ward. Directory entries use usn as their id.
+  // Match on usn / studentId, not the MongoDB _id.
+  const student = directory.find((s) =>
+    s.usn === user?.studentId ||
+    s.id  === user?.studentId ||
+    s.usn === user?.usn ||
+    s.id  === user?.id
+  ) || user;
 
   const handleLogout = () => {
     dispatch(logoutThunk()).then(() => {

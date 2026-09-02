@@ -34,3 +34,6 @@ frontend/dist
 
 # Temp / scripts
 restructure.ps1
+
+# CSV seed data — contains PII (student/parent names, phones, emails, addresses)
+*.csv

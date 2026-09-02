@@ -8,7 +8,8 @@ export const fetchProfileThunk = createAsyncThunk(
   async (studentId, { rejectWithValue }) => {
     try {
       const data = await studentApi.getProfile(studentId);
-      return data;
+      // API returns { success, student } — unwrap to the student object
+      return data.student || data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
@@ -20,7 +21,8 @@ export const fetchDirectoryThunk = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const data = await studentApi.getDirectory();
-      return data;
+      // API returns { success, students: [...] } — unwrap to the array
+      return Array.isArray(data) ? data : (data.students || []);
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }

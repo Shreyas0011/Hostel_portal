@@ -6,7 +6,6 @@ import { fetchDirectoryThunk } from '../redux/student/studentSlice';
 import { addToast } from '../redux/notification/notificationSlice';
 import { ICONS } from '../constants/icons';
 import { formatDisplayDate, getDateString } from '../utils/dateUtils';
-import { formatTimeTo12Hr } from '../utils/timeUtils';
 import { isMealBooked } from '../utils/db';
 import CustomConfirmModal from './common/CustomConfirmModal';
 
@@ -254,7 +253,7 @@ const StudentDetailModal = ({ isOpen, studentId, isReadOnly, hideBehaviour = fal
                           </div>
                         )}
                       </div>
-                      <div style={{ fontSize: '11px', fontParagraph: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Category: {log.category}</div>
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Category: {log.category}</div>
                       <p style={{ margin: '2px 0', color: 'var(--text-primary)', lineHeight: 1.35 }}>{log.description}</p>
                       <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textAlign: 'right', fontStyle: 'italic' }}>By: {log.recordedBy || 'System'}</div>
                     </div>

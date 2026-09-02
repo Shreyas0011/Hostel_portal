@@ -5,13 +5,15 @@ import { useSelector } from 'react-redux';
 import { ROUTES } from './routeConstants';
 
 export const getDashboardRedirect = (role) => {
-  switch (role) {
-    case 'Student': return ROUTES.STUDENT;
-    case 'Parent': return ROUTES.PARENT;
-    case 'Warden': return ROUTES.WARDEN;
-    case 'Admin': return ROUTES.ADMIN;
-    case 'SuperAdmin': return ROUTES.SUPERADMIN;
-    case 'MessManager': return ROUTES.MESS_MANAGER;
+  if (!role) return ROUTES.LOGIN;
+  const r = role.toLowerCase();
+  switch (r) {
+    case 'student': return ROUTES.STUDENT;
+    case 'parent': return ROUTES.PARENT;
+    case 'warden': return ROUTES.WARDEN;
+    case 'admin': return ROUTES.ADMIN;
+    case 'superadmin': return ROUTES.SUPERADMIN;
+    case 'messmanager': return ROUTES.MESS_MANAGER;
     default: return ROUTES.LOGIN;
   }
 };
@@ -23,7 +25,10 @@ const RoleRoute = ({ children, allowedRoles }) => {
     return <Navigate to={ROUTES.LOGIN} replace />;
   }
 
-  if (!allowedRoles.includes(user.role)) {
+  const userRole = (user.role || '').toLowerCase();
+  const isAllowed = allowedRoles.some((r) => r.toLowerCase() === userRole);
+
+  if (!isAllowed) {
     return <Navigate to={getDashboardRedirect(user.role)} replace />;
   }
 

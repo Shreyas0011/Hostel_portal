@@ -41,7 +41,7 @@ export const deleteHealthRecordThunk = createAsyncThunk(
 );
 
 const initialState = {
-  viewHealthStudentId: 'STU001', // Default student to show in logs
+  viewHealthStudentId: null, // resolved dynamically from directory[0] in AdminHealthSection
   loading: false,
   error: null,
 };

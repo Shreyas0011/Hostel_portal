@@ -53,7 +53,7 @@ const AttendanceSection = ({ student }) => {
                 <th>Type</th>
                 <th>Timestamp</th>
                 <th>Details / Gate Note</th>
-                <th>Status</th>
+                <th>Log Status</th>
               </tr>
             </thead>
             <tbody>
@@ -70,7 +70,9 @@ const AttendanceSection = ({ student }) => {
                     <td style={{ fontWeight: 600 }}>{formatTimestamp(log.timestamp)}</td>
                     <td style={{ color: '#4b5563' }}>{log.note || (log.type === 'entry' ? 'Hostel Entry' : 'Hostel Exit')}</td>
                     <td>
-                      <span className="badge badge-info" style={{ fontSize: '10px' }}>Recorded</span>
+                      <span className="badge badge-info" style={{ fontSize: '10px' }}>
+                        {log.type === 'entry' ? 'Checked In' : 'Checked Out'}
+                      </span>
                     </td>
                   </tr>
                 ))

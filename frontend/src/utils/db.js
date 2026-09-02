@@ -339,12 +339,12 @@ export function initDB() {
     { id:'OB-STU003-1', date:getDateString(-4), category:'Social',     severity:'positive', description:'Volunteered to clean the hostel common room and organize the library.',   recordedBy:'Campus Admin' }
   ];
 
-  // Health records
+  // Health records — dates computed relative to today so they stay accurate
   students[0].healthRecords = [
-    { id:'HR-STU001-1', date:'Mon, Jun 10', time:'09:30 AM', symptoms:'Mild fever, headache', temperature:'99.2°F', status:'Recovered', note:'Given paracetamol. Advised rest for 1 day.' }
+    { id: 'HR-STU001-1', date: new Date(getDateString(-14)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }), time: '09:30 AM', symptoms: 'Mild fever, headache',  temperature: '99.2°F', status: 'Recovered',        note: 'Given paracetamol. Advised rest for 1 day.' }
   ];
   students[1].healthRecords = [
-    { id:'HR-STU002-1', date:'Wed, Jun 18', time:'11:00 AM', symptoms:'Cold, sore throat',   temperature:'98.6°F', status:'Recovered', note:'Prescribed antihistamine. Fully recovered.' }
+    { id: 'HR-STU002-1', date: new Date(getDateString(-7)).toLocaleDateString('en-US',  { weekday: 'short', month: 'short', day: 'numeric' }), time: '11:00 AM', symptoms: 'Cold, sore throat',    temperature: '98.6°F', status: 'Recovered',        note: 'Prescribed antihistamine. Fully recovered.' }
   ];
 
   // Leaves
@@ -412,7 +412,7 @@ export function getWardenDashboardStats(students) {
   const todayMeals = getAnalyticsForDate(students, todayStr);
   const tomorrowMeals = getAnalyticsForDate(students, tomorrowStr);
 
-  const avoidedMeals = parseInt(localStorage.getItem('hostel_avoided_meals') || '142', 10);
+  const avoidedMeals = parseInt(localStorage.getItem('hostel_avoided_meals') || '0', 10);
 
   return {
     totalStudents: total,

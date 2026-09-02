@@ -216,13 +216,13 @@ const SuperAdminDashboard = () => {
   };
 
   const adminUsers = [
-    { name: "Siddharth K T", role: "Superadmin", pin: "Hidden", id: "SAD-02" },
-    { name: "Shwetha S", role: "Superadmin", pin: "Hidden", id: "SAD-03" },
-    { name: "Vijayamma", role: "Warden (Girls)", pin: "1111", id: "WDN-02" },
-    { name: "Siddu", role: "Warden (Boys)", pin: "2222", id: "WDN-03" },
-    { name: "Mess Manager", role: "Mess Manager", pin: "3333", id: "MM-01" },
-    { name: "Campus Admin Console", role: "Admin", pin: "admin123", id: "ADM-01" },
-    { name: "Super Admin Control", role: "Superadmin", pin: "super123", id: "SAD-01" }
+    { name: "Siddharth K T", role: "Superadmin", id: "SAD-02" },
+    { name: "Shwetha S", role: "Superadmin", id: "SAD-03" },
+    { name: "Vijayamma", role: "Warden (Girls)", id: "WDN-02" },
+    { name: "Siddu", role: "Warden (Boys)", id: "WDN-03" },
+    { name: "Mess Manager", role: "Mess Manager", id: "MM-01" },
+    { name: "Campus Admin Console", role: "Admin", id: "ADM-01" },
+    { name: "Super Admin Control", role: "Superadmin", id: "SAD-01" }
   ];
 
   const renderActiveSection = () => {
@@ -641,8 +641,33 @@ const SuperAdminDashboard = () => {
 
             {/* ── 4. Administrator & Staff Directory Panel ─────────────────────────── */}
             <div className="dashboard-panel dashboard-full">
-              <div className="panel-header">
+              <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                 <h2 className="panel-title">{ICONS.users} Administrator &amp; Staff Directory</h2>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <button
+                    className="btn-primary"
+                    style={{ fontSize: '12px', padding: '6px 14px', background: '#0ea5e9', borderColor: '#0284c7', opacity: isReseedMeals ? 0.6 : 1, cursor: isReseedMeals ? 'not-allowed' : 'pointer' }}
+                    disabled={isReseedMeals}
+                    onClick={() => {
+                      setIsReseedMeals(true);
+                      dispatch(reseedMealsThunk()).finally(() => setIsReseedMeals(false));
+                    }}
+                  >
+                    {isReseedMeals ? 'Reseeding…' : '🍽️ Reseed Meals'}
+                  </button>
+                  <button
+                    className="btn-primary"
+                    style={{ fontSize: '12px', padding: '6px 14px', background: '#ef4444', borderColor: '#dc2626', opacity: isResetting ? 0.6 : 1, cursor: isResetting ? 'not-allowed' : 'pointer' }}
+                    disabled={isResetting}
+                    onClick={() => {
+                      if (!window.confirm('Reset the entire database? This will wipe all student data and reload defaults. This cannot be undone.')) return;
+                      setIsResetting(true);
+                      dispatch(resetDatabaseThunk()).finally(() => setIsResetting(false));
+                    }}
+                  >
+                    {isResetting ? 'Resetting…' : '⚠️ Reset Database'}
+                  </button>
+                </div>
               </div>
               
               <div className="directory-table-wrapper" style={{ marginTop: '15px' }}>
@@ -652,7 +677,6 @@ const SuperAdminDashboard = () => {
                       <th>Account ID</th>
                       <th>Name</th>
                       <th>Role / Level</th>
-                      <th>Secret Login PIN</th>
                       <th style={{ textAlign: 'right' }}>Status</th>
                     </tr>
                   </thead>
@@ -665,11 +689,6 @@ const SuperAdminDashboard = () => {
                           <span className="student-block-badge" style={{ background: '#f3f4f6', color: 'var(--text-primary)', fontWeight: 700 }}>
                             {user.role}
                           </span>
-                        </td>
-                        <td>
-                          <code style={{ background: '#f3f4f6', padding: '4px 8px', borderRadius: '4px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '1px' }}>
-                            {user.pin}
-                          </code>
                         </td>
                         <td style={{ textAlign: 'right' }}>
                           <span className="badge approved" style={{ fontSize: '11px', padding: '4px 8px' }}>Active</span>

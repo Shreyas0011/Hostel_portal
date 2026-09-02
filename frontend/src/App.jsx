@@ -21,14 +21,13 @@ function App() {
   const toasts = useSelector((state) => state.notification.toasts);
   const { isAuthenticated, user } = useSelector((state) => state.auth);
 
-  // Auto-dismiss toasts after 4 seconds
+  // Auto-dismiss toasts after 4 seconds.
+  // Collect all timers so they can all be cleared if toasts changes before 4 s.
   useEffect(() => {
-    toasts.forEach((toast) => {
-      const timer = setTimeout(() => {
-        dispatch(removeToast(toast.id));
-      }, 4000);
-      return () => clearTimeout(timer);
-    });
+    const timers = toasts.map((toast) =>
+      setTimeout(() => dispatch(removeToast(toast.id)), 4000)
+    );
+    return () => timers.forEach(clearTimeout);
   }, [toasts, dispatch]);
 
   return (

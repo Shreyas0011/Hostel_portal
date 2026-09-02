@@ -23,6 +23,18 @@ const loginSchema = z.object({
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
+export const formatRole = (r: string) => {
+  if (!r) return r;
+  const lower = r.toLowerCase();
+  if (lower === 'student') return 'Student';
+  if (lower === 'parent') return 'Parent';
+  if (lower === 'warden') return 'Warden';
+  if (lower === 'messmanager') return 'MessManager';
+  if (lower === 'admin') return 'Admin';
+  if (lower === 'superadmin') return 'SuperAdmin';
+  return r;
+};
+
 const generateToken = (user: { id: string; email: string; role: string; name: string }) =>
   jwt.sign(
     { id: user.id, email: user.email, role: user.role, name: user.name },
@@ -90,17 +102,6 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     const isValid = await bcrypt.compare(validated.password, user.password);
     if (!isValid) throw new AppError('Invalid email or password', 401);
 
-    const formatRole = (r: string) => {
-      const lower = r.toLowerCase();
-      if (lower === 'student') return 'Student';
-      if (lower === 'parent') return 'Parent';
-      if (lower === 'warden') return 'Warden';
-      if (lower === 'messmanager') return 'MessManager';
-      if (lower === 'admin') return 'Admin';
-      if (lower === 'superadmin') return 'SuperAdmin';
-      return r;
-    };
-
     const token = generateToken({ id: user._id.toString(), email: user.email, role: user.role, name: user.name });
 
     res.json({
@@ -142,7 +143,7 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
         id:           user._id.toString(),
         name:         user.name,
         email:        user.email,
-        role:         user.role,
+        role:         formatRole(user.role),
         department:   user.department,
         avatar:       user.avatar,
         createdAt:    user.createdAt,
@@ -150,6 +151,9 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
         first_login:  user.firstLogin,
         bookingCount: 0,
         studentId:    user.studentId,
+        usn:          user.usn,
+        room:         user.room,
+        block:        user.block,
       },
     });
   } catch (error) {
@@ -175,7 +179,7 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
         id:         user._id.toString(),
         name:       user.name,
         email:      user.email,
-        role:       user.role,
+        role:       formatRole(user.role),
         department: user.department,
         avatar:     user.avatar,
         studentId:  user.studentId,
@@ -231,7 +235,7 @@ export const googleAuth = async (req: Request, res: Response, next: NextFunction
         id:       user._id.toString(),
         name:     user.name,
         email:    user.email,
-        role:     user.role,
+        role:     formatRole(user.role),
         avatar:   user.avatar,
         isActive: user.isActive,
         studentId: user.studentId,

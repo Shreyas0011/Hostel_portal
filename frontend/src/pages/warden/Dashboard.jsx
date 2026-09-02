@@ -165,7 +165,7 @@ const WardenDashboard = () => {
       <StudentDetailModal 
         isOpen={detailModalOpen}
         studentId={selectedStudentId}
-        isReadOnly={false}
+        isReadOnly={true}
         onClose={() => {
           setDetailModalOpen(false);
           setSelectedStudentId(null);

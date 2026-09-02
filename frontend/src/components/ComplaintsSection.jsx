@@ -330,7 +330,7 @@ const ComplaintsSection = ({ student, role }) => {
                     <strong>Response:</strong> "{c.response}"
                   </div>
                 )}
-                {c.status.toLowerCase() === 'pending' && role && role !== 'warden' && (
+                {c.status.toLowerCase() === 'pending' && role && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', borderTop: '1px dashed var(--border-color)', paddingTop: '10px' }}>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Respond &amp; Resolve Ticket</label>

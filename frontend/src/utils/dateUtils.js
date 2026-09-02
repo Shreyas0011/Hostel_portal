@@ -53,13 +53,22 @@ export function formatMealBookingDeadline(dateStr) {
 }
 
 export function isStudentOnLeave(student, dateStr) {
-  return false;
+  if (!student || !student.leaves) return false;
+  const targetTime = new Date(dateStr).getTime();
+  return student.leaves.some(leave => {
+    if (leave.status !== 'approved') return false;
+    const start = new Date(leave.startDate).getTime();
+    const end   = new Date(leave.endDate).getTime();
+    return targetTime >= start && targetTime <= end;
+  });
 }
 
 export function isMealBooked(student, dateStr, mealKey) {
-  if (hasMealBeenRejected(student, dateStr, mealKey)) {
-    return false;
-  }
+  if (!student) return false;
+  if (isStudentOnLeave(student, dateStr)) return false;
+  if (hasMealBeenRejected(student, dateStr, mealKey)) return false;
+  // Check for an explicit booking record; default to true (auto-accept) only when no
+  // rejection exists — this mirrors the db.js logic used everywhere else.
   return true;
 }
 

@@ -299,6 +299,7 @@ const LeaveSection = ({ student, role = 'student' }) => {
                   </span>
                   {leave.status === 'pending' && (
                     role === 'parent' && leave.submittedBy === 'student' ? (
+                      /* Parent reviewing a student-submitted leave: Approve / Reject */
                       <div style={{ display: 'inline-flex', gap: '6px', marginTop: '4px' }}>
                         <button 
                           className="table-btn btn-reject parent-reject-btn" 
@@ -315,7 +316,8 @@ const LeaveSection = ({ student, role = 'student' }) => {
                           Approve
                         </button>
                       </div>
-                    ) : (
+                    ) : role === 'parent' && leave.submittedBy === 'parent' ? (
+                      /* Parent cancelling their own submission */
                       <button 
                         className="btn-cancel-leave" 
                         style={{ padding: '4px 8px', fontSize: '11px', cursor: 'pointer' }}
@@ -323,7 +325,16 @@ const LeaveSection = ({ student, role = 'student' }) => {
                       >
                         Cancel
                       </button>
-                    )
+                    ) : role !== 'parent' ? (
+                      /* Student cancelling their own pending request */
+                      <button 
+                        className="btn-cancel-leave" 
+                        style={{ padding: '4px 8px', fontSize: '11px', cursor: 'pointer' }}
+                        onClick={() => handleCancelLeave(leave.id)}
+                      >
+                        Cancel
+                      </button>
+                    ) : null
                   )}
                 </div>
               </div>

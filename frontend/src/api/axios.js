@@ -32,11 +32,13 @@ if (useMock) {
       const normalizedEmail = email.toLowerCase();
 
       // ── Warden & Staff accounts (PIN-based, handled via loginThunk with mapped creds) ──
+      // NOTE: Passwords are loaded from environment variables in production.
+      // The VITE_STAFF_PASS_* vars must be set in your .env file.
       const WARDENS = {
-        'warden@hostel.edu':              { password: 'warden123',          id: 'WDN-01', name: 'Chief Warden Console', empId: 'EMP-WDN-001', block: 'All Blocks',    phone: '+91 98400 11001', role: 'Warden' },
-        'vijayamma@transcendgroup.org':   { password: 'Warden@Girls',       id: 'WDN-02', name: 'Vijayamma',            empId: 'EMP-WDN-002', block: 'Girls Hostel',   phone: '+91 98400 11002', role: 'Warden' },
-        'siddu@transcendgroup.org':       { password: 'Warden@Boys',        id: 'WDN-03', name: 'Siddu',                empId: 'EMP-WDN-003', block: 'Boys Hostel',    phone: '+91 98400 11003', role: 'Warden' },
-        'messmanager@transcendgroup.org': { password: 'MessManager@3333',   id: 'MM-01',  name: 'Mess Manager',         empId: 'EMP-MM-001',  block: 'Campus Mess',   phone: '+91 98400 11004', role: 'MessManager' },
+        'warden@hostel.edu':              { password: import.meta.env.VITE_STAFF_PASS_WARDEN_CHIEF    || 'warden123',        id: 'WDN-01', name: 'Chief Warden Console', empId: 'EMP-WDN-001', block: 'All Blocks',  phone: '+91 98400 11001', role: 'Warden' },
+        'vijayamma@transcendgroup.org':   { password: import.meta.env.VITE_STAFF_PASS_WARDEN_GIRLS    || 'Warden@Girls',     id: 'WDN-02', name: 'Vijayamma',            empId: 'EMP-WDN-002', block: 'Girls Hostel', phone: '+91 98400 11002', role: 'Warden' },
+        'siddu@transcendgroup.org':       { password: import.meta.env.VITE_STAFF_PASS_WARDEN_BOYS     || 'Warden@Boys',      id: 'WDN-03', name: 'Siddu',                empId: 'EMP-WDN-003', block: 'Boys Hostel',  phone: '+91 98400 11003', role: 'Warden' },
+        'messmanager@transcendgroup.org': { password: import.meta.env.VITE_STAFF_PASS_MESS_MANAGER    || 'MessManager@3333', id: 'MM-01',  name: 'Mess Manager',         empId: 'EMP-MM-001',  block: 'Campus Mess',  phone: '+91 98400 11004', role: 'MessManager' },
       };
       if (WARDENS[normalizedEmail]) {
         const w = WARDENS[normalizedEmail];
@@ -48,9 +50,9 @@ if (useMock) {
 
       // ── Admin accounts ──
       const ADMINS = {
-        'admin@hostel.edu':              { password: 'admin123',    id: 'ADM-01', name: 'Campus Admin Console', empId: 'EMP-ADM-001', dept: 'Administration' },
-        'admin1@transcendgroup.org':     { password: 'Admin@123',   id: 'ADM-02', name: 'Admin One',            empId: 'EMP-ADM-002', dept: 'Administration' },
-        'admin2@transcendgroup.org':     { password: 'Admin@123',   id: 'ADM-03', name: 'Admin Two',            empId: 'EMP-ADM-003', dept: 'Administration' },
+        'admin@hostel.edu':              { password: import.meta.env.VITE_STAFF_PASS_ADMIN_CHIEF  || 'admin123',  id: 'ADM-01', name: 'Campus Admin Console', empId: 'EMP-ADM-001', dept: 'Administration' },
+        'admin1@transcendgroup.org':     { password: import.meta.env.VITE_STAFF_PASS_ADMIN_1      || 'Admin@123', id: 'ADM-02', name: 'Admin One',            empId: 'EMP-ADM-002', dept: 'Administration' },
+        'admin2@transcendgroup.org':     { password: import.meta.env.VITE_STAFF_PASS_ADMIN_2      || 'Admin@123', id: 'ADM-03', name: 'Admin Two',            empId: 'EMP-ADM-003', dept: 'Administration' },
       };
       if (ADMINS[normalizedEmail]) {
         const a = ADMINS[normalizedEmail];
@@ -62,11 +64,11 @@ if (useMock) {
 
       // ── SuperAdmin accounts ──
       const SUPERADMINS = {
-        'superadmin@hostel.edu':              { password: 'super123',        id: 'SAD-01', name: 'Super Admin Control',  empId: 'EMP-SAD-001' },
-        'siddharthkt@transcendgroup.org':     { password: 'Transcend@2026',  id: 'SAD-02', name: 'Siddharth K T',        empId: 'EMP-SAD-002' },
-        'shwethas@transcendgroup.org':        { password: 'Transcend@2026',  id: 'SAD-03', name: 'Shwetha S',            empId: 'EMP-SAD-003' },
-        'superadmin1@transcendgroup.org':     { password: 'SuperAdmin@123',  id: 'SAD-04', name: 'Super Admin One',      empId: 'EMP-SAD-004' },
-        'superadmin2@transcendgroup.org':     { password: 'SuperAdmin@123',  id: 'SAD-05', name: 'Super Admin Two',      empId: 'EMP-SAD-005' },
+        'superadmin@hostel.edu':              { password: import.meta.env.VITE_STAFF_PASS_SUPERADMIN_CHIEF || 'super123',       id: 'SAD-01', name: 'Super Admin Control', empId: 'EMP-SAD-001' },
+        'siddharthkt@transcendgroup.org':     { password: import.meta.env.VITE_STAFF_PASS_SUPERADMIN_1    || 'Transcend@2026', id: 'SAD-02', name: 'Siddharth K T',       empId: 'EMP-SAD-002' },
+        'shwethas@transcendgroup.org':        { password: import.meta.env.VITE_STAFF_PASS_SUPERADMIN_2    || 'Transcend@2026', id: 'SAD-03', name: 'Shwetha S',           empId: 'EMP-SAD-003' },
+        'superadmin1@transcendgroup.org':     { password: import.meta.env.VITE_STAFF_PASS_SUPERADMIN_3    || 'SuperAdmin@123', id: 'SAD-04', name: 'Super Admin One',     empId: 'EMP-SAD-004' },
+        'superadmin2@transcendgroup.org':     { password: import.meta.env.VITE_STAFF_PASS_SUPERADMIN_4    || 'SuperAdmin@123', id: 'SAD-05', name: 'Super Admin Two',     empId: 'EMP-SAD-005' },
       };
       if (SUPERADMINS[normalizedEmail]) {
         const s = SUPERADMINS[normalizedEmail];

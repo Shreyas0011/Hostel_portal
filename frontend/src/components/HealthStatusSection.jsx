@@ -52,8 +52,11 @@ const HealthStatusSection = ({ student, role }) => {
       return;
     }
 
+    const now = new Date();
     const recordData = {
       recordId: editingRecordId || undefined,
+      date: now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+      time: now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
       symptoms,
       temperature,
       status,

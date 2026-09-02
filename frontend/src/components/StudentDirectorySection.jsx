@@ -1,5 +1,5 @@
 // src/components/StudentDirectorySection.jsx
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setDirectoryFilters } from '../redux/student/studentSlice';
 import { ICONS } from '../constants/icons';
@@ -14,6 +14,11 @@ const StudentDirectorySection = ({ onViewHealth, onViewAttendance, onViewStudent
   const blockFilter = useSelector((state) => state.student.directoryBlockFilter);
   const page = useSelector((state) => state.student.directoryPage);
   const pageSize = useSelector((state) => state.student.directoryPageSize);
+
+  // Derive unique non-empty block values from actual student data
+  const uniqueBlocks = useMemo(() => {
+    return Array.from(new Set(db.map(s => s.block).filter(Boolean))).sort();
+  }, [db]);
 
   // Filter logic
   const filtered = db.filter(student => {
@@ -81,10 +86,9 @@ const StudentDirectorySection = ({ onViewHealth, onViewAttendance, onViewStudent
             onChange={handleBlockChange}
           >
             <option value="all">All Blocks</option>
-            <option value="A">Block A</option>
-            <option value="B">Block B</option>
-            <option value="C">Block C</option>
-            <option value="D">Block D</option>
+            {uniqueBlocks.map(block => (
+              <option key={block} value={block}>Block {block}</option>
+            ))}
           </select>
           
 

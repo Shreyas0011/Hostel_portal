@@ -22,7 +22,15 @@ import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
 app.set('trust proxy', 1);
+app.set('etag', false);
 const PORT = process.env.PORT || 5000;
+
+// Prevent HTTP 304 caching on all API routes
+app.use('/api', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.setHeader('Pragma', 'no-cache');
+  next();
+});
 
 // ─── Security middleware ───────────────────────────────────────────────────────
 // Allowed origins: localhost dev + Vercel production + any env-configured domain

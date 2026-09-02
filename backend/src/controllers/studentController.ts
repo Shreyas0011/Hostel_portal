@@ -11,7 +11,9 @@ import { AppError } from '../middleware/errorHandler';
 
 export const getStudents = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const students = await User.find({ role: 'student', isActive: true }).lean();
+    // Exclude demo/UAT accounts from all operational data — isDemo: true are
+    // isolated test personas that must not appear in any report, count, or dashboard.
+    const students = await User.find({ role: 'student', isActive: true, isDemo: { $ne: true } }).lean();
 
     // Attach hostel sub-data dynamically per student
     const studentIds = students.map((s) => s.studentId || s.usn || s._id.toString());
@@ -39,6 +41,14 @@ export const getStudents = async (_req: Request, res: Response, next: NextFuncti
         bed: s.bed || 'Bed A',
         sharing: s.sharing || 2,
         division: s.division || 'II PU - Com',
+        section: s.section || '',
+        roomBedRaw: s.roomBedRaw || '',
+        house: s.house || '',
+        foodStatus: s.foodStatus || 'UNSPECIFIED',
+        doj: s.doj || '',
+        contactEmail: s.contactEmail || '',
+        linkedStudentIds: s.linkedStudentIds || [],
+        isDemo: !!s.isDemo,
         course: s.course || 'Pre-University',
         dept: s.dept || 'Commerce',
         year: s.year || 1,
@@ -107,6 +117,14 @@ export const getStudentById = async (req: Request, res: Response, next: NextFunc
         bed: student.bed || 'Bed A',
         sharing: student.sharing || 2,
         division: student.division || '',
+        section: student.section || '',
+        roomBedRaw: student.roomBedRaw || '',
+        house: student.house || '',
+        foodStatus: student.foodStatus || 'UNSPECIFIED',
+        doj: student.doj || '',
+        contactEmail: student.contactEmail || '',
+        linkedStudentIds: student.linkedStudentIds || [],
+        isDemo: !!student.isDemo,
         course: student.course || '',
         dept: student.dept || '',
         year: student.year || 1,

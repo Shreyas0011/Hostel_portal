@@ -78,7 +78,7 @@ const MessManagerDashboard = () => {
         </div>
         
         <nav className="sidebar-nav">
-          <button className="nav-item active">
+          <button className="nav-item active" onClick={() => setMobileMenuOpen(false)}>
             {ICONS.coffee} Meal Data &amp; Attendance
           </button>
         </nav>

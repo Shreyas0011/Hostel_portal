@@ -55,7 +55,7 @@ const MealsPlanner = ({ student, isReadOnly }) => {
     dispatch(updateMealBookingsThunk({
       studentId: freshStudent.id,
       date,
-      bookings: {
+      meals: {
         breakfast: newBooking.breakfast,
         lunch: newBooking.lunch,
         snacks: newBooking.snacks,
@@ -112,13 +112,13 @@ const MealsPlanner = ({ student, isReadOnly }) => {
     dispatch(updateMealBookingsThunk({
       studentId: freshStudent.id,
       date,
-      bookings: {
+      meals: {
         breakfast: newBooking.breakfast,
         lunch: newBooking.lunch,
         snacks: newBooking.snacks,
         dinner: newBooking.dinner
       },
-      rejection: {
+      cancellationDetails: {
         meal,
         reason
       }

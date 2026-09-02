@@ -1,7 +1,7 @@
 // src/components/MessMenuSection.jsx
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchMenuThunk, updateMenuThunk, resetMenuThunk } from '../redux/meal/mealSlice';
+import { fetchMenuThunk, updateMenuThunk } from '../redux/meal/mealSlice';
 import { addToast } from '../redux/notification/notificationSlice';
 import { ICONS } from '../constants/icons';
 import { getDateString } from '../utils/dateUtils';
@@ -118,7 +118,6 @@ const MessMenuSection = () => {
       </div>
 
       <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-        <input type="hidden" value={activeKey} />
         
         <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           <div className="form-group-full">

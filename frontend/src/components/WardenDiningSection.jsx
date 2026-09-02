@@ -151,7 +151,7 @@ const WardenDiningSection = ({ onViewStudentDetails }) => {
             className="search-input" 
             placeholder="Search student by name or ID..." 
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.value || e.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         

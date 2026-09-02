@@ -145,7 +145,6 @@ const AbsenceCalendar = () => {
           
           {days.map((d, idx) => {
             const dateLeaves = getLeavesForDate(d.dateStr);
-            const hasLeaves = dateLeaves.length > 0;
             const isSelected = d.dateStr === selectedDate;
             const isTodayDay = d.dateStr === getDateString(0);
 

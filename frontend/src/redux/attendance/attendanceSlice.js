@@ -23,7 +23,7 @@ export const logScanThunk = createAsyncThunk(
 );
 
 const initialState = {
-  viewAttendanceStudentId: 'STU001',
+  viewAttendanceStudentId: null, // resolved dynamically from directory[0] in consumer components
   loading: false,
   error: null,
 };
