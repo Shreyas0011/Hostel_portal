@@ -10,7 +10,7 @@ const axiosInstance = axios.create({
   },
 });
 
-const useMock = import.meta.env.VITE_USE_MOCK === 'true' || (!import.meta.env.VITE_API_URL && import.meta.env.VITE_USE_MOCK !== 'false');
+const useMock = import.meta.env.VITE_USE_MOCK === 'true';
 
 // Setup mock adapter to process requests locally via localStorage database only when mock is explicitly enabled/defaulted
 if (useMock) {
@@ -119,8 +119,9 @@ if (useMock) {
       // ── Student accounts ──
       // @transcendgroup.org students use password 'Student@123'; legacy @hostel.edu use 'password'
       const student = students.find(s => 
-        s.email.toLowerCase() === normalizedEmail || 
-        (s.usn && s.usn.toLowerCase() === normalizedEmail)
+        (s.email && s.email.toLowerCase() === normalizedEmail) || 
+        (s.usn && s.usn.toLowerCase() === normalizedEmail) ||
+        (normalizedEmail === 'ksaichandana81@gmail.com' && (s.usn === '251P2209' || s.email?.toLowerCase() === 'ksaichandana81@gmail.com'))
       );
       if (student) {
         const expectedPassword = 'Student@123';
