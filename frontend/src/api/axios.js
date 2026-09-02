@@ -3,7 +3,7 @@ import axios from 'axios';
 import * as db from '../utils/db';
 
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'https://hostel-portal-jvga.onrender.com/api',
   timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
