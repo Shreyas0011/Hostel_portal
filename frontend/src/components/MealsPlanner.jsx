@@ -39,12 +39,17 @@ const MealsPlanner = ({ student, isReadOnly }) => {
       return;
     }
 
-    const currentBooking = freshStudent.mealBookings?.find(b => b.date === date) || {
-      date,
-      breakfast: false,
-      lunch: false,
-      snacks: false,
-      dinner: false
+    const existingBooking = freshStudent.mealBookings?.find(b => b.date === date);
+    const currentBooking = existingBooking ? {
+      breakfast: existingBooking.breakfast ?? true,
+      lunch: existingBooking.lunch ?? true,
+      snacks: existingBooking.snacks ?? true,
+      dinner: existingBooking.dinner ?? true,
+    } : {
+      breakfast: true,
+      lunch: true,
+      snacks: true,
+      dinner: true,
     };
 
     const newBooking = {
@@ -96,12 +101,17 @@ const MealsPlanner = ({ student, isReadOnly }) => {
       return;
     }
 
-    const currentBooking = freshStudent.mealBookings?.find(b => b.date === date) || {
-      date,
-      breakfast: false,
-      lunch: false,
-      snacks: false,
-      dinner: false
+    const existingBooking = freshStudent.mealBookings?.find(b => b.date === date);
+    const currentBooking = existingBooking ? {
+      breakfast: existingBooking.breakfast ?? true,
+      lunch: existingBooking.lunch ?? true,
+      snacks: existingBooking.snacks ?? true,
+      dinner: existingBooking.dinner ?? true,
+    } : {
+      breakfast: true,
+      lunch: true,
+      snacks: true,
+      dinner: true,
     };
 
     const newBooking = {
@@ -131,33 +141,95 @@ const MealsPlanner = ({ student, isReadOnly }) => {
   };
 
   const renderMealActionButtons = (dateStr, mealKey, mealName, isBooked) => {
+    const mealPillBase = {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '4px',
+      height: '30px',
+      padding: '0 12px',
+      fontSize: '12px',
+      fontWeight: '700',
+      borderRadius: '20px',
+      boxSizing: 'border-box',
+      lineHeight: '1',
+      whiteSpace: 'nowrap',
+    };
+
+    const acceptedPillStyle = {
+      ...mealPillBase,
+      color: '#15803d',
+      backgroundColor: '#dcfce7',
+      border: '1px solid #bbf7d0',
+    };
+
+    const rejectedPillStyle = {
+      ...mealPillBase,
+      color: '#b91c1c',
+      backgroundColor: '#fee2e2',
+      border: '1px solid #fca5a5',
+    };
+
+    const acceptBtnStyle = {
+      ...mealPillBase,
+      color: '#15803d',
+      backgroundColor: '#dcfce7',
+      border: '1px solid #bbf7d0',
+      cursor: 'pointer',
+    };
+
+    const rejectBtnStyle = {
+      ...mealPillBase,
+      color: '#b91c1c',
+      backgroundColor: '#fee2e2',
+      border: '1px solid #fca5a5',
+      cursor: 'pointer',
+    };
+
+    const notOptedPillStyle = {
+      ...mealPillBase,
+      color: '#64748b',
+      backgroundColor: '#f1f5f9',
+      border: '1px solid #e2e8f0',
+      fontWeight: '600',
+    };
+
     if (isReadOnly) {
       const type = getMealAcceptanceType(freshStudent, dateStr, mealKey);
       if (type === 'manual') {
-        return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: '700', color: '#15803d', backgroundColor: '#dcfce7', padding: '5px 10px', borderRadius: '20px', border: '1px solid #bbf7d0' }}>✔ Accepted <span style={{ fontSize: '9px', backgroundColor: '#16a34a', color: '#fff', padding: '1px 5px', borderRadius: '4px' }}>MANUAL</span></span>;
+        return (
+          <span style={acceptedPillStyle}>
+            ✔ Accepted <span style={{ fontSize: '9px', backgroundColor: '#16a34a', color: '#fff', padding: '1px 5px', borderRadius: '4px' }}>MANUAL</span>
+          </span>
+        );
       }
       if (type === 'auto') {
-        return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: '700', color: '#1d4ed8', backgroundColor: '#dbeafe', padding: '5px 10px', borderRadius: '20px', border: '1px solid #bfdbfe' }}>✔ Accepted <span style={{ fontSize: '9px', backgroundColor: '#2563eb', color: '#fff', padding: '1px 5px', borderRadius: '4px' }}>AUTO</span></span>;
+        return (
+          <span style={{ ...acceptedPillStyle, color: '#1d4ed8', backgroundColor: '#dbeafe', border: '1px solid #bfdbfe' }}>
+            ✔ Accepted <span style={{ fontSize: '9px', backgroundColor: '#2563eb', color: '#fff', padding: '1px 5px', borderRadius: '4px' }}>AUTO</span>
+          </span>
+        );
       }
       if (type === 'rejected') {
-        return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: '700', color: '#b91c1c', backgroundColor: '#fee2e2', padding: '5px 10px', borderRadius: '20px', border: '1px solid #fca5a5' }}>✖ Rejected</span>;
+        return <span style={rejectedPillStyle}>✖ Rejected</span>;
       }
-      return <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: '600', color: '#64748b', backgroundColor: '#f1f5f9', padding: '5px 10px', borderRadius: '20px', border: '1px solid #e2e8f0' }}>– Not Opted In</span>;
+      return <span style={notOptedPillStyle}>– Not Opted In</span>;
     }
 
     const deadlinePassed = hasMealBookingDeadlinePassed(dateStr);
     const wasRejected = hasMealBeenRejected(freshStudent, dateStr, mealKey);
 
+    if (wasRejected) {
+      return <span style={rejectedPillStyle}>✖ Rejected</span>;
+    }
+
     if (deadlinePassed) {
       if (isBooked) {
-        return <span className="meal-status-label accepted">Accepted</span>;
-      }
-      if (wasRejected) {
-        return <span className="meal-status-label rejected">Rejected</span>;
+        return <span style={acceptedPillStyle}>✔ Accepted</span>;
       }
       return (
         <button 
-          className="meal-action-btn accept-btn"
+          style={acceptBtnStyle}
           onClick={() => handleAcceptMeal(dateStr, mealKey, mealName)}
         >
           Accept
@@ -167,47 +239,33 @@ const MealsPlanner = ({ student, isReadOnly }) => {
 
     if (isBooked) {
       return (
-        <>
-          <span className="meal-status-label accepted">Accepted</span>
+        <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+          <span style={acceptedPillStyle}>✔ Accepted</span>
           <button 
-            className="meal-action-btn reject-btn"
+            style={rejectBtnStyle}
             onClick={() => handleOpenCancelModal(dateStr, mealKey, mealName)}
           >
             Reject
           </button>
-        </>
-      );
-    }
-
-    if (wasRejected) {
-      return (
-        <>
-          <button 
-            className="meal-action-btn accept-btn"
-            onClick={() => handleAcceptMeal(dateStr, mealKey, mealName)}
-          >
-            Accept
-          </button>
-          <span className="meal-status-label rejected">Rejected</span>
-        </>
+        </div>
       );
     }
 
     return (
-      <>
+      <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
         <button 
-          className="meal-action-btn accept-btn"
+          style={acceptBtnStyle}
           onClick={() => handleAcceptMeal(dateStr, mealKey, mealName)}
         >
           Accept
         </button>
         <button 
-          className="meal-action-btn reject-btn"
+          style={rejectBtnStyle}
           onClick={() => handleOpenCancelModal(dateStr, mealKey, mealName)}
         >
           Reject
         </button>
-      </>
+      </div>
     );
   };
 

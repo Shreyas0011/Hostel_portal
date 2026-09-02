@@ -35,9 +35,27 @@ export function hasMealBookingDeadlinePassed(dateStr) {
 }
 
 export function hasMealBeenRejected(student, dateStr, mealKey) {
-  return !!(student.mealCancellations && student.mealCancellations.some(
-    c => c.date === dateStr && c.meal === mealKey
-  ));
+  if (!student) return false;
+
+  if (student.mealCancellations && student.mealCancellations.some(
+    c => (c.date === dateStr || !c.date) && c.meal === mealKey
+  )) {
+    return true;
+  }
+
+  if (student.mealBookings) {
+    const booking = student.mealBookings.find(b => b.date === dateStr);
+    if (booking) {
+      if (booking.cancellations && booking.cancellations.some(c => c.meal === mealKey)) {
+        return true;
+      }
+      if (booking[mealKey] === false && booking.cancellations && booking.cancellations.length > 0) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 export function formatMealBookingDeadline(dateStr) {

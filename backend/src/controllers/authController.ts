@@ -84,31 +84,62 @@ export const signup = async (req: Request, res: Response, next: NextFunction): P
   }
 };
 
+const WARDEN_PIN_EMAIL_MAP: Record<string, string> = {
+  '1111': 'vijayamma@transcendgroup.org',
+  '2222': 'siddu@transcendgroup.org',
+  '3333': 'messmanager@transcendgroup.org',
+  '9999': 'warden@hostel.edu',
+};
+
 export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const validated = loginSchema.parse(req.body);
+    const bodyPin = req.body.pin ? String(req.body.pin).trim() : '';
+    const rawEmail = (req.body.email || bodyPin || '').trim();
+    const rawPassword = (req.body.password || '').trim();
 
-    const rawEmail = validated.email.trim();
-    const rawPassword = validated.password.trim();
-    const identifierLower = rawEmail.toLowerCase();
-    const identifierUpper = rawEmail.toUpperCase();
+    const inputPin = bodyPin || (rawEmail.length === 4 && /^\d{4}$/.test(rawEmail) ? rawEmail : '');
 
-    const user = await User.findOne({
-      $or: [
-        { email: identifierLower },
-        { email: new RegExp(`^${identifierLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
-        { contactEmail: identifierLower },
-        { contactEmail: new RegExp(`^${identifierLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
-        { usn: identifierUpper },
-        { studentId: identifierUpper }
-      ]
-    }).select('+password +firstLogin');
+    let user: any = null;
 
-    if (!user || !user.password) throw new AppError('Invalid email or password', 401);
-    if (!user.isActive)          throw new AppError('Account is deactivated. Contact administrator.', 401);
+    if (inputPin) {
+      const mappedEmail = WARDEN_PIN_EMAIL_MAP[inputPin];
+      user = await User.findOne({
+        $or: [
+          { pin: inputPin },
+          ...(mappedEmail ? [{ email: mappedEmail }] : []),
+          { email: inputPin }
+        ]
+      }).select('+password +firstLogin');
 
-    const isValid = (await bcrypt.compare(rawPassword, user.password)) || (await bcrypt.compare(validated.password, user.password));
-    if (!isValid) throw new AppError('Invalid email or password', 401);
+      if (!user) {
+        throw new AppError('Invalid PIN. Please try again.', 401);
+      }
+    } else {
+      if (!rawEmail || !rawPassword) {
+        throw new AppError('Email/Enrollment ID and Password are required', 400);
+      }
+      const identifierLower = rawEmail.toLowerCase();
+      const identifierUpper = rawEmail.toUpperCase();
+
+      user = await User.findOne({
+        $or: [
+          { email: identifierLower },
+          { email: new RegExp(`^${identifierLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+          { contactEmail: identifierLower },
+          { contactEmail: new RegExp(`^${identifierLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+          { usn: identifierUpper },
+          { studentId: identifierUpper }
+        ]
+      }).select('+password +firstLogin');
+
+      if (!user || !user.password) throw new AppError('Invalid email or password', 401);
+      if (!user.isActive)          throw new AppError('Account is deactivated. Contact administrator.', 401);
+
+      const isValid = (await bcrypt.compare(rawPassword, user.password)) || (await bcrypt.compare(validatedPasswordFallback(rawPassword), user.password));
+      if (!isValid) throw new AppError('Invalid email or password', 401);
+    }
+
+    if (!user.isActive) throw new AppError('Account is deactivated. Contact administrator.', 401);
 
     const token = generateToken({ id: user._id.toString(), email: user.email, role: user.role, name: user.name });
 
@@ -140,6 +171,10 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     next(error);
   }
 };
+
+function validatedPasswordFallback(pwd: string): string {
+  return pwd;
+}
 
 export const getProfile = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {

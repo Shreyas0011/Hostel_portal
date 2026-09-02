@@ -7,10 +7,10 @@ import { addToast } from '../../redux/notification/notificationSlice';
 
 // Staff & Warden PIN map — 4-digit PIN → backend credentials
 const WARDEN_PIN_MAP = {
-  '1111': { email: 'vijayamma@transcendgroup.org',   password: 'Warden@Girls',       name: 'Vijayamma',    hostel: 'Girls Hostel' },
-  '2222': { email: 'siddu@transcendgroup.org',       password: 'Warden@Boys',        name: 'Siddu',        hostel: 'Boys Hostel'  },
+  '1111': { email: 'vijayamma@transcendgroup.org',   password: 'Warden@Girls123',   name: 'Vijayamma',    hostel: 'Girls Hostel' },
+  '2222': { email: 'siddu@transcendgroup.org',       password: 'Warden@Boys123',    name: 'Siddu',        hostel: 'Boys Hostel'  },
   '3333': { email: 'messmanager@transcendgroup.org', password: 'MessManager@3333',   name: 'Mess Manager', hostel: 'Campus Mess'   },
-  '9999': { email: 'warden@hostel.edu',             password: 'warden123',           name: 'Chief Warden', hostel: 'All Hostels'  },
+  '9999': { email: 'warden@hostel.edu',             password: 'Warden@Hostel123',  name: 'Chief Warden', hostel: 'All Hostels'  },
 };
 
 // ── Warden PIN Keypad Component ──────────────────────────────────────────────
@@ -36,15 +36,17 @@ const WardenPinScreen = ({ onBack, dispatch, loading }) => {
   useEffect(() => {
     if (pin.length === 4) {
       const creds = WARDEN_PIN_MAP[pin];
-      if (!creds) {
-        triggerError('Invalid PIN. Please try again.');
-        return;
-      }
-      dispatch(loginThunk({ email: creds.email, password: creds.password })).then((resultAction) => {
+      const payload = creds 
+        ? { email: creds.email, password: creds.password, pin }
+        : { pin };
+
+      dispatch(loginThunk(payload)).then((resultAction) => {
         if (loginThunk.fulfilled.match(resultAction)) {
-          dispatch(addToast({ message: `Welcome, ${creds.name}! (${creds.hostel})`, type: 'success' }));
+          const userName = resultAction.payload.user?.name || creds?.name || 'Warden';
+          const hostelName = creds?.hostel || 'Hostel Portal';
+          dispatch(addToast({ message: `Welcome, ${userName}! (${hostelName})`, type: 'success' }));
         } else {
-          triggerError('Login failed. Please contact admin.');
+          triggerError('Invalid PIN. Please check your PIN and try again.');
         }
       });
     }

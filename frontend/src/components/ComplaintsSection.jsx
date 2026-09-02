@@ -12,6 +12,10 @@ const ComplaintsSection = ({ student, role }) => {
   const fileInputRef = useRef(null);
 
   const directory = useSelector((state) => state.student.directory) || [];
+  const currentUser = useSelector((state) => state.auth.user);
+
+  const normalizedRole = (role || currentUser?.role || '').toLowerCase();
+  const canResolve = normalizedRole === 'admin' || normalizedRole === 'superadmin';
 
   const [category, setCategory] = useState('Maintenance');
   const [subject, setSubject] = useState('');
@@ -330,7 +334,7 @@ const ComplaintsSection = ({ student, role }) => {
                     <strong>Response:</strong> "{c.response}"
                   </div>
                 )}
-                {c.status.toLowerCase() === 'pending' && role && (
+                {c.status.toLowerCase() === 'pending' && canResolve ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', borderTop: '1px dashed var(--border-color)', paddingTop: '10px' }}>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Respond &amp; Resolve Ticket</label>
@@ -350,7 +354,11 @@ const ComplaintsSection = ({ student, role }) => {
                       Send Response &amp; Resolve
                     </button>
                   </div>
-                )}
+                ) : c.status.toLowerCase() === 'pending' && normalizedRole === 'warden' ? (
+                  <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed var(--border-color)', fontSize: '11px', color: '#64748b', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    🔒 Resolution Access: Restricted to Admin &amp; SuperAdmin accounts.
+                  </div>
+                ) : null}
               </div>
             ))
           )}

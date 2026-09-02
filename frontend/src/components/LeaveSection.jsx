@@ -41,21 +41,23 @@ const LeaveSection = ({ student, role = 'student' }) => {
     e.preventDefault();
     if (!freshStudent?.id) return;
 
-    if (endDate < startDate) {
+    const actualEndDate = type === 'outing' ? startDate : endDate;
+
+    if (type !== 'outing' && actualEndDate < startDate) {
       dispatch(addToast({ message: 'Return date cannot be earlier than departure date', type: 'error' }));
       return;
     }
 
     const formattedStartTime = `${startHour}:${startMinute} ${startAmPm}`;
     const formattedEndTime = `${endHour}:${endMinute} ${endAmPm}`;
-    const isOvernight = startDate !== endDate;
+    const isOvernight = type === 'outing' ? false : (startDate !== actualEndDate);
 
     dispatch(
       applyLeaveThunk({
         studentId: freshStudent.id,
         leaveData: {
           startDate,
-          endDate,
+          endDate: actualEndDate,
           startTime: formattedStartTime,
           endTime: formattedEndTime,
           isOvernight,
@@ -124,8 +126,24 @@ const LeaveSection = ({ student, role = 'student' }) => {
 
         <form onSubmit={handleApplyLeave} style={{ marginTop: '15px' }}>
           <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-            <div>
-              <label className="form-label" htmlFor="leave-start-date">Departure Date</label>
+            <div className="form-group-full" style={{ gridColumn: 'span 2' }}>
+              <label className="form-label" htmlFor="leave-type">Request Type</label>
+              <select 
+                id="leave-type" 
+                className="form-input" 
+                required
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+              >
+                <option value="leave">On Leave (Hostel Exit)</option>
+                <option value="outing">Going Out (Day Outing / Local Outing)</option>
+              </select>
+            </div>
+
+            <div style={{ gridColumn: type === 'outing' ? 'span 2' : 'span 1' }}>
+              <label className="form-label" htmlFor="leave-start-date">
+                {type === 'outing' ? 'Date of Outing' : 'Departure Date'}
+              </label>
               <input 
                 id="leave-start-date" 
                 type="date" 
@@ -136,17 +154,19 @@ const LeaveSection = ({ student, role = 'student' }) => {
               />
             </div>
 
-            <div>
-              <label className="form-label" htmlFor="leave-end-date">Return Date</label>
-              <input 
-                id="leave-end-date" 
-                type="date" 
-                className="form-input" 
-                required 
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
+            {type !== 'outing' && (
+              <div>
+                <label className="form-label" htmlFor="leave-end-date">Return Date</label>
+                <input 
+                  id="leave-end-date" 
+                  type="date" 
+                  className="form-input" 
+                  required 
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+            )}
 
             <div>
               <label className="form-label" style={{ fontWeight: 600 }}>Departure Time</label>
@@ -233,20 +253,6 @@ const LeaveSection = ({ student, role = 'student' }) => {
             </div>
 
             <div className="form-group-full" style={{ gridColumn: 'span 2' }}>
-              <label className="form-label" htmlFor="leave-type">Request Type</label>
-              <select 
-                id="leave-type" 
-                className="form-input" 
-                required
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-              >
-                <option value="leave">On Leave (Hostel Exit)</option>
-                <option value="outing">Going Out (Day Outing / Local Outing)</option>
-              </select>
-            </div>
-
-            <div className="form-group-full" style={{ gridColumn: 'span 2' }}>
               <label className="form-label" htmlFor="leave-reason">Reason</label>
               <textarea 
                 id="leave-reason" 
@@ -275,70 +281,123 @@ const LeaveSection = ({ student, role = 'student' }) => {
               <p style={{ marginTop: '10px', color: '#6b7280' }}>No requests found</p>
             </div>
           ) : (
-            sortedLeaves.map(leave => (
-              <div key={leave.id} className="history-item" style={{ border: '1px solid #e5e7eb', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div className="history-details">
-                  <span className="history-dates" style={{ fontWeight: 700, display: 'block', color: 'var(--text-primary)' }}>
-                    {formatDisplayDate(leave.startDate)} {leave.startTime ? `(${formatTimeTo12Hr(leave.startTime)})` : ''} to {formatDisplayDate(leave.endDate)} {leave.endTime ? `(${formatTimeTo12Hr(leave.endTime)})` : ''}
-                  </span>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '2px', marginBottom: '4px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--primary)', textTransform: 'uppercase' }}>
-                      Type: {leave.type === 'outing' ? 'Going Out' : 'On Leave'}
+            sortedLeaves.map((leave, index) => {
+              const actualLeaveId = leave.leaveId || leave.id || leave._id;
+              const stuId = freshStudent?.id || freshStudent?.usn || student?.id || student?.usn;
+
+              return (
+                <div key={actualLeaveId || index} className="history-item" style={{ border: '1px solid #e5e7eb', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="history-details">
+                    <span className="history-dates" style={{ fontWeight: 700, display: 'block', color: 'var(--text-primary)' }}>
+                      {formatDisplayDate(leave.startDate)} {leave.startTime ? `(${formatTimeTo12Hr(leave.startTime)})` : ''} to {formatDisplayDate(leave.endDate)} {leave.endTime ? `(${formatTimeTo12Hr(leave.endTime)})` : ''}
                     </span>
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>
-                      • {leave.isOvernight ? 'Overnight' : 'Same Day'}
-                    </span>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '2px', marginBottom: '4px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--primary)', textTransform: 'uppercase' }}>
+                        Type: {leave.type === 'outing' ? 'Going Out' : 'On Leave'}
+                      </span>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>
+                        • {leave.isOvernight ? 'Overnight' : 'Same Day'}
+                      </span>
+                    </div>
+                    <span className="history-reason" style={{ display: 'block', fontSize: '13px', fontStyle: 'italic', color: '#4b5563' }}>"{leave.reason}"</span>
+                    <span style={{ fontSize: '11px', color: '#9ca3af', display: 'block', marginTop: '2px' }}>Submitted by: {leave.submittedBy === 'parent' ? 'Parent' : 'Student'}</span>
                   </div>
-                  <span className="history-reason" style={{ display: 'block', fontSize: '13px', fontStyle: 'italic', color: '#4b5563' }}>"{leave.reason}"</span>
-                  <span style={{ fontSize: '11px', color: '#9ca3af', display: 'block', marginTop: '2px' }}>Submitted by: {leave.submittedBy === 'parent' ? 'Parent' : 'Student'}</span>
-                </div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-                  <span className={`badge ${leave.status}`}>
-                    {leave.status === 'pending' ? 'Pending Parent' : leave.status}
-                  </span>
-                  {leave.status === 'pending' && (
-                    role === 'parent' && leave.submittedBy === 'student' ? (
-                      /* Parent reviewing a student-submitted leave: Approve / Reject */
-                      <div style={{ display: 'inline-flex', gap: '6px', marginTop: '4px' }}>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                    <span className={`badge ${leave.status}`}>
+                      {leave.status === 'pending' ? 'Pending Parent' : leave.status}
+                    </span>
+                    {leave.status === 'pending' && (
+                      role === 'parent' && leave.submittedBy === 'student' ? (
+                        /* Parent reviewing a student-submitted leave: Approve / Reject */
+                        <div style={{ display: 'inline-flex', gap: '6px', marginTop: '4px', alignItems: 'center' }}>
+                          <button 
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              height: '30px',
+                              padding: '0 12px',
+                              fontSize: '12px',
+                              fontWeight: '700',
+                              borderRadius: '20px',
+                              backgroundColor: '#dcfce7',
+                              color: '#15803d',
+                              border: '1px solid #bbf7d0',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => handleApprove(stuId, actualLeaveId)}
+                          >
+                            Approve
+                          </button>
+                          <button 
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              height: '30px',
+                              padding: '0 12px',
+                              fontSize: '12px',
+                              fontWeight: '700',
+                              borderRadius: '20px',
+                              backgroundColor: '#fee2e2',
+                              color: '#b91c1c',
+                              border: '1px solid #fca5a5',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => handleReject(stuId, actualLeaveId)}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      ) : role === 'parent' && leave.submittedBy === 'parent' ? (
+                        /* Parent cancelling their own submission */
                         <button 
-                          className="table-btn btn-reject parent-reject-btn" 
-                          style={{ padding: '4px 8px', fontSize: '11px', cursor: 'pointer' }}
-                          onClick={() => handleReject(freshStudent.id, leave.id)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '30px',
+                            padding: '0 12px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            borderRadius: '20px',
+                            backgroundColor: '#f1f5f9',
+                            color: '#475569',
+                            border: '1px solid #cbd5e1',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => handleCancelLeave(actualLeaveId)}
                         >
-                          Reject
+                          Cancel
                         </button>
+                      ) : role !== 'parent' ? (
+                        /* Student cancelling their own pending request */
                         <button 
-                          className="table-btn btn-approve parent-approve-btn" 
-                          style={{ padding: '4px 8px', fontSize: '11px', color: 'white', cursor: 'pointer' }}
-                          onClick={() => handleApprove(freshStudent.id, leave.id)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '30px',
+                            padding: '0 12px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            borderRadius: '20px',
+                            backgroundColor: '#f1f5f9',
+                            color: '#475569',
+                            border: '1px solid #cbd5e1',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => handleCancelLeave(actualLeaveId)}
                         >
-                          Approve
+                          Cancel
                         </button>
-                      </div>
-                    ) : role === 'parent' && leave.submittedBy === 'parent' ? (
-                      /* Parent cancelling their own submission */
-                      <button 
-                        className="btn-cancel-leave" 
-                        style={{ padding: '4px 8px', fontSize: '11px', cursor: 'pointer' }}
-                        onClick={() => handleCancelLeave(leave.id)}
-                      >
-                        Cancel
-                      </button>
-                    ) : role !== 'parent' ? (
-                      /* Student cancelling their own pending request */
-                      <button 
-                        className="btn-cancel-leave" 
-                        style={{ padding: '4px 8px', fontSize: '11px', cursor: 'pointer' }}
-                        onClick={() => handleCancelLeave(leave.id)}
-                      >
-                        Cancel
-                      </button>
-                    ) : null
-                  )}
+                      ) : null
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

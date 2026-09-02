@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { HostelLeave } from '../models/HostelLeave';
 import { MealBooking } from '../models/MealBooking';
 import { AppError } from '../middleware/errorHandler';
@@ -25,7 +26,10 @@ export const applyLeave = async (req: Request, res: Response, next: NextFunction
       isOvernight: !!isOvernight,
     });
 
-    res.status(201).json({ success: true, leave: newLeave });
+    const leaveObj: any = newLeave.toObject();
+    leaveObj.id = leaveObj.leaveId || leaveObj._id.toString();
+
+    res.status(201).json({ success: true, leave: leaveObj });
   } catch (error) {
     next(error);
   }
@@ -34,7 +38,15 @@ export const applyLeave = async (req: Request, res: Response, next: NextFunction
 export const cancelLeave = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { leaveId } = req.params;
-    const leave = await HostelLeave.findOne({ leaveId });
+    if (!leaveId || leaveId === 'undefined') {
+      throw new AppError('Invalid leave ID', 400);
+    }
+    const leave = await HostelLeave.findOne({
+      $or: [
+        { leaveId },
+        ...(mongoose.isValidObjectId(leaveId) ? [{ _id: leaveId }] : [])
+      ]
+    });
     if (!leave) throw new AppError('Leave request not found', 404);
 
     leave.status = 'cancelled';
@@ -49,11 +61,26 @@ export const cancelLeave = async (req: Request, res: Response, next: NextFunctio
 export const approveLeave = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { leaveId } = req.params;
-    const leave = await HostelLeave.findOne({ leaveId });
+    if (!leaveId || leaveId === 'undefined') {
+      throw new AppError('Invalid leave ID', 400);
+    }
+    const leave = await HostelLeave.findOne({
+      $or: [
+        { leaveId },
+        ...(mongoose.isValidObjectId(leaveId) ? [{ _id: leaveId }] : [])
+      ]
+    });
     if (!leave) throw new AppError('Leave request not found', 404);
 
     leave.status = 'approved';
     await leave.save();
+
+    if (leave.startDate && leave.endDate) {
+      await MealBooking.deleteMany({
+        studentId: leave.studentId,
+        date: { $gte: leave.startDate, $lte: leave.endDate }
+      });
+    }
 
     res.json({ success: true, message: 'Leave request approved', leave });
   } catch (error) {
@@ -64,7 +91,15 @@ export const approveLeave = async (req: Request, res: Response, next: NextFuncti
 export const rejectLeave = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { leaveId } = req.params;
-    const leave = await HostelLeave.findOne({ leaveId });
+    if (!leaveId || leaveId === 'undefined') {
+      throw new AppError('Invalid leave ID', 400);
+    }
+    const leave = await HostelLeave.findOne({
+      $or: [
+        { leaveId },
+        ...(mongoose.isValidObjectId(leaveId) ? [{ _id: leaveId }] : [])
+      ]
+    });
     if (!leave) throw new AppError('Leave request not found', 404);
 
     leave.status = 'rejected';
@@ -82,7 +117,13 @@ export const getLeaves = async (req: Request, res: Response, next: NextFunction)
     const filter: any = {};
     if (studentId) filter.studentId = studentId;
 
-    const leaves = await HostelLeave.find(filter).sort({ createdAt: -1 }).lean();
+    const rawLeaves = await HostelLeave.find(filter).sort({ createdAt: -1 }).lean();
+    const leaves = rawLeaves.map((l: any) => ({
+      ...l,
+      id: l.leaveId || l._id?.toString(),
+      leaveId: l.leaveId || l._id?.toString(),
+    }));
+
     res.json({ success: true, leaves });
   } catch (error) {
     next(error);

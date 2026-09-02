@@ -11,5 +11,8 @@
     "build": "cd frontend && npm install && npm run build",
     "preview": "npm run preview --prefix frontend",
     "import-students": "npm run seed-hostel --prefix backend"
+  },
+  "dependencies": {
+    "@babel/helper-string-parser": "^7.29.7"
   }
 }

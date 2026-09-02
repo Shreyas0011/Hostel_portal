@@ -44,6 +44,7 @@ export interface IUser extends Document {
   linkedStudentIds?: string[];  // NEW — sibling support: one parent, multiple children
   // Demo/UAT flag
   isDemo?: boolean;             // NEW — true on demo accounts; excluded from all reporting queries
+  pin?: string;                 // NEW — 4-digit PIN login for Wardens & Staff
 }
 
 const UserSchema = new Schema<IUser>(
@@ -51,6 +52,7 @@ const UserSchema = new Schema<IUser>(
     name:       { type: String, required: true, trim: true },
     email:      { type: String, required: true, unique: true, lowercase: true, trim: true },
     password:   { type: String, select: false },   // hidden by default; optional for Google OAuth users
+    pin:        { type: String, sparse: true, trim: true }, // 4-digit PIN for Wardens
     googleId:   { type: String, sparse: true, unique: true },
     role: {
       type: String,

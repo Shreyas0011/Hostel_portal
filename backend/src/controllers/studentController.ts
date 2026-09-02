@@ -64,7 +64,13 @@ export const getStudents = async (_req: Request, res: Response, next: NextFuncti
         allergies: s.allergies || '',
         photo: s.avatar || '',
         isNew: !!s.isNewStudent,
-        leaves: leaves.filter((l) => l.studentId === key || l.studentId === dbId),
+        leaves: leaves
+          .filter((l: any) => l.studentId === key || l.studentId === dbId)
+          .map((l: any) => ({
+            ...l,
+            id: l.leaveId || l._id?.toString(),
+            leaveId: l.leaveId || l._id?.toString(),
+          })),
         mealBookings: mealBookings.filter((m) => m.studentId === key || m.studentId === dbId),
         mealAttendance: mealAttendance.filter((a) => a.studentId === key || a.studentId === dbId),
         complaints: complaints.filter((c) => c.studentId === key || c.studentId === dbId),
@@ -106,6 +112,12 @@ export const getStudentById = async (req: Request, res: Response, next: NextFunc
       BehaviourLog.find({ studentId: { $in: [key, dbId] } }).lean(),
     ]);
 
+    const formattedLeaves = leaves.map((l: any) => ({
+      ...l,
+      id: l.leaveId || l._id?.toString(),
+      leaveId: l.leaveId || l._id?.toString(),
+    }));
+
     res.json({
       success: true,
       student: {
@@ -139,7 +151,7 @@ export const getStudentById = async (req: Request, res: Response, next: NextFunc
         address: student.address || '',
         allergies: student.allergies || '',
         isNew: !!student.isNewStudent,
-        leaves,
+        leaves: formattedLeaves,
         mealBookings,
         mealAttendance,
         complaints,

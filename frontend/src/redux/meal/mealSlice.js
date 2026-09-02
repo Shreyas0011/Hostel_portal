@@ -1,7 +1,7 @@
 // src/redux/meal/mealSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { mealApi } from '../../api/mealApi';
-import { fetchProfileThunk } from '../student/studentSlice';
+import { fetchProfileThunk, fetchDirectoryThunk } from '../student/studentSlice';
 import { fetchWardDetailsThunk } from '../parent/parentSlice';
 import { fetchWardenStatsThunk } from '../dashboard/dashboardSlice';
 
@@ -46,7 +46,9 @@ export const updateMealBookingsThunk = createAsyncThunk(
   async ({ studentId, date, meals, cancellationDetails }, { dispatch, getState, rejectWithValue }) => {
     try {
       const data = await mealApi.updateMealBookings(studentId, date, meals, cancellationDetails);
-      // Reload profile/ward/warden details to keep everything in sync
+      // Always update student directory so every role (Student, Parent, Warden, MessManager, Admin) gets the fresh state
+      dispatch(fetchDirectoryThunk());
+
       const state = getState();
       const currentUser = state.auth.user;
       if (currentUser) {

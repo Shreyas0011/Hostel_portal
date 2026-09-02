@@ -13,28 +13,36 @@ export const saveMealBooking = async (req: Request, res: Response, next: NextFun
 
     let booking = await MealBooking.findOne({ studentId, date });
     if (booking) {
-      booking.breakfast = !!meals.breakfast;
-      booking.lunch = !!meals.lunch;
-      booking.snacks = !!meals.snacks;
-      booking.dinner = !!meals.dinner;
+      booking.breakfast = meals.breakfast !== undefined ? !!meals.breakfast : booking.breakfast;
+      booking.lunch = meals.lunch !== undefined ? !!meals.lunch : booking.lunch;
+      booking.snacks = meals.snacks !== undefined ? !!meals.snacks : booking.snacks;
+      booking.dinner = meals.dinner !== undefined ? !!meals.dinner : booking.dinner;
     } else {
       booking = new MealBooking({
         studentId,
         date,
-        breakfast: !!meals.breakfast,
-        lunch: !!meals.lunch,
-        snacks: !!meals.snacks,
-        dinner: !!meals.dinner,
+        breakfast: meals.breakfast !== undefined ? !!meals.breakfast : true,
+        lunch: meals.lunch !== undefined ? !!meals.lunch : true,
+        snacks: meals.snacks !== undefined ? !!meals.snacks : true,
+        dinner: meals.dinner !== undefined ? !!meals.dinner : true,
         cancellations: [],
       });
     }
 
-    if (cancellationDetails) {
+    // Clear any prior cancellation records for meals marked true
+    ['breakfast', 'lunch', 'snacks', 'dinner'].forEach((mKey) => {
+      if ((meals as any)[mKey] === true && booking.cancellations) {
+        booking.cancellations = booking.cancellations.filter((c) => c.meal !== mKey);
+      }
+    });
+
+    if (cancellationDetails && cancellationDetails.meal) {
       if (!booking.cancellations) booking.cancellations = [];
+      booking.cancellations = booking.cancellations.filter((c) => c.meal !== cancellationDetails.meal);
       booking.cancellations.push({
         id: `CAN-${Date.now()}`,
         meal: cancellationDetails.meal,
-        reason: cancellationDetails.reason,
+        reason: cancellationDetails.reason || 'Cancelled by student',
         timestamp: new Date(),
       });
     }

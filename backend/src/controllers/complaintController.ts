@@ -45,7 +45,12 @@ export const createComplaint = async (req: Request, res: Response, next: NextFun
 export const resolveComplaint = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { complaintId } = req.params;
-    const { responseText } = req.body;
+    const { responseText, role } = req.body;
+
+    const userRole = (req as any).user?.role || role || '';
+    if (userRole.toLowerCase() === 'warden') {
+      throw new AppError('Only Admin and SuperAdmin accounts are authorized to resolve complaint tickets.', 403);
+    }
 
     const complaint = await HostelComplaint.findOne({ complaintId });
     if (!complaint) throw new AppError('Complaint ticket not found', 404);
