@@ -88,18 +88,24 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
   try {
     const validated = loginSchema.parse(req.body);
 
-    // Explicitly select password (hidden by default)
-    const identifier = validated.email.toLowerCase();
+    const rawEmail = validated.email.trim();
+    const rawPassword = validated.password.trim();
+    const identifierLower = rawEmail.toLowerCase();
+    const identifierUpper = rawEmail.toUpperCase();
+
     const user = await User.findOne({
       $or: [
-        { email: identifier },
-        { usn: identifier.toUpperCase() }
+        { email: identifierLower },
+        { email: new RegExp(`^${identifierLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+        { usn: identifierUpper },
+        { studentId: identifierUpper }
       ]
     }).select('+password +firstLogin');
+
     if (!user || !user.password) throw new AppError('Invalid email or password', 401);
     if (!user.isActive)          throw new AppError('Account is deactivated. Contact administrator.', 401);
 
-    const isValid = await bcrypt.compare(validated.password, user.password);
+    const isValid = (await bcrypt.compare(rawPassword, user.password)) || (await bcrypt.compare(validated.password, user.password));
     if (!isValid) throw new AppError('Invalid email or password', 401);
 
     const token = generateToken({ id: user._id.toString(), email: user.email, role: user.role, name: user.name });
