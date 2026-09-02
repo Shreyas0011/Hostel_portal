@@ -2,8 +2,17 @@
 import axios from 'axios';
 import * as db from '../utils/db';
 
+const getBaseURL = () => {
+  let url = import.meta.env.VITE_API_URL || 'https://hostel-portal-jvga.onrender.com/api';
+  url = url.trim().replace(/\/+$/, '');
+  if (!url.endsWith('/api')) {
+    url = `${url}/api`;
+  }
+  return url;
+};
+
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://hostel-portal-jvga.onrender.com/api',
+  baseURL: getBaseURL(),
   timeout: 60000,
   headers: {
     'Content-Type': 'application/json',

@@ -89,15 +89,34 @@ app.get('/health', (_req, res) => {
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
+
 app.use('/api/students', studentRoutes);
+app.use('/students', studentRoutes);
+
 app.use('/api/leaves', leaveRoutes);
+app.use('/leaves', leaveRoutes);
+
 app.use('/api/meals', mealRoutes);
+app.use('/meals', mealRoutes);
+
 app.post('/api/warden/meal-attendance', markMealAttendance);
+app.post('/warden/meal-attendance', markMealAttendance);
+
 app.use('/api/complaints', complaintRoutes);
+app.use('/complaints', complaintRoutes);
+
 app.use('/api/attendance', attendanceRoutes);
+app.use('/attendance', attendanceRoutes);
+
 app.use('/api/behaviour', behaviourRoutes);
+app.use('/behaviour', behaviourRoutes);
+
 app.use('/api/health', healthRoutes);
+app.use('/health', healthRoutes);
+
 app.use('/api/notifications', notificationRoutes);
+app.use('/notifications', notificationRoutes);
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {
