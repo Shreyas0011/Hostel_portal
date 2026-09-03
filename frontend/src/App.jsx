@@ -131,12 +131,12 @@ function App() {
       </Routes>
 
       {/* Global Toast Container */}
-      <div className="toast-container" style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 9999 }}>
+      <div className="toast-container" style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 9999, pointerEvents: 'none' }}>
         {toasts.map((toast) => (
           <div
             key={toast.id}
             className={`toast ${toast.type} active`}
-            style={{ cursor: 'pointer', marginBottom: '10px' }}
+            style={{ cursor: 'pointer', marginBottom: '10px', pointerEvents: 'auto' }}
             onClick={() => dispatch(removeToast(toast.id))}
           >
             {toast.message}

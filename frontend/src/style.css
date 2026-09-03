@@ -3088,13 +3088,19 @@ input:disabled + .slider {
   /* Scan buttons */
   .btn-scan { padding: 10px 12px; font-size: 13px; }
 
-  /* Toast full-width */
+  /* Toast container styling on mobile */
   .toast-container {
-    bottom: 16px;
-    right: 10px;
+    top: 16px;
     left: 10px;
+    right: 10px;
+    bottom: auto !important;
+    height: auto !important;
+    pointer-events: none !important;
   }
-  .toast { width: 100%; }
+  .toast {
+    width: 100%;
+    pointer-events: auto !important;
+  }
 
   /* Demo buttons on login */
   .demo-buttons { grid-template-columns: 1fr 1fr !important; }
