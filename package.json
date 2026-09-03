@@ -7,10 +7,15 @@
     "backend"
   ],
   "scripts": {
-    "dev": "npm run dev --prefix frontend",
+    "dev": "npx concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
     "build": "cd frontend && npm install && npm run build",
     "preview": "npm run preview --prefix frontend",
     "import-students": "npm run seed-hostel --prefix backend"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
   },
   "dependencies": {
     "@babel/helper-string-parser": "^7.29.7"

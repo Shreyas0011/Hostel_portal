@@ -3,9 +3,12 @@ import axios from 'axios';
 import * as db from '../utils/db';
 
 const getBaseURL = () => {
-  let url = import.meta.env.VITE_API_URL || 'https://hostel-portal-jvga.onrender.com/api';
+  let url = import.meta.env.VITE_API_URL || '/api';
   url = url.trim().replace(/\/+$/, '');
-  if (!url.endsWith('/api')) {
+  if (!url.startsWith('http') && !url.startsWith('/')) {
+    url = `/${url}`;
+  }
+  if (!url.endsWith('/api') && url !== '/api') {
     url = `${url}/api`;
   }
   return url;
@@ -21,9 +24,8 @@ const axiosInstance = axios.create({
 
 const useMock = import.meta.env.VITE_USE_MOCK === 'true';
 
-// Setup mock adapter to process requests locally via localStorage database only when mock is explicitly enabled/defaulted
-if (useMock) {
-  axiosInstance.defaults.adapter = async function (config) {
+// Setup mock adapter to process requests locally via localStorage database
+const mockAdapter = async function (config) {
   // Simulate network delay
   await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -144,6 +146,10 @@ if (useMock) {
 
     if (url.includes('/auth/logout') && method === 'post') {
       return { data: { success: true }, status: 200, statusText: 'OK', headers: {}, config };
+    }
+
+    if (url.includes('/auth/change-password') && method === 'post') {
+      return { data: { success: true, message: 'Password changed successfully' }, status: 200, statusText: 'OK', headers: {}, config };
     }
 
     // 2. Student Endpoints
@@ -559,6 +565,9 @@ if (useMock) {
     });
   }
 };
+
+if (useMock) {
+  axiosInstance.defaults.adapter = mockAdapter;
 }
 
 // Request interceptor for Bearer token
@@ -573,13 +582,31 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor for session/auth error handling
+// Response interceptor for session/auth error handling and offline fallback
 axiosInstance.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('hostel_portal_token');
     }
+
+    const isOffline = !error.response || 
+      error.code === 'ERR_NETWORK' || 
+      error.message === 'Network Error' || 
+      !error.status ||
+      error.response?.status === 503 ||
+      (error.response?.status === 500 && typeof error.response?.data === 'string' && error.response?.data?.includes('ECONNREFUSED'));
+
+    // Fallback to local DB adapter if backend server is offline / unreachable
+    if (isOffline) {
+      try {
+        console.warn('[API] Backend server unreachable. Falling back to local database adapter.');
+        return await mockAdapter(error.config);
+      } catch (fallbackErr) {
+        return Promise.reject(fallbackErr);
+      }
+    }
+
     return Promise.reject(error);
   }
 );

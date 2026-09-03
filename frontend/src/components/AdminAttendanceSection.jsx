@@ -5,7 +5,7 @@ import { logScanThunk } from '../redux/attendance/attendanceSlice';
 import { addToast } from '../redux/notification/notificationSlice';
 import { ICONS } from '../constants/icons';
 
-const AdminAttendanceSection = () => {
+const AdminAttendanceSection = ({ isReadOnly = false }) => {
   const dispatch = useDispatch();
   const directory = useSelector((state) => state.student.directory || []);
 
@@ -22,6 +22,8 @@ const AdminAttendanceSection = () => {
 
   const handleScanSubmit = (e) => {
     e.preventDefault();
+    if (isReadOnly) return;
+
     if (!selectedStudentId) {
       dispatch(addToast({ message: 'Please select a student', type: 'error' }));
       return;
@@ -41,6 +43,88 @@ const AdminAttendanceSection = () => {
 
   const selectedStudent = directory.find(s => s.id === selectedStudentId);
   const studentLogs = selectedStudent?.entryExitLogs ? [...selectedStudent.entryExitLogs].reverse() : [];
+
+  if (isReadOnly) {
+    return (
+      <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
+        <div className="dashboard-panel">
+          <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 className="panel-title">{ICONS.shield || ICONS.clock} Gate Movement & Pass Logs</h2>
+            <span className="badge badge-info" style={{ fontSize: '11px', padding: '4px 10px', textTransform: 'uppercase' }}>
+              Read-Only View
+            </span>
+          </div>
+
+          {/* Student Filter Controls */}
+          <div style={{ marginTop: '15px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', background: 'var(--bg-tertiary, #f9fafb)', padding: '15px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+            <div>
+              <label className="form-label" style={{ fontWeight: 600 }}>Search Student</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                placeholder="Search name, USN/ID, room..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="form-label" style={{ fontWeight: 600 }}>Select Student</label>
+              <select 
+                className="form-input" 
+                value={selectedStudentId} 
+                onChange={(e) => setSelectedStudentId(e.target.value)}
+              >
+                {filteredStudents.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.id} - {s.name} ({s.room})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Selected Student Log Table */}
+          <div className="table-responsive" style={{ marginTop: '20px' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '10px', color: '#374151' }}>
+              Activity Logs for {selectedStudent ? `${selectedStudent.name} (${selectedStudent.id})` : 'Selected Student'}
+            </h3>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>Timestamp</th>
+                  <th>Remarks / Gate Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {studentLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan="3" style={{ textAlign: 'center', padding: '30px', color: '#6b7280' }}>
+                      No gate logs found for this student.
+                    </td>
+                  </tr>
+                ) : (
+                  studentLogs.map((log) => (
+                    <tr key={log.id}>
+                      <td>
+                        {log.type === 'entry' ? (
+                          <span className="badge badge-success" style={{ fontSize: '11px' }}>✓ Entry (In)</span>
+                        ) : (
+                          <span className="badge badge-warning" style={{ fontSize: '11px' }}>↳ Exit (Out)</span>
+                        )}
+                      </td>
+                      <td style={{ fontWeight: 600, fontSize: '13px' }}>{new Date(log.timestamp).toLocaleString()}</td>
+                      <td style={{ color: '#4b5563', fontSize: '13px' }}>{log.note || '-'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '20px' }}>

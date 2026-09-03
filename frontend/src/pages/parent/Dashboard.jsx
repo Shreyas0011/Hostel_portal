@@ -41,7 +41,7 @@ const ParentDashboard = () => {
   ) || user;
 
   const handleLogout = () => {
-    dispatch(logoutThunk()).then(() => {
+    dispatch(logoutThunk()).finally(() => {
       navigate('/login');
     });
   };

@@ -28,7 +28,7 @@ const WardenDashboard = () => {
   }, [dispatch]);
 
   const handleLogout = () => {
-    dispatch(logoutThunk()).then(() => {
+    dispatch(logoutThunk()).finally(() => {
       navigate('/login');
     });
   };
@@ -45,7 +45,7 @@ const WardenDashboard = () => {
       case 'leave':
         return <AbsenceCalendar />;
       case 'attendance':
-        return <AdminAttendanceSection />;
+        return <AdminAttendanceSection isReadOnly={true} />;
       case 'behaviour':
         return <BehaviourLogsSection isReadOnly={true} showFullRegistry={true} />;
       case 'complaints':

@@ -15,6 +15,7 @@ import WardenDashboard from './pages/warden/Dashboard';
 import AdminDashboard from './pages/admin/Dashboard';
 import SuperAdminDashboard from './pages/superadmin/Dashboard';
 import MessManagerDashboard from './pages/messManager/Dashboard';
+import FirstLoginModal from './components/common/FirstLoginModal';
 
 function App() {
   const dispatch = useDispatch();
@@ -32,6 +33,7 @@ function App() {
 
   return (
     <>
+      <FirstLoginModal />
       <Routes>
         {/* Root Redirect */}
         <Route

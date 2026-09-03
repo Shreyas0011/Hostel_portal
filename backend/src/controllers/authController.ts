@@ -132,16 +132,33 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
         ]
       }).select('+password +firstLogin');
 
-      if (!user || !user.password) throw new AppError('Invalid email or password', 401);
-      if (!user.isActive)          throw new AppError('Account is deactivated. Contact administrator.', 401);
+      if (!user) throw new AppError('Invalid email or password', 401);
+      if (!user.isActive) throw new AppError('Account is deactivated. Contact administrator.', 401);
 
-      const isValid = (await bcrypt.compare(rawPassword, user.password)) || (await bcrypt.compare(validatedPasswordFallback(rawPassword), user.password));
+      let isValid = false;
+      if (user.password) {
+        if (user.password === rawPassword) {
+          isValid = true;
+        } else if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) {
+          try {
+            isValid = await bcrypt.compare(rawPassword, user.password);
+          } catch (e) {
+            isValid = false;
+          }
+        }
+      }
+
       if (!isValid) throw new AppError('Invalid email or password', 401);
     }
 
     if (!user.isActive) throw new AppError('Account is deactivated. Contact administrator.', 401);
 
-    const token = generateToken({ id: user._id.toString(), email: user.email, role: user.role, name: user.name });
+    const token = generateToken({
+      id: user._id.toString(),
+      email: user.email || user.usn || '',
+      role: user.role || 'student',
+      name: user.name || 'User'
+    });
 
     res.json({
       message: 'Login successful',
@@ -239,9 +256,23 @@ export const changePassword = async (req: AuthRequest, res: Response, next: Next
     if (!currentPassword || !newPassword) throw new AppError('Current and new passwords are required', 400);
 
     const user = await User.findById(req.user!.id).select('+password');
-    if (!user || !user.password) throw new AppError('User not found', 404);
+    if (!user) throw new AppError('User not found', 404);
 
-    const isValid = await bcrypt.compare(currentPassword, user.password);
+    let isValid = false;
+    if (user.password) {
+      if (user.password === currentPassword) {
+        isValid = true;
+      } else if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) {
+        try {
+          isValid = await bcrypt.compare(currentPassword, user.password);
+        } catch (e) {
+          isValid = false;
+        }
+      }
+    } else {
+      isValid = true;
+    }
+
     if (!isValid) throw new AppError('Invalid current password', 401);
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -249,7 +280,18 @@ export const changePassword = async (req: AuthRequest, res: Response, next: Next
     user.firstLogin = false; // Unset firstLogin after password change
     await user.save();
 
-    res.json({ message: 'Password changed successfully' });
+    res.json({
+      success: true,
+      message: 'Password changed successfully',
+      user: {
+        id:          user._id.toString(),
+        name:        user.name,
+        email:       user.email,
+        role:        formatRole(user.role),
+        firstLogin:  false,
+        first_login: false,
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -285,6 +327,14 @@ export const googleAuth = async (req: Request, res: Response, next: NextFunction
       },
       token,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    res.json({ success: true, message: 'Logged out successfully' });
   } catch (error) {
     next(error);
   }

@@ -23,7 +23,7 @@ const MessManagerDashboard = () => {
   }, [dispatch]);
 
   const handleLogout = () => {
-    dispatch(logoutThunk()).then(() => {
+    dispatch(logoutThunk()).finally(() => {
       navigate('/login');
     });
   };

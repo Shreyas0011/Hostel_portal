@@ -19,14 +19,27 @@ export const loginThunk = createAsyncThunk(
 
 export const logoutThunk = createAsyncThunk(
   'auth/logout',
-  async (_, { rejectWithValue }) => {
+  async () => {
     try {
       await authApi.logout();
-      localStorage.removeItem('hostel_portal_token');
-      return true;
     } catch (err) {
+      console.warn('Logout API notification warning:', err);
+    } finally {
       localStorage.removeItem('hostel_portal_token');
-      return rejectWithValue(err.message || 'Logout failed');
+    }
+    return true;
+  }
+);
+
+export const changePasswordThunk = createAsyncThunk(
+  'auth/changePassword',
+  async ({ currentPassword, newPassword }, { rejectWithValue }) => {
+    try {
+      const data = await authApi.changePassword(currentPassword, newPassword);
+      return data;
+    } catch (err) {
+      const errMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Password update failed';
+      return rejectWithValue(errMsg);
     }
   }
 );
@@ -91,6 +104,13 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.loading = false;
         state.error = null;
+      })
+      // Change Password Thunk
+      .addCase(changePasswordThunk.fulfilled, (state) => {
+        if (state.user) {
+          state.user.firstLogin = false;
+          state.user.first_login = false;
+        }
       });
   },
 });

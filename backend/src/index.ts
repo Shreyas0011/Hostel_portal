@@ -33,38 +33,24 @@ app.use('/api', (_req, res, next) => {
 });
 
 // ─── Security middleware ───────────────────────────────────────────────────────
-// Allowed origins: localhost dev + Vercel production + any env-configured domain
-const ALLOWED_ORIGINS = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'https://hostel-portal-kappa.vercel.app',
-  'https://transcend-360.vercel.app',
-  'https://www.tgi360.org',
-  'https://tgi360.org',
-  // Pull any extra origin set in Render environment variables
-  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL.trim()] : []),
-];
-
 const corsOptions: cors.CorsOptions = {
-  origin: (origin, callback) => {
-    // Allow requests with no origin (curl, Postman, server-to-server)
-    if (!origin) return callback(null, true);
-    if (ALLOWED_ORIGINS.includes(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) || /\.vercel\.app$/.test(origin)) {
-      return callback(null, true);
-    }
-    console.warn(`[CORS] Blocked request from origin: ${origin}`);
-    return callback(new Error(`CORS policy: origin ${origin} not allowed`));
-  },
+  origin: true, // Dynamically reflect request origin to enable credentials across all dev/prod origins
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  optionsSuccessStatus: 200, // Some browsers (IE11) choke on 204
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  optionsSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
 
-// Helmet after CORS so it doesn't strip Access-Control-* headers
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+// Helmet after CORS with non-restrictive cross-origin policies
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginOpenerPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  })
+);
 
 // ─── Rate limiting ─────────────────────────────────────────────────────────────
 const limiter = rateLimit({
