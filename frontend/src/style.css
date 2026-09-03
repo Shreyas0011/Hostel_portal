@@ -3326,7 +3326,7 @@ input:disabled + .slider {
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   box-sizing: border-box;
-  touch-action: manipulation;
+  touch-action: auto !important;
   position: relative;
   z-index: 5;
   -webkit-appearance: none;
@@ -3335,6 +3335,7 @@ input:disabled + .slider {
   pointer-events: auto !important;
   -webkit-user-select: text !important;
   user-select: text !important;
+  -webkit-touch-callout: default !important;
   min-height: 48px;
 }
 
@@ -3451,7 +3452,7 @@ input:disabled + .slider {
     padding-top: max(16px, env(safe-area-inset-top));
     padding-bottom: max(16px, env(safe-area-inset-bottom));
     overflow-y: auto;
-    touch-action: pan-y; /* allow vertical scroll, don't block taps */
+    touch-action: auto;
   }
 
   .modern-login-card {
