@@ -3,17 +3,95 @@ import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { ICONS } from '../constants/icons';
 import { getMealAcceptanceType, isStudentOnLeave, isMealBooked, getMealAttendance } from '../utils/db';
-import { getDateString } from '../utils/dateUtils';
+import { getDateString, getDatesInRange } from '../utils/dateUtils';
 import { updateMealAttendanceThunk, optimisticSetAttendance } from '../redux/student/studentSlice';
 
 const WardenDiningSection = ({ onViewStudentDetails }) => {
   const dispatch = useDispatch();
   const directory = useSelector((state) => state.student.directory) || [];
   const currentUser = useSelector((state) => state.auth.user);
-  const canMarkAttendance = ['MessManager', 'Admin', 'SuperAdmin'].includes(currentUser?.role);
+  const canMarkAttendance = ['MessManager', 'Admin', 'SuperAdmin', 'admin', 'superadmin', 'messmanager'].includes(currentUser?.role);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [targetDate, setTargetDate] = useState(getDateString(0));
+  const [fromDate, setFromDate] = useState(getDateString(-7));
+  const [toDate, setToDate] = useState(getDateString(0));
+  const [exportMealType, setExportMealType] = useState('all');
+  const [exportStatusFilter, setExportStatusFilter] = useState('all');
+
+  const handleDownloadCSV = () => {
+    const dates = getDatesInRange(fromDate, toDate);
+    const headers = [
+      'Date',
+      'Student USN / ID',
+      'Student Name',
+      'Room & Block',
+      'Course / Division',
+      'Meal Slot',
+      'Booking Status',
+      'Showed Up (Attended)',
+      'Attendance Summary'
+    ];
+
+    const rows = [headers.join(',')];
+    const mealsToExport = exportMealType === 'all'
+      ? ['breakfast', 'lunch', 'snacks', 'dinner']
+      : [exportMealType];
+
+    dates.forEach((dStr) => {
+      directory.forEach((student) => {
+        mealsToExport.forEach((mealKey) => {
+          const acceptanceType = getMealAcceptanceType(student, dStr, mealKey);
+          const attendance = getMealAttendance(student, dStr, mealKey);
+
+          let bookingLabel = 'Opted Out';
+          if (acceptanceType === 'manual') bookingLabel = 'Booked (Manual)';
+          else if (acceptanceType === 'auto') bookingLabel = 'Booked (Auto)';
+          else if (acceptanceType === 'leave') bookingLabel = 'On Leave';
+          else if (acceptanceType === 'rejected') bookingLabel = 'Explicitly Rejected';
+
+          let attendanceLabel = 'N/A';
+          if (acceptanceType === 'manual' || acceptanceType === 'auto') {
+            if (attendance === 'yes') attendanceLabel = 'YES (Showed Up / Present)';
+            else if (attendance === 'no') attendanceLabel = 'NO (Did Not Show Up / Absent)';
+            else attendanceLabel = 'Not Marked';
+          } else if (acceptanceType === 'leave') {
+            attendanceLabel = 'On Leave';
+          }
+
+          // Apply Status Filter
+          if (exportStatusFilter === 'yes' && attendance !== 'yes') return;
+          if (exportStatusFilter === 'no' && attendance !== 'no') return;
+          if (exportStatusFilter === 'booked' && acceptanceType !== 'manual' && acceptanceType !== 'auto') return;
+          if (exportStatusFilter === 'leave' && acceptanceType !== 'leave') return;
+
+          const row = [
+            `"${dStr}"`,
+            `"${student.id || student.usn || ''}"`,
+            `"${(student.name || '').replace(/"/g, '""')}"`,
+            `"${student.room || ''}"`,
+            `"${(student.division || '').replace(/"/g, '""')}"`,
+            `"${mealKey.toUpperCase()}"`,
+            `"${bookingLabel}"`,
+            `"${attendanceLabel}"`,
+            `"${attendance === 'yes' ? 'PRESENT' : attendance === 'no' ? 'ABSENT' : bookingLabel.toUpperCase()}"`
+          ];
+          rows.push(row.join(','));
+        });
+      });
+    });
+
+    const csvString = rows.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `meal_attendance_report_${fromDate}_to_${toDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const handleMarkAttendance = (studentId, mealKey, status, currentStatus) => {
     const newStatus = currentStatus === status ? '' : status;
@@ -165,6 +243,115 @@ const WardenDiningSection = ({ onViewStudentDetails }) => {
             value={targetDate}
             onChange={(e) => setTargetDate(e.target.value)}
           />
+        </div>
+      </div>
+
+      {/* Custom Date Range CSV Export Card */}
+      <div style={{
+        background: '#f8fafc',
+        border: '1.5px solid #e2e8f0',
+        borderRadius: '12px',
+        padding: '16px 20px',
+        marginBottom: '24px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📊 Custom Meal Attendance &amp; Turnout CSV Export
+            </h3>
+            <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Generate a custom CSV report for students who booked meals and marked attendance (&quot;Yes&quot; showed up / &quot;No&quot; absent) across custom dates.
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div>
+            <label htmlFor="csv-from-date" style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase' }}>
+              From Date:
+            </label>
+            <input
+              type="date"
+              id="csv-from-date"
+              className="form-input"
+              style={{ padding: '6px 10px', fontSize: '13px', margin: 0 }}
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="csv-to-date" style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase' }}>
+              To Date:
+            </label>
+            <input
+              type="date"
+              id="csv-to-date"
+              className="form-input"
+              style={{ padding: '6px 10px', fontSize: '13px', margin: 0 }}
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="csv-meal-filter" style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase' }}>
+              Meal Slot:
+            </label>
+            <select
+              id="csv-meal-filter"
+              className="form-input"
+              style={{ padding: '6px 10px', fontSize: '13px', margin: 0 }}
+              value={exportMealType}
+              onChange={(e) => setExportMealType(e.target.value)}
+            >
+              <option value="all">All Meals (Breakfast, Lunch, Snacks, Dinner)</option>
+              <option value="breakfast">Breakfast Only</option>
+              <option value="lunch">Lunch Only</option>
+              <option value="snacks">Snacks Only</option>
+              <option value="dinner">Dinner Only</option>
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="csv-status-filter" style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase' }}>
+              Attendance Filter:
+            </label>
+            <select
+              id="csv-status-filter"
+              className="form-input"
+              style={{ padding: '6px 10px', fontSize: '13px', margin: 0 }}
+              value={exportStatusFilter}
+              onChange={(e) => setExportStatusFilter(e.target.value)}
+            >
+              <option value="all">All Booking &amp; Attendance Records</option>
+              <option value="yes">Showed Up Only (YES - Present)</option>
+              <option value="no">Did Not Show Up Only (NO - Absent)</option>
+              <option value="booked">Booked Meals Only</option>
+              <option value="leave">On Leave Only</option>
+            </select>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleDownloadCSV}
+            style={{
+              padding: '8px 16px',
+              fontSize: '13px',
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              height: '36px',
+              cursor: 'pointer'
+            }}
+          >
+            📥 Download Custom CSV Data
+          </button>
         </div>
       </div>
 

@@ -118,3 +118,25 @@ export function getMenuStore() {
 export function saveMenuStore(store) {
   localStorage.setItem('hostel_mess_menu', JSON.stringify(store));
 }
+
+export function getDatesInRange(startDateStr, endDateStr) {
+  const dates = [];
+  const start = new Date(startDateStr);
+  const end = new Date(endDateStr);
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+    return [startDateStr];
+  }
+
+  const current = new Date(start);
+  while (current <= end) {
+    const year = current.getFullYear();
+    const month = String(current.getMonth() + 1).padStart(2, '0');
+    const day = String(current.getDate()).padStart(2, '0');
+    dates.push(`${year}-${month}-${day}`);
+    current.setDate(current.getDate() + 1);
+  }
+
+  return dates.length > 0 ? dates : [startDateStr];
+}
+
