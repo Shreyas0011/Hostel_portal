@@ -209,14 +209,14 @@ const Login = () => {
     <div className="modern-login-container">
       <div className="modern-login-card">
         {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <img src="/transcend-logo.png" alt="Transcend Group of Institutions" style={{ height: '110px', objectFit: 'contain' }} />
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+          <img src="/transcend-logo.png" alt="Transcend Group of Institutions" style={{ height: '90px', maxHeight: '12vh', objectFit: 'contain', maxWidth: '100%' }} />
         </div>
 
         <h1 className="modern-login-title">Campus Hostel Portal</h1>
         <p className="modern-login-subtitle">Sign in with your institutional account</p>
 
-        <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: '28px' }}>
+        <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: '24px' }}>
           {/* Email Field */}
           <div style={{ marginBottom: '20px', textAlign: 'left' }}>
             <label className="modern-input-label" htmlFor="login-identifier">EMAIL OR ENROLLMENT ID</label>
@@ -230,6 +230,10 @@ const Login = () => {
                 id="login-identifier"
                 className={`modern-input ${errors.email ? 'error' : ''}`}
                 placeholder="Email or Enrollment ID (e.g. 251D1482)"
+                autoCapitalize="none"
+                autoCorrect="off"
+                autoComplete="username"
+                spellCheck={false}
                 {...register('email', { required: 'Email or Enrollment ID is required' })}
               />
             </div>
@@ -249,6 +253,7 @@ const Login = () => {
                 id="login-password"
                 className={`modern-input ${errors.password ? 'error' : ''}`}
                 placeholder="Enter your password"
+                autoComplete="current-password"
                 {...register('password', { required: 'Password is required' })}
               />
               <button
