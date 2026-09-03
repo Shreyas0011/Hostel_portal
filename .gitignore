@@ -37,6 +37,10 @@ Thumbs.db
 
 # Temp / scripts / logs
 restructure.ps1
+backend/src/scripts/seedAdminCredentials.ts
+backend/src/scripts/seed*.ts
+backend/src/scripts/reset*.ts
+backend/src/scripts/fix*.ts
 *.tmp
 
 # Data files & PII Spreadsheets (CSV, Excel, TSV)
